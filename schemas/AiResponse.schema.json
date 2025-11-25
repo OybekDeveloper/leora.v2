@@ -1,0 +1,87 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AiResponse",
+  "type": "object",
+  "properties": {
+    "narration": { "type": "string" },
+    "insights": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/AiInsightDto" },
+      "maxItems": 8
+    },
+    "actions": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/AiActionDto" },
+      "maxItems": 6
+    }
+  },
+  "required": ["insights", "actions"],
+  "additionalProperties": false,
+  "definitions": {
+    "AiInsightDto": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "enum": [
+            "finance",
+            "planner",
+            "habit",
+            "focus",
+            "combined",
+            "wisdom"
+          ]
+        },
+        "level": {
+          "enum": ["info", "warning", "critical", "celebration"]
+        },
+        "title": { "type": "string", "minLength": 3 },
+        "body": { "type": "string", "minLength": 3 },
+        "related": {
+          "type": "object",
+          "properties": {
+            "goalId": { "type": "string" },
+            "budgetId": { "type": "string" },
+            "debtId": { "type": "string" },
+            "habitId": { "type": "string" },
+            "taskId": { "type": "string" }
+          },
+          "additionalProperties": false
+        },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "required": ["kind", "level", "title", "body"],
+      "additionalProperties": true
+    },
+    "AiActionDto": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "enum": [
+            "create_task",
+            "create_habit",
+            "create_budget",
+            "create_debt",
+            "start_focus",
+            "open_budget",
+            "open_goal",
+            "review_budget"
+          ]
+        },
+        "payload": { "type": "object" },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "priority": {
+          "enum": ["low", "normal", "high"]
+        }
+      },
+      "required": ["type", "payload"],
+      "additionalProperties": false
+    }
+  }
+}

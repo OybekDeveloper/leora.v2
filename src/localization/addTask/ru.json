@@ -1,0 +1,45 @@
+{
+  "title": "Новая задача",
+  "nameLabel": "Название задачи",
+  "namePlaceholder": "Название",
+  "whenLabel": "Когда",
+  "whenOptions": {
+    "today": "Сегодня",
+    "tomorrow": "Завтра",
+    "pick": "Выбрать дату"
+  },
+  "timePlaceholder": "Выбрать время",
+  "category": "Категория",
+  "date": "Дата",
+  "time": "Время",
+  "notes": "Описание",
+  "notesPlaceholder": "Описание (необязательно)",
+  "project": "Проект",
+  "projectPlaceholder": "Выберите проект",
+  "context": "Контекст",
+  "energy": "Энергия",
+  "priority": "Приоритет",
+  "additional": "Дополнительно",
+  "reminder": "Напомнить за",
+  "repeat": "Повтор",
+  "needFocus": "Нужен фокус",
+  "subtasks": "Подзадачи",
+  "subtaskPlaceholder": "Добавить подзадачу",
+  "submit": "Создать задачу",
+  "submitMore": "Создать и ещё",
+  "categories": {
+    "work": "Работа",
+    "personal": "Личное",
+    "health": "Здоровье",
+    "learning": "Обучение",
+    "errands": "Дела"
+  },
+  "priorityOptions": {
+    "low": "Низкий",
+    "medium": "Средний",
+    "high": "Высокий"
+  },
+  "goalLabel": "Связанная цель",
+  "goalUnset": "Без цели",
+  "goalHelper": "Привяжите цель, чтобы ИИ и аналитика точно отслеживали прогресс."
+}

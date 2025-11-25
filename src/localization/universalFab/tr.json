@@ -1,0 +1,19 @@
+{
+  "planner": {
+    "task": "YENİ GÖREV",
+    "goal": "YENİ HEDEF",
+    "habit": "YENİ ALIŞ KANLIK",
+    "focus": "FOKUS MODU"
+  },
+  "finance": {
+    "incomeOutcome": "GELİR/GİDER",
+    "transfer": "TRANSFER",
+    "debt": "BORÇ"
+  },
+  "index": {
+    "task": "GÖREV EKLE",
+    "quickExpense": "HIZLI GİDER",
+    "focus": "FOKUS BAŞLAT",
+    "voiceNote": "SESLİ NOT"
+  }
+}

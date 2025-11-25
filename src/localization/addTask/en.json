@@ -1,0 +1,45 @@
+{
+  "title": "New Task",
+  "nameLabel": "Task title",
+  "namePlaceholder": "Title",
+  "whenLabel": "When",
+  "whenOptions": {
+    "today": "Today",
+    "tomorrow": "Tomorrow",
+    "pick": "Pick a date"
+  },
+  "timePlaceholder": "Choose time",
+  "category": "Category",
+  "date": "Date",
+  "time": "Time",
+  "notes": "Description",
+  "notesPlaceholder": "Description (not necessary)",
+  "project": "Project",
+  "projectPlaceholder": "Choose your project",
+  "context": "Context",
+  "energy": "Energy",
+  "priority": "Priority",
+  "additional": "Additional",
+  "reminder": "Reminder before",
+  "repeat": "Repeat",
+  "needFocus": "Need focus",
+  "subtasks": "Subtasks",
+  "subtaskPlaceholder": "Add a subtask",
+  "submit": "Create task",
+  "submitMore": "Create and more",
+  "categories": {
+    "work": "Work",
+    "personal": "Personal",
+    "health": "Health",
+    "learning": "Learning",
+    "errands": "Errands"
+  },
+  "priorityOptions": {
+    "low": "Low",
+    "medium": "Medium",
+    "high": "High"
+  },
+  "goalLabel": "Linked goal",
+  "goalUnset": "No goal",
+  "goalHelper": "Attach a goal so insights keep your progress connected."
+}

@@ -1,0 +1,87 @@
+{
+  "title": "Maqsad yaratish",
+  "subtitle": "Uzoq muddatli rejalaringizni o'lchanadigan bosqichlarga bo'ling.",
+  "scenarioSection": {
+    "title": "Ssenariy",
+    "subtitle": "Shablonlar metrikaning turi va muddatini avtomatik belgilaydi"
+  },
+  "scenarios": {
+    "financialSave": {
+      "title": "Jamg'arma maqsadi",
+      "subtitle": "Zaxira, safar, yirik xarid"
+    },
+    "financialSpend": {
+      "title": "Sarflash limiti",
+      "subtitle": "Qancha sarflash mumkinligini kuzating"
+    },
+    "habitSupport": {
+      "title": "Odat / sog'liq",
+      "subtitle": "Haftadagi mashg'ulotlar, rituallar"
+    },
+    "skillGrowth": {
+      "title": "Ko'nikma va o'qish",
+      "subtitle": "O'qilgan soatlar, tugagan darslar"
+    },
+    "custom": {
+      "title": "Moslashtirilgan",
+      "subtitle": "O'zingiz uchun metrikaning turini tanlang"
+    }
+  },
+  "detailsSection": {
+    "title": "Ma'lumot",
+    "titleLabel": "Maqsad nomi",
+    "descriptionLabel": "Nega muhim",
+    "titlePlaceholder": "Masalan, Zaxira",
+    "descriptionPlaceholder": "Qo'shimcha izoh yoki muvaffaqiyat mezonlarini yozing"
+  },
+  "measurementSection": {
+    "title": "O'lchov",
+    "metricLabel": "Metriqa",
+    "metricOptions": {
+      "amount": "Summasi",
+      "count": "Soni",
+      "duration": "Davomiyligi",
+      "custom": "Boshqa"
+    },
+    "currentLabel": "Joriy qiymat",
+    "targetLabel": "Maqsad qiymati",
+    "unitLabel": "Birlik",
+    "currencyLabel": "Valyuta",
+    "financeModeLabel": "Moliyaviy fokus",
+    "financeModes": {
+      "save": "Jamg'armoq",
+      "spend": "Sarflash",
+      "debt_close": "Qarz yopish"
+    },
+    "placeholders": {
+      "current": "0",
+      "target": "10000",
+      "unit": "km, sessiya..."
+    }
+  },
+  "timelineSection": {
+    "title": "Muddat",
+    "startLabel": "Boshlanish sanasi",
+    "dueLabel": "Yakun sanasi",
+    "noDate": "Sanani tanlang"
+  },
+  "milestoneSection": {
+    "title": "Bosqichlar",
+    "description": "Yo'l davomida muhim nuqtalarni belgilab boring.",
+    "percentLabel": "Progress %",
+    "dueLabel": "Muddat",
+    "add": "Bosqich qo'shish",
+    "empty": "Hali bosqichlar yo'q",
+    "delete": "O'chirish"
+  },
+  "actions": {
+    "cancel": "Yopish",
+    "create": "Maqsad yaratish",
+    "createMore": "Yaratib davom etish",
+    "update": "Saqlash"
+  },
+  "alerts": {
+    "missingTitle": "Avval maqsad nomini kiriting.",
+    "invalidTarget": "Noldan katta maqsad qiymatini kiriting."
+  }
+}

@@ -1,0 +1,87 @@
+{
+  "title": "Hedef oluştur",
+  "subtitle": "Uzun vadeli planları ölçülebilir adımlara çevirin.",
+  "scenarioSection": {
+    "title": "Senaryo",
+    "subtitle": "Şablonlar metrik ve süreyi otomatik ayarlar"
+  },
+  "scenarios": {
+    "financialSave": {
+      "title": "Tasarruf hedefi",
+      "subtitle": "Acil durum fonu, tatil, büyük alışveriş"
+    },
+    "financialSpend": {
+      "title": "Harcama limiti",
+      "subtitle": "Ne kadar harcayabileceğinizi takip edin"
+    },
+    "habitSupport": {
+      "title": "Alışkanlık / iyi yaşam",
+      "subtitle": "Haftalık seanslar, rutinler"
+    },
+    "skillGrowth": {
+      "title": "Beceri ve öğrenme",
+      "subtitle": "Çalışılan saatler, tamamlanan dersler"
+    },
+    "custom": {
+      "title": "Özel",
+      "subtitle": "Kendi metriğinizi seçin"
+    }
+  },
+  "detailsSection": {
+    "title": "Detaylar",
+    "titleLabel": "Hedef adı",
+    "descriptionLabel": "Neden önemli",
+    "titlePlaceholder": "Örn. Acil durum fonu",
+    "descriptionPlaceholder": "Ek bağlam veya başarı kriterleri ekleyin"
+  },
+  "measurementSection": {
+    "title": "Ölçüm",
+    "metricLabel": "Metriği",
+    "metricOptions": {
+      "amount": "Tutar",
+      "count": "Adet",
+      "duration": "Süre",
+      "custom": "Diğer"
+    },
+    "currentLabel": "Güncel değer",
+    "targetLabel": "Hedef değeri",
+    "unitLabel": "Birim",
+    "currencyLabel": "Para birimi",
+    "financeModeLabel": "Finans odağı",
+    "financeModes": {
+      "save": "Birikim",
+      "spend": "Harcama",
+      "debt_close": "Borcu kapat"
+    },
+    "placeholders": {
+      "current": "0",
+      "target": "10000",
+      "unit": "km, seans..."
+    }
+  },
+  "timelineSection": {
+    "title": "Zaman çizelgesi",
+    "startLabel": "Başlangıç tarihi",
+    "dueLabel": "Hedef tarih",
+    "noDate": "Tarih seç"
+  },
+  "milestoneSection": {
+    "title": "Kilometre taşları",
+    "description": "Yolculuk boyunca önemli dönemeçleri takip edin.",
+    "percentLabel": "İlerleme %",
+    "dueLabel": "Teslim tarihi",
+    "add": "Kilometre taşı ekle",
+    "empty": "Henüz kilometre taşı yok",
+    "delete": "Kaldır"
+  },
+  "actions": {
+    "cancel": "Kapat",
+    "create": "Hedef oluştur",
+    "createMore": "Oluştur ve devam et",
+    "update": "Değişiklikleri kaydet"
+  },
+  "alerts": {
+    "missingTitle": "Önce hedefe bir ad verin.",
+    "invalidTarget": "Sıfırdan büyük bir hedef değeri girin."
+  }
+}

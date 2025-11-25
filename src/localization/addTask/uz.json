@@ -1,0 +1,45 @@
+{
+  "title": "Yangi vazifa",
+  "nameLabel": "Vazifa nomi",
+  "namePlaceholder": "Sarlavha",
+  "whenLabel": "Qachon",
+  "whenOptions": {
+    "today": "Bugun",
+    "tomorrow": "Ertaga",
+    "pick": "Sanani tanlash"
+  },
+  "timePlaceholder": "Vaqtni tanlang",
+  "category": "Kategoriya",
+  "date": "Sana",
+  "time": "Vaqt",
+  "notes": "Tavsif",
+  "notesPlaceholder": "Tavsif (majburiy emas)",
+  "project": "Loyiha",
+  "projectPlaceholder": "Loyihangizni tanlang",
+  "context": "Kontekst",
+  "energy": "Energiya",
+  "priority": "Ustuvorlik",
+  "additional": "Qo'shimcha",
+  "reminder": "Oldindan eslatma",
+  "repeat": "Takrorlash",
+  "needFocus": "Fokus kerak",
+  "subtasks": "Quyi vazifalar",
+  "subtaskPlaceholder": "Quyi vazifa qo'shish",
+  "submit": "Vazifani yaratish",
+  "submitMore": "Yaratish va davom etish",
+  "categories": {
+    "work": "Ish",
+    "personal": "Shaxsiy",
+    "health": "Salomatlik",
+    "learning": "O'qish",
+    "errands": "Topshiriqlar"
+  },
+  "priorityOptions": {
+    "low": "Past",
+    "medium": "O'rta",
+    "high": "Yuqori"
+  },
+  "goalLabel": "Maqsad bilan bog'lash",
+  "goalUnset": "Maqsad yo'q",
+  "goalHelper": "AI va tahlillar progressni ko'rishi uchun maqsadni bog'lang."
+}

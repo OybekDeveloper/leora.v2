@@ -1,0 +1,87 @@
+{
+  "title": "Create goal",
+  "subtitle": "Break long-term ambitions into measurable progress.",
+  "scenarioSection": {
+    "title": "Scenario",
+    "subtitle": "Templates adjust metric and timeline automatically."
+  },
+  "scenarios": {
+    "financialSave": {
+      "title": "Savings goal",
+      "subtitle": "Emergency fund, travel, big purchases"
+    },
+    "financialSpend": {
+      "title": "Spending guardrails",
+      "subtitle": "Control how much you can spend"
+    },
+    "habitSupport": {
+      "title": "Wellness habit",
+      "subtitle": "Sessions per week, routines"
+    },
+    "skillGrowth": {
+      "title": "Skill & learning",
+      "subtitle": "Hours studied, lessons finished"
+    },
+    "custom": {
+      "title": "Custom",
+      "subtitle": "Choose your own metric"
+    }
+  },
+  "detailsSection": {
+    "title": "Details",
+    "titleLabel": "Goal title",
+    "descriptionLabel": "Why it matters",
+    "titlePlaceholder": "e.g. Emergency fund",
+    "descriptionPlaceholder": "Add extra context or success criteria"
+  },
+  "measurementSection": {
+    "title": "Measurement",
+    "metricLabel": "Metric",
+    "metricOptions": {
+      "amount": "Amount",
+      "count": "Count",
+      "duration": "Duration",
+      "custom": "Custom"
+    },
+    "currentLabel": "Current value",
+    "targetLabel": "Target value",
+    "unitLabel": "Unit",
+    "currencyLabel": "Currency",
+    "financeModeLabel": "Finance focus",
+    "financeModes": {
+      "save": "Save",
+      "spend": "Spend",
+      "debt_close": "Pay debt"
+    },
+    "placeholders": {
+      "current": "0",
+      "target": "10000",
+      "unit": "km, sessions..."
+    }
+  },
+  "timelineSection": {
+    "title": "Timeline",
+    "startLabel": "Start date",
+    "dueLabel": "Target date",
+    "noDate": "Select date"
+  },
+  "milestoneSection": {
+    "title": "Milestones",
+    "description": "Track important checkpoints along the journey.",
+    "percentLabel": "Progress %",
+    "dueLabel": "Due date",
+    "add": "Add milestone",
+    "empty": "No milestones yet",
+    "delete": "Remove"
+  },
+  "actions": {
+    "cancel": "Close",
+    "create": "Create goal",
+    "createMore": "Create & add another",
+    "update": "Save changes"
+  },
+  "alerts": {
+    "missingTitle": "Name the goal first.",
+    "invalidTarget": "Specify a target value greater than zero."
+  }
+}

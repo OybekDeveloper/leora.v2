@@ -1,0 +1,19 @@
+{
+  "planner": {
+    "task": "مهمة جديدة",
+    "goal": "هدف جديد",
+    "habit": "عادة جديدة",
+    "focus": "وضع التركيز"
+  },
+  "finance": {
+    "incomeOutcome": "الدخل/المصروف",
+    "transfer": "تحويل",
+    "debt": "دين"
+  },
+  "index": {
+    "task": "إضافة مهمة",
+    "quickExpense": "مصروف سريع",
+    "focus": "بدء التركيز",
+    "voiceNote": "ملاحظة صوتية"
+  }
+}

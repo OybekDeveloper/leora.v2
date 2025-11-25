@@ -1,0 +1,87 @@
+{
+  "title": "إنشاء هدف",
+  "subtitle": "حوّل خططك الطويلة إلى تقدم يمكن قياسه.",
+  "scenarioSection": {
+    "title": "السيناريو",
+    "subtitle": "القوالب تضبط المقياس والمدة تلقائياً"
+  },
+  "scenarios": {
+    "financialSave": {
+      "title": "هدف ادخار",
+      "subtitle": "صندوق طوارئ، سفر، شراء كبير"
+    },
+    "financialSpend": {
+      "title": "ضوابط الإنفاق",
+      "subtitle": "راقب المبلغ المسموح بصرفه"
+    },
+    "habitSupport": {
+      "title": "عادة / عافية",
+      "subtitle": "جلسات أسبوعية وروتين"
+    },
+    "skillGrowth": {
+      "title": "مهارة وتعلم",
+      "subtitle": "ساعات دراسة، دروس مكتملة"
+    },
+    "custom": {
+      "title": "مخصص",
+      "subtitle": "اختر المقياس المناسب لك"
+    }
+  },
+  "detailsSection": {
+    "title": "التفاصيل",
+    "titleLabel": "اسم الهدف",
+    "descriptionLabel": "لماذا هو مهم",
+    "titlePlaceholder": "مثال: صندوق الطوارئ",
+    "descriptionPlaceholder": "أضف سياقاً أو معايير للنجاح"
+  },
+  "measurementSection": {
+    "title": "القياس",
+    "metricLabel": "المقياس",
+    "metricOptions": {
+      "amount": "المبلغ",
+      "count": "العدد",
+      "duration": "المدة",
+      "custom": "مخصص"
+    },
+    "currentLabel": "القيمة الحالية",
+    "targetLabel": "القيمة المستهدفة",
+    "unitLabel": "الوحدة",
+    "currencyLabel": "العملة",
+    "financeModeLabel": "التركيز المالي",
+    "financeModes": {
+      "save": "ادخار",
+      "spend": "إنفاق",
+      "debt_close": "سداد دين"
+    },
+    "placeholders": {
+      "current": "0",
+      "target": "10000",
+      "unit": "كم، جلسات..."
+    }
+  },
+  "timelineSection": {
+    "title": "الجدول الزمني",
+    "startLabel": "تاريخ البدء",
+    "dueLabel": "تاريخ الهدف",
+    "noDate": "اختر تاريخاً"
+  },
+  "milestoneSection": {
+    "title": "المعالم",
+    "description": "تعقّب نقاط التقدم المهمة في رحلتك.",
+    "percentLabel": "نسبة التقدم %",
+    "dueLabel": "تاريخ الاستحقاق",
+    "add": "إضافة معلم",
+    "empty": "لا توجد معالم بعد",
+    "delete": "إزالة"
+  },
+  "actions": {
+    "cancel": "إغلاق",
+    "create": "إنشاء الهدف",
+    "createMore": "إنشاء ومتابعة",
+    "update": "حفظ التغييرات"
+  },
+  "alerts": {
+    "missingTitle": "يرجى تسمية الهدف أولاً.",
+    "invalidTarget": "أدخل قيمة مستهدفة أكبر من الصفر."
+  }
+}

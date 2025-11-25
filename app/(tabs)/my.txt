@@ -1,0 +1,59 @@
+import React from 'react';
+import { withLayoutContext } from 'expo-router';
+import {
+  createNativeBottomTabNavigator,
+  NativeBottomTabNavigationOptions,
+  NativeBottomTabNavigationEventMap,
+} from '@bottom-tabs/react-navigation';
+import { ParamListBase, TabNavigationState } from '@react-navigation/native';
+
+const BottomTabNavigator = createNativeBottomTabNavigator().Navigator;
+
+const Tabs = withLayoutContext<
+  NativeBottomTabNavigationOptions,
+  typeof BottomTabNavigator,
+  TabNavigationState<ParamListBase>,
+  NativeBottomTabNavigationEventMap
+>(BottomTabNavigator);
+
+export default function TabsLayout() {
+  return (
+    <Tabs>
+      <Tabs.Screen
+        name="index"
+        options={{
+          tabBarLabel: 'Home',
+          tabBarIcon: () => ({ sfSymbol: "house" })
+        }}
+      />
+      <Tabs.Screen
+        name="(finance)"
+        options={{
+          tabBarLabel: 'Finance',
+          tabBarIcon: () => ({ sfSymbol: "house" })
+        }}
+      />
+      <Tabs.Screen
+        name="(planner)"
+        options={{
+          tabBarLabel: 'Planner',
+          tabBarIcon: () => ({ sfSymbol: "house" })
+        }}
+      />
+      <Tabs.Screen
+        name="(insights)"
+        options={{
+          tabBarLabel: 'Insights',
+          tabBarIcon: () => ({ sfSymbol: "house" })
+        }}
+      />
+      <Tabs.Screen
+        name="more"
+        options={{
+          tabBarLabel: 'More',
+          tabBarIcon: () => ({ sfSymbol: "house" })
+        }}
+      />
+    </Tabs>
+  );
+}

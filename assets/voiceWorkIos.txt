@@ -1,0 +1,1216 @@
+import React, {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import {
+  ActivityIndicator,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
+} from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import Svg, {
+  Circle,
+  ClipPath,
+  Defs,
+  G,
+  LinearGradient as SvgLinearGradient,
+  Path,
+  RadialGradient,
+  Stop,
+} from 'react-native-svg';
+import {
+  Activity,
+  ArrowDownRight,
+  ArrowUpRight,
+  Check,
+  Edit3,
+  Mic,
+  Repeat2,
+  Square,
+  X,
+} from 'lucide-react-native';
+import { useRouter } from 'expo-router';
+import {
+  RecordingPresets,
+  getRecordingPermissionsAsync,
+  requestRecordingPermissionsAsync,
+  setAudioModeAsync,
+  useAudioRecorder,
+  useAudioRecorderState,
+} from 'expo-audio';
+
+import { AdaptiveGlassView } from '@/components/ui/AdaptiveGlassView';
+import { Theme, useAppTheme } from '@/constants/theme';
+
+type VoiceStage = 'idle' | 'listening' | 'analyzing';
+
+type RecognizedRequest = {
+  id: string;
+  intent: 'Outcome' | 'Income';
+  amount: string;
+  status: string;
+  category: string;
+  account: string;
+};
+
+type WaveLayer = {
+  position: number;
+  offset: number;
+  speed: number;
+  phase: number;
+  dashed: boolean;
+};
+
+const HEADLINES: Record<VoiceStage, { title: string; subtitle: string }> = {
+  idle: {
+    title: 'Voice assistant',
+    subtitle: 'Speak naturally, as if you are talking to a friend.',
+  },
+  listening: {
+    title: 'Listening',
+    subtitle: 'Mention sums, tasks, or context — we pick up every detail.',
+  },
+  analyzing: {
+    title: 'Analyzing',
+    subtitle: 'Data processing and AI matching in progress.',
+  },
+};
+
+const RECOGNIZED_REQUESTS: RecognizedRequest[] = [
+  {
+    id: 'req-outcome',
+    intent: 'Outcome',
+    status: 'AI processed',
+    amount: '$100',
+    category: 'Restaurant',
+    account: 'Balance · Cash',
+  },
+  {
+    id: 'req-income',
+    intent: 'Income',
+    status: 'AI processed',
+    amount: '$50',
+    category: 'Work',
+    account: 'Balance · Cash',
+  },
+];
+
+const HISTORY_ENTRY = {
+  title: 'Restaurant spend',
+  time: '09:00',
+  description: 'Spent one hundred dollars at the restaurant.',
+};
+
+const SUMMARY_TEXT =
+  'Spent 100 dollars at the restaurant and tagged it under Outcome · Balance Cash.';
+
+const WAVE_LAYERS = 32;
+const NUM_WAVE_POINTS = 200;
+const ANALYSIS_DURATION = 2000;
+
+const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
+
+const createWaveLayers = (count: number): WaveLayer[] => {
+  return Array.from({ length: count }).map((_, index) => {
+    const position = index / Math.max(1, count - 1);
+    return {
+      position,
+      offset: (position - 0.5) * 0.18,
+      speed: 0.75 + (index % 3) * 0.12,
+      phase: position * Math.PI * 1.2,
+      dashed: index % 5 === 0,
+    };
+  });
+};
+
+const buildWavePath = (
+  layer: WaveLayer,
+  radius: number,
+  time: number,
+  intensity: number,
+) => {
+  const centerX = radius;
+  const centerY = radius;
+  const startX = centerX - radius;
+  const width = radius * 2;
+  const points = NUM_WAVE_POINTS;
+  const maxHeight = 6 + intensity * 55;
+  let path = '';
+
+  for (let i = 0; i <= points; i += 1) {
+    const t = i / points;
+    const x = startX + t * width;
+    const wave1 = Math.sin(t * Math.PI * 2.8 + time * 2.2 * layer.speed + layer.phase);
+    const wave2 = Math.sin(t * Math.PI * 5.6 - time * 1.2 * layer.speed + layer.phase * 1.05);
+    const envelope = Math.pow(Math.sin(t * Math.PI), 1.5);
+    const yBase = centerY + layer.offset * maxHeight * 0.45;
+    const waveBlend = (wave1 * 0.7 + wave2 * 0.3) * envelope;
+    const y = yBase + waveBlend * maxHeight * Math.max(0.12, intensity);
+    path += `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)} `;
+  }
+
+  return path.trim();
+};
+
+const VoiceSphere: React.FC<{
+  stage: VoiceStage;
+  size?: number;
+  intensityTarget?: number;
+  accentColor?: string;
+}> = ({ stage, size = 280, intensityTarget = 0, accentColor = '#ffffff' }) => {
+  const gradientId = useId();
+  const radius = size / 2;
+  const showWave = stage !== 'idle';
+  const [tick, setTick] = useState(0);
+  const layers = useMemo(() => createWaveLayers(WAVE_LAYERS), []);
+  const amplitudeRef = useRef(0);
+
+  useEffect(() => {
+    amplitudeRef.current = intensityTarget;
+  }, [intensityTarget]);
+
+  useEffect(() => {
+    let frame: number;
+    const animate = () => {
+      amplitudeRef.current +=
+        (intensityTarget - amplitudeRef.current) * 0.12;
+      setTick((prev) => (prev + 1) % Number.MAX_SAFE_INTEGER);
+      frame = requestAnimationFrame(animate);
+    };
+    frame = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(frame);
+  }, [intensityTarget]);
+
+  const wavePaths = useMemo(() => {
+    if (!showWave) return [];
+    const time = tick / 28;
+    const activeAmp = Math.max(0.05, amplitudeRef.current);
+    const numLayers = Math.max(16, Math.floor(20 + activeAmp * 10));
+    return layers.slice(0, numLayers).map((layer) => {
+      const depth = 1 - Math.abs(layer.position - 0.5) * 2;
+      const alpha =
+        lerp(0.25, 0.8, depth) *
+        lerp(0.4, 1, activeAmp || (stage === 'analyzing' ? 0.2 : 0.1));
+      return {
+        d: buildWavePath(
+          layer,
+          radius * 1,
+          time * layer.speed,
+          Math.max(0.06, activeAmp),
+        ),
+        opacity: alpha,
+        width: lerp(0.15, 0.45, depth),
+        dashed: layer.dashed && activeAmp > 0.35 ? [3, 6] : undefined,
+      };
+    });
+  }, [layers, radius, showWave, stage, tick]);
+
+  return (
+    <View style={{ width: "100%", height: size, justifyContent: 'center', alignItems: 'center' }}>
+      <Svg width={size} height={size} style={{ alignContent: 'center', justifyContent: 'center' }}>
+        <Defs>
+          <RadialGradient
+            id={`${gradientId}-base`}
+            cx="48%"
+            cy="45%"
+            r="55%"
+            fx="38%"
+            fy="30%"
+          >
+            <Stop offset="0%" stopColor="#0f1c2d" />
+            <Stop offset="55%" stopColor="#0a1320" />
+            <Stop offset="85%" stopColor="#070c17" />
+            <Stop offset="100%" stopColor="#060910" />
+          </RadialGradient>
+          <SvgLinearGradient
+            id={`${gradientId}-waves`}
+            x1="0%"
+            y1="0%"
+            x2="100%"
+            y2="0%"
+          >
+            <Stop offset="0%" stopColor="#0cd8ff" />
+            <Stop offset="28%" stopColor="#50b4ff" />
+            <Stop offset="52%" stopColor="#a078ff" />
+            <Stop offset="75%" stopColor="#dc6ec8" />
+            <Stop offset="100%" stopColor="#ff78b4" />
+          </SvgLinearGradient>
+          <ClipPath id={`${gradientId}-clip`}>
+            <Circle cx={radius} cy={radius} r={radius * 0.94} />
+          </ClipPath>
+        </Defs>
+        <Circle
+          cx={radius}
+          cy={radius}
+          r={radius * 0.94}
+          fill={`url(#${gradientId}-base)`}
+        />
+        <G clipPath={`url(#${gradientId}-clip)`}>
+          {wavePaths.map((wave, index) => (
+            <Path
+              key={index}
+              d={wave.d}
+              stroke={`url(#${gradientId}-waves)`}
+              strokeWidth={wave.width}
+              strokeDasharray={wave.dashed}
+              opacity={wave.opacity}
+              fill="none"
+              strokeLinecap="round"
+            />
+          ))}
+        </G>
+        <Circle
+          cx={radius}
+          cy={radius}
+          r={radius * 0.94}
+          stroke="rgba(255,255,255,0.28)"
+          strokeWidth={1.4}
+          fill="none"
+        />
+      </Svg>
+
+      {!showWave && (
+        <View style={styles.iconOverlay}>
+          <Mic size={38} color={accentColor} />
+        </View>
+      )}
+    </View>
+  );
+};
+
+const ActionIconButton = ({
+  icon: Icon,
+  label,
+  color,
+  backgroundColor,
+  borderColor,
+}: {
+  icon: typeof Check;
+  label: string;
+  color: string;
+  backgroundColor: string;
+  borderColor: string;
+}) => (
+  <TouchableOpacity
+    accessibilityRole="button"
+    accessibilityLabel={label}
+    style={[
+      styles.actionIcon,
+      { backgroundColor, borderColor },
+    ]}
+    activeOpacity={0.9}
+  >
+    <Icon size={18} color={color} />
+  </TouchableOpacity>
+);
+
+const RecognizedCard = ({
+  item,
+  theme,
+}: {
+  item: RecognizedRequest;
+  theme: Theme;
+}) => {
+  const Icon = item.intent === 'Income' ? ArrowUpRight : ArrowDownRight;
+  const intentColor =
+    item.intent === 'Income' ? theme.colors.success : theme.colors.danger;
+
+  return (
+    <AdaptiveGlassView
+      style={[
+        styles.recognitionCard,
+        {
+          backgroundColor: theme.colors.card,
+        },
+      ]}
+    >
+      <View style={styles.cardHeader}>
+        <View
+          style={[
+            styles.intentBadge,
+            { borderColor: theme.colors.border, backgroundColor: theme.colors.cardItem },
+          ]}
+        >
+          <Icon size={18} color={intentColor} />
+        </View>
+        <View style={styles.intentInfo}>
+          <Text style={[styles.intentTitle, { color: theme.colors.textPrimary }]}>
+            {item.intent}
+          </Text>
+          <Text style={[styles.intentSubtitle, { color: theme.colors.textSecondary }]}>
+            {item.status}
+          </Text>
+        </View>
+        <Text style={[styles.intentAmount, { color: theme.colors.textPrimary }]}>
+          {item.amount}
+        </Text>
+      </View>
+      <View style={styles.cardMetaRow}>
+        <View style={styles.metaColumn}>
+          <Text style={[styles.metaLabel, { color: theme.colors.textSecondary }]}>
+            Category
+          </Text>
+          <Text style={[styles.metaValue, { color: theme.colors.textPrimary }]}>
+            {item.category}
+          </Text>
+        </View>
+        <View style={styles.metaColumn}>
+          <Text style={[styles.metaLabel, { color: theme.colors.textSecondary }]}>
+            Balance
+          </Text>
+          <Text style={[styles.metaValue, { color: theme.colors.textPrimary }]}>
+            {item.account}
+          </Text>
+        </View>
+      </View>
+      <View style={styles.cardActions}>
+        <ActionIconButton
+          icon={Check}
+          label="Approve request"
+          color={theme.colors.textPrimary}
+          backgroundColor={theme.colors.cardItem}
+          borderColor={theme.colors.border}
+        />
+        <ActionIconButton
+          icon={Edit3}
+          label="Edit details"
+          color={theme.colors.textPrimary}
+          backgroundColor={theme.colors.cardItem}
+          borderColor={theme.colors.border}
+        />
+        <ActionIconButton
+          icon={Repeat2}
+          label="Repeat action"
+          color={theme.colors.textPrimary}
+          backgroundColor={theme.colors.cardItem}
+          borderColor={theme.colors.border}
+        />
+      </View>
+    </AdaptiveGlassView>
+  );
+};
+
+const HistoryCard = ({ theme }: { theme: Theme }) => (
+  <View style={styles.historySection}>
+    <View style={[styles.sheetHandle, { backgroundColor: theme.colors.border }]} />
+    <Text style={[styles.sectionTitle, { color: theme.colors.textSecondary }]}>
+      Requests history
+    </Text>
+    <AdaptiveGlassView
+      style={[
+        styles.historyCard,
+        {
+          backgroundColor: theme.colors.card,
+          borderColor: theme.colors.border,
+        },
+      ]}
+    >
+      <View style={styles.historyHeader}>
+        <View>
+          <Text style={[styles.historyTitle, { color: theme.colors.textPrimary }]}>
+            {HISTORY_ENTRY.title}
+          </Text>
+          <Text style={[styles.historyMeta, { color: theme.colors.textSecondary }]}>
+            {HISTORY_ENTRY.description}
+          </Text>
+        </View>
+        <Text style={[styles.historyTime, { color: theme.colors.textSecondary }]}>
+          {HISTORY_ENTRY.time}
+        </Text>
+      </View>
+      <TouchableOpacity style={styles.repeatButton} activeOpacity={0.9}>
+        <Repeat2 size={15} color={theme.colors.textPrimary} />
+        <Text style={[styles.repeatLabel, { color: theme.colors.textPrimary }]}>
+          Repeat request
+        </Text>
+      </TouchableOpacity>
+    </AdaptiveGlassView>
+  </View>
+);
+
+const SummaryCard = ({
+  theme,
+  analyzing = false,
+}: {
+  theme: Theme;
+  analyzing?: boolean;
+}) => (
+  <AdaptiveGlassView
+    style={[
+      styles.summaryCard,
+      {
+        backgroundColor: theme.colors.card,
+        borderColor: theme.colors.border,
+      },
+    ]}
+  >
+    <Text style={[styles.summaryLabel, { color: theme.colors.textSecondary }]}>
+      {analyzing ? 'Analyzing' : 'Recognized'}
+    </Text>
+    <Text style={[styles.summaryTitle, { color: theme.colors.textPrimary }]}>
+      {analyzing ? 'Data processing...' : 'Latest statement'}
+    </Text>
+    {!analyzing && (
+      <Text style={[styles.summaryBody, { color: theme.colors.textSecondary }]}>
+        {SUMMARY_TEXT}
+      </Text>
+    )}
+    {analyzing && (
+      <View style={styles.processingRow}>
+        <Activity size={14} color={theme.colors.textSecondary} />
+        <Text style={[styles.processingText, { color: theme.colors.textSecondary }]}>
+          AI is matching entities
+        </Text>
+      </View>
+    )}
+  </AdaptiveGlassView>
+);
+
+const VoiceMode = () => {
+  const router = useRouter();
+  const theme = useAppTheme();
+  const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const stylesWithTheme = useMemo(() => createStyles(theme), [theme]);
+  const [stage, setStage] = useState<VoiceStage>('idle');
+  const [inputLevel, setInputLevel] = useState(0);
+  const [micStatus, setMicStatus] = useState<'unknown' | 'granted' | 'denied'>(
+    'unknown',
+  );
+  const [hasAnalysis, setHasAnalysis] = useState(false);
+  const recorder = useAudioRecorder(
+    {
+      ...RecordingPresets.HIGH_QUALITY,
+      isMeteringEnabled: true,
+    },
+  );
+  const recorderState = useAudioRecorderState(recorder, 80);
+  const analyzingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scrollRef = useRef<ScrollView>(null);
+  const resultsAnchorY = useRef(0);
+
+  const sphereSize = Math.min(width - 64, 320);
+
+  const clearAnalyzingTimer = useCallback(() => {
+    if (analyzingTimerRef.current) {
+      clearTimeout(analyzingTimerRef.current);
+      analyzingTimerRef.current = null;
+    }
+  }, []);
+
+  const clearAllTimers = useCallback(() => {
+    clearAnalyzingTimer();
+  }, [clearAnalyzingTimer]);
+
+  const ensurePermission = useCallback(async () => {
+    if (micStatus === 'granted') return true;
+    try {
+      let granted = false;
+      const current = await getRecordingPermissionsAsync();
+      granted = current.status === 'granted';
+      if (!granted) {
+        const requestResult = await requestRecordingPermissionsAsync();
+        granted = requestResult.status === 'granted';
+      }
+      if (granted) {
+        await setAudioModeAsync({
+          allowsRecording: true,
+          playsInSilentMode: true,
+          shouldPlayInBackground: false,
+          shouldRouteThroughEarpiece: false,
+          interruptionMode: 'doNotMix',
+          interruptionModeAndroid: 'doNotMix',
+        });
+        setMicStatus('granted');
+        return true;
+      }
+      setMicStatus('denied');
+      return false;
+    } catch {
+      setMicStatus('denied');
+      return false;
+    }
+  }, [micStatus]);
+
+  const ambientLevelRef = useRef(0.02);
+  const updateInputLevelFromMetering = useCallback(
+    (metering: number | undefined, isListening: boolean) => {
+      if (typeof metering !== 'number') return;
+      const linear = clamp01(Math.pow(10, metering / 20)); // convert from dBFS to linear
+      const smoothing = isListening ? 0.93 : 0.8;
+      ambientLevelRef.current =
+        ambientLevelRef.current * smoothing + linear * (1 - smoothing);
+      const platformFloorFactor = Platform.OS === 'android' ? 0.75 : 1;
+      const noiseFloor =
+        ambientLevelRef.current *
+        (isListening ? 1.15 : 1) *
+        platformFloorFactor;
+      const signal = Math.max(0, linear - noiseFloor);
+      const platformGain = Platform.OS === 'android' ? 26 : 14;
+      const responseCurve = Platform.OS === 'android' ? 0.78 : 0.85;
+      const scaled = clamp01(Math.pow(signal * platformGain, responseCurve));
+      setInputLevel((prev) => prev * 0.35 + scaled * 0.65);
+    },
+    [],
+  );
+
+  useEffect(() => {
+    void ensurePermission();
+  }, [ensurePermission]);
+
+  useEffect(() => {
+    updateInputLevelFromMetering(recorderState.metering, stage === 'listening');
+  }, [recorderState.metering, stage, updateInputLevelFromMetering]);
+
+  const stopMic = useCallback(async () => {
+    try {
+      await recorder.stop();
+    } catch {
+      // recorder might not be recording
+    }
+    setInputLevel(0);
+  }, [recorder]);
+
+  const startMic = useCallback(async () => {
+    const granted = await ensurePermission();
+    if (!granted) return false;
+    await stopMic();
+    try {
+      await recorder.prepareToRecordAsync();
+      recorder.record();
+      return true;
+    } catch (error) {
+      console.warn('Unable to access microphone', error);
+      return false;
+    }
+  }, [ensurePermission, recorder, stopMic]);
+
+  const transitionToAnalyzing = useCallback(async () => {
+    await stopMic();
+    setStage('analyzing');
+  }, [stopMic]);
+
+  const beginListening = useCallback(async () => {
+    const started = await startMic();
+    if (!started) return;
+    setHasAnalysis(false);
+    setStage('listening');
+  }, [startMic]);
+
+  const resetSession = useCallback(async () => {
+    clearAllTimers();
+    await stopMic();
+    setHasAnalysis(false);
+    setStage('idle');
+  }, [clearAllTimers, stopMic]);
+
+  useEffect(() => {
+    if (stage !== 'analyzing') return;
+    analyzingTimerRef.current = setTimeout(() => {
+      setStage('idle');
+      setHasAnalysis(true);
+    }, ANALYSIS_DURATION);
+    return () => {
+      clearAnalyzingTimer();
+    };
+  }, [clearAnalyzingTimer, stage]);
+
+  useEffect(() => {
+    return () => {
+      clearAllTimers();
+      void stopMic();
+    };
+  }, [clearAllTimers, stopMic]);
+
+  useEffect(() => {
+    if (stage === 'idle' && hasAnalysis && scrollRef.current) {
+      requestAnimationFrame(() => {
+        const offset = Math.max(resultsAnchorY.current - 40, 0);
+        scrollRef.current?.scrollTo({ y: offset, animated: true });
+      });
+    }
+  }, [hasAnalysis, stage]);
+
+  const handlePrimaryAction = useCallback(() => {
+    if (stage === 'idle') {
+      void beginListening();
+      return;
+    }
+    if (stage === 'listening') {
+      void transitionToAnalyzing();
+    }
+  }, [beginListening, stage, transitionToAnalyzing]);
+
+  const buttonLabel =
+    stage === 'idle'
+      ? 'Start talking'
+      : stage === 'listening'
+        ? 'Stop & analyze'
+        : 'Analyzing...';
+
+  const buttonDisabled = stage === 'analyzing';
+
+  return (
+    <SafeAreaView
+      style={stylesWithTheme.safeArea}
+      edges={['top']}
+    >
+      <View style={stylesWithTheme.header}>
+        <Text style={stylesWithTheme.headerTitle}>LEORA VOICE</Text>
+        <TouchableOpacity
+          style={stylesWithTheme.closeButton}
+          onPress={() => router.back()}
+          accessibilityRole="button"
+          accessibilityLabel="Close voice modal"
+        >
+          <X size={18} color={theme.colors.textPrimary} />
+        </TouchableOpacity>
+      </View>
+
+        <ScrollView
+          ref={scrollRef}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={stylesWithTheme.scrollContent}
+        >
+          <View style={stylesWithTheme.heroSection}>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => {
+                if (stage === 'idle') {
+                  void beginListening();
+                }
+              }}
+            >
+              <VoiceSphere
+                stage={stage}
+                size={sphereSize}
+                accentColor={theme.colors.textPrimary}
+                intensityTarget={
+                  stage === 'listening'
+                    ? (inputLevel <= 0.02 ? 0 : Math.min(0.65, 0.05 + inputLevel * 0.55))
+                    : stage === 'analyzing'
+                      ? 0.16
+                      : 0
+                }
+              />
+            </TouchableOpacity>
+          <View style={stylesWithTheme.stageCopy}>
+            <Text style={stylesWithTheme.stageLabel}>{stage.toUpperCase()}</Text>
+            <Text style={stylesWithTheme.stageTitle}>{HEADLINES[stage].title}</Text>
+            <Text style={stylesWithTheme.stageSubtitle}>
+              {HEADLINES[stage].subtitle}
+            </Text>
+          </View>
+        </View>
+
+        {stage === 'analyzing' && <SummaryCard theme={theme} analyzing />}
+
+        {stage === 'idle' && hasAnalysis && (
+          <View
+            onLayout={(event) => {
+              resultsAnchorY.current = event.nativeEvent.layout.y;
+            }}
+          >
+            <SummaryCard theme={theme} />
+            <Text style={stylesWithTheme.sectionTitle}>Recognized requests</Text>
+            {RECOGNIZED_REQUESTS.map((item) => (
+              <RecognizedCard key={item.id} item={item} theme={theme} />
+            ))}
+          </View>
+        )}
+
+        {stage === 'idle' && !hasAnalysis && <HistoryCard theme={theme} />}
+      </ScrollView>
+
+      <View
+        style={[
+          stylesWithTheme.footer,
+          {
+            paddingBottom: Math.max(insets.bottom, 20),
+            marginHorizontal: 20,
+            paddingTop: 12,
+          },
+        ]}
+      >
+        <TouchableOpacity
+          activeOpacity={0.9}
+          disabled={buttonDisabled}
+          onPress={handlePrimaryAction}
+          style={[
+            stylesWithTheme.primaryButton,
+            buttonDisabled && stylesWithTheme.primaryButtonDisabled,
+            { borderColor: theme.colors.border, borderWidth: 1 },
+          ]}
+        >
+          <View
+            style={[
+              stylesWithTheme.primaryButtonFill,
+              {
+                backgroundColor: stage === 'listening' ? theme.colors.cardItem : theme.colors.card,
+              },
+            ]}
+          >
+            {stage === 'analyzing' ? (
+              <ActivityIndicator color={theme.colors.textPrimary} />
+            ) : (
+              <Mic size={18} color={theme.colors.textPrimary} />
+            )}
+            <Text style={stylesWithTheme.primaryButtonLabel}>{buttonLabel}</Text>
+          </View>
+        </TouchableOpacity>
+
+        {stage === 'listening' && (
+          <TouchableOpacity
+            style={stylesWithTheme.secondaryButton}
+            onPress={() => {
+              void transitionToAnalyzing();
+            }}
+            activeOpacity={0.8}
+          >
+            <Square size={16} color={theme.colors.textPrimary} />
+            <Text style={stylesWithTheme.secondaryLabel}>Stop talking</Text>
+          </TouchableOpacity>
+        )}
+
+        {stage === 'idle' && hasAnalysis && (
+          <TouchableOpacity
+            style={stylesWithTheme.secondaryButton}
+            onPress={() => {
+              void resetSession();
+            }}
+            activeOpacity={0.8}
+          >
+            <Repeat2 size={16} color={theme.colors.textPrimary} />
+            <Text style={stylesWithTheme.secondaryLabel}>Reset session</Text>
+          </TouchableOpacity>
+        )}
+
+        {micStatus === 'denied' && (
+          <Text style={stylesWithTheme.permissionText}>
+            Microphone access is required. Enable it in system settings to use
+            Leora Voice.
+          </Text>
+        )}
+      </View>
+    </SafeAreaView>
+  );
+};
+
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      paddingTop: 32,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 12,
+      marginHorizontal: 20,
+    },
+    headerTitle: {
+      fontSize: 14,
+      letterSpacing: 4,
+      color: theme.colors.textSecondary,
+      fontWeight: '600',
+    },
+    closeButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      backgroundColor: theme.colors.cardItem,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    scrollContent: {
+      paddingBottom: 32,
+      marginHorizontal: 20,
+    },
+    heroSection: {
+      alignItems: 'center',
+      gap: 16,
+      marginBottom: 24,
+    },
+    stageCopy: {
+      alignItems: 'center',
+      gap: 6,
+    },
+    stageLabel: {
+      fontSize: 12,
+      letterSpacing: 3,
+      color: theme.colors.textSecondary,
+    },
+    stageTitle: {
+      fontSize: 26,
+      color: theme.colors.textPrimary,
+      fontWeight: '600',
+      textAlign: 'center',
+    },
+    stageSubtitle: {
+      fontSize: 14,
+      color: theme.colors.textSecondary,
+      textAlign: 'center',
+    },
+    sectionTitle: {
+      fontSize: 14,
+      letterSpacing: 1.8,
+      color: theme.colors.textSecondary,
+      marginBottom: 12,
+      marginTop: 16,
+    },
+    recognitionCard: {
+      borderRadius: 18,
+      padding: 18,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      backgroundColor: theme.colors.cardItem,
+      marginBottom: 14,
+    },
+    cardHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 12,
+      gap: 12,
+    },
+    intentBadge: {
+      width: 42,
+      height: 42,
+      borderRadius: 21,
+      borderWidth: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.colors.card,
+      borderColor: theme.colors.border,
+    },
+    intentInfo: {
+      flex: 1,
+    },
+    intentTitle: {
+      fontSize: 16,
+      color: theme.colors.textPrimary,
+      fontWeight: '600',
+    },
+    intentSubtitle: {
+      fontSize: 13,
+      color: theme.colors.textSecondary,
+    },
+    intentAmount: {
+      fontSize: 20,
+      fontWeight: '600',
+      color: theme.colors.textPrimary,
+    },
+    cardMetaRow: {
+      flexDirection: 'row',
+      gap: 20,
+      marginBottom: 16,
+    },
+    metaColumn: {
+      flex: 1,
+    },
+    metaLabel: {
+      fontSize: 12,
+      color: theme.colors.textSecondary,
+      marginBottom: 4,
+      textTransform: 'uppercase',
+      letterSpacing: 1,
+    },
+    metaValue: {
+      fontSize: 15,
+      color: theme.colors.textPrimary,
+    },
+    cardActions: {
+      flexDirection: 'row',
+      gap: 10,
+      justifyContent: 'flex-end',
+    },
+    historySection: {
+      marginTop: 8,
+      paddingBottom: 16,
+    },
+    sheetHandle: {
+      alignSelf: 'center',
+      width: 46,
+      height: 5,
+      borderRadius: 3,
+      backgroundColor: theme.colors.border,
+      marginBottom: 18,
+    },
+    historyCard: {
+      borderRadius: 18,
+      padding: 18,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      backgroundColor: theme.colors.cardItem,
+    },
+    historyHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginBottom: 12,
+    },
+    historyTitle: {
+      fontSize: 16,
+      color: theme.colors.textPrimary,
+      fontWeight: '600',
+    },
+    historyMeta: {
+      fontSize: 13,
+      color: theme.colors.textSecondary,
+      marginTop: 4,
+    },
+    historyTime: {
+      fontSize: 13,
+      color: theme.colors.textSecondary,
+    },
+    repeatButton: {
+      flexDirection: 'row',
+      gap: 8,
+      alignItems: 'center',
+      paddingVertical: 8,
+    },
+    repeatLabel: {
+      fontSize: 13,
+      color: theme.colors.textPrimary,
+      fontWeight: '500',
+    },
+    summaryCard: {
+      borderRadius: 18,
+      padding: 20,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      backgroundColor: theme.colors.cardItem,
+      marginBottom: 18,
+    },
+    summaryLabel: {
+      fontSize: 12,
+      color: theme.colors.textSecondary,
+      letterSpacing: 2,
+      marginBottom: 6,
+    },
+    summaryTitle: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: theme.colors.textPrimary,
+      marginBottom: 8,
+    },
+    summaryBody: {
+      fontSize: 15,
+      color: theme.colors.textSecondary,
+      lineHeight: 22,
+    },
+    processingRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginTop: 6,
+    },
+    processingText: {
+      fontSize: 13,
+      color: theme.colors.textSecondary,
+    },
+    footer: {
+      gap: 12,
+    },
+    primaryButton: {
+      borderRadius: 999,
+      overflow: 'hidden',
+    },
+    primaryButtonDisabled: {
+      opacity: 0.6,
+    },
+    primaryButtonFill: {
+      paddingVertical: 16,
+      borderRadius: 999,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 10,
+    },
+    primaryButtonLabel: {
+      fontSize: 15,
+      color: theme.colors.textPrimary,
+      fontWeight: '600',
+    },
+    secondaryButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 12,
+      gap: 8,
+    },
+    secondaryLabel: {
+      fontSize: 14,
+      color: theme.colors.textSecondary,
+      letterSpacing: 1,
+    },
+    permissionText: {
+      fontSize: 12,
+      color: theme.colors.textSecondary,
+      textAlign: 'center',
+      marginTop: 4,
+    },
+  });
+
+const styles = StyleSheet.create({
+  iconOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoLetter: {
+    fontSize: 48,
+    fontWeight: '700',
+  },
+  actionIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  recognitionCard: {
+    borderRadius: 18,
+    padding: 18,
+    marginBottom: 14,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 12,
+  },
+  intentBadge: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  intentInfo: {
+    flex: 1,
+  },
+  intentTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  intentSubtitle: {
+    fontSize: 13,
+  },
+  intentAmount: {
+    fontSize: 20,
+    fontWeight: '600',
+  },
+  cardMetaRow: {
+    flexDirection: 'row',
+    gap: 20,
+    marginBottom: 16,
+  },
+  metaColumn: {
+    flex: 1,
+  },
+  metaLabel: {
+    fontSize: 12,
+    marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  metaValue: {
+    fontSize: 15,
+  },
+  cardActions: {
+    flexDirection: 'row',
+    gap: 10,
+    justifyContent: 'flex-end',
+  },
+  historySection: {
+    marginTop: 8,
+    paddingBottom: 16,
+  },
+  sheetHandle: {
+    alignSelf: 'center',
+    width: 46,
+    height: 5,
+    borderRadius: 3,
+    marginBottom: 18,
+  },
+  historyCard: {
+    borderRadius: 18,
+    padding: 18,
+  },
+  historyHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  historyTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  historyMeta: {
+    fontSize: 13,
+    marginTop: 4,
+  },
+  historyTime: {
+    fontSize: 13,
+  },
+  repeatButton: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  repeatLabel: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  sectionTitle: {
+    fontSize: 14,
+    letterSpacing: 1.8,
+    marginBottom: 12,
+    marginTop: 16,
+  },
+  summaryCard: {
+    borderRadius: 18,
+    padding: 20,
+    marginBottom: 18,
+  },
+  summaryLabel: {
+    fontSize: 12,
+    letterSpacing: 2,
+    marginBottom: 6,
+  },
+  summaryTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  summaryBody: {
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  processingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 6,
+  },
+  processingText: {
+    fontSize: 13,
+  },
+});
+
+export default VoiceMode;

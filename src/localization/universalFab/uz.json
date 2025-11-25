@@ -1,0 +1,19 @@
+{
+  "planner": {
+    "task": "YANGI VAZIFA",
+    "goal": "YANGI MAQSAD",
+    "habit": "YANGI ODAT",
+    "focus": "FOKUS REJIMI"
+  },
+  "finance": {
+    "incomeOutcome": "DAROMAD/XARAJAT",
+    "transfer": "O'TKAZMA",
+    "debt": "QARZ"
+  },
+  "index": {
+    "task": "VAZIFA QO'SHISH",
+    "quickExpense": "TEZKOR XARAJAT",
+    "focus": "FOKUSNI BOSHLASH",
+    "voiceNote": "OVOZLI ESLATMA"
+  }
+}

@@ -1,0 +1,87 @@
+{
+  "title": "Создать цель",
+  "subtitle": "Разбейте долгосрочные намерения на измеримый прогресс.",
+  "scenarioSection": {
+    "title": "Сценарий",
+    "subtitle": "Шаблоны автоматически подбирают метрику и сроки"
+  },
+  "scenarios": {
+    "financialSave": {
+      "title": "Накопления",
+      "subtitle": "Резерв, отпуск, крупная покупка"
+    },
+    "financialSpend": {
+      "title": "Контроль расходов",
+      "subtitle": "Понимайте, сколько можно потратить"
+    },
+    "habitSupport": {
+      "title": "Привычка / забота о себе",
+      "subtitle": "Сессии в неделю, ритуалы"
+    },
+    "skillGrowth": {
+      "title": "Навык и обучение",
+      "subtitle": "Часы учебы, завершённые уроки"
+    },
+    "custom": {
+      "title": "Своя цель",
+      "subtitle": "Настройте собственную метрику"
+    }
+  },
+  "detailsSection": {
+    "title": "Детали",
+    "titleLabel": "Название цели",
+    "descriptionLabel": "Почему это важно",
+    "titlePlaceholder": "Например, Резерв",
+    "descriptionPlaceholder": "Добавьте контекст или критерии успеха"
+  },
+  "measurementSection": {
+    "title": "Измерение",
+    "metricLabel": "Метрика",
+    "metricOptions": {
+      "amount": "Сумма",
+      "count": "Количество",
+      "duration": "Длительность",
+      "custom": "Другое"
+    },
+    "currentLabel": "Текущее значение",
+    "targetLabel": "Целевое значение",
+    "unitLabel": "Единица",
+    "currencyLabel": "Валюта",
+    "financeModeLabel": "Финансовый фокус",
+    "financeModes": {
+      "save": "Сохранять",
+      "spend": "Тратить",
+      "debt_close": "Погасить долг"
+    },
+    "placeholders": {
+      "current": "0",
+      "target": "10000",
+      "unit": "км, сессии..."
+    }
+  },
+  "timelineSection": {
+    "title": "Сроки",
+    "startLabel": "Старт",
+    "dueLabel": "Дата достижения",
+    "noDate": "Выберите дату"
+  },
+  "milestoneSection": {
+    "title": "Вехи",
+    "description": "Фиксируйте ключевые этапы на пути.",
+    "percentLabel": "Прогресс %",
+    "dueLabel": "Срок",
+    "add": "Добавить веху",
+    "empty": "Пока без вех",
+    "delete": "Удалить"
+  },
+  "actions": {
+    "cancel": "Закрыть",
+    "create": "Создать цель",
+    "createMore": "Создать и продолжить",
+    "update": "Сохранить"
+  },
+  "alerts": {
+    "missingTitle": "Сначала назовите цель.",
+    "invalidTarget": "Укажите целевое значение больше нуля."
+  }
+}

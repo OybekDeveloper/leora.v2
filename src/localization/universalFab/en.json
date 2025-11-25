@@ -1,0 +1,19 @@
+{
+  "planner": {
+    "task": "NEW TASK",
+    "goal": "NEW GOAL",
+    "habit": "NEW HABIT",
+    "focus": "FOCUS MODE"
+  },
+  "finance": {
+    "incomeOutcome": "INCOME/OUT",
+    "transfer": "TRANSFER",
+    "debt": "DEBT"
+  },
+  "index": {
+    "task": "ADD TASK",
+    "quickExpense": "QUICK EXPENSE",
+    "focus": "START FOCUS",
+    "voiceNote": "VOICE NOTE"
+  }
+}
