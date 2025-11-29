@@ -1,9 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { BookOpen, Brain, CheckCircle2, Dot, Dumbbell, Flame } from 'lucide-react-native';
+import { BookOpen, Brain, CheckCircle2, Dot, Dumbbell } from 'lucide-react-native';
+import { FireIcon } from '../../../assets/icons';
 import { AdaptiveGlassView } from '@/components/ui/AdaptiveGlassView';
 import { useAppTheme } from '@/constants/theme';
 import { useLocalization } from '@/localization/useLocalization';
+import { usePlannerDomainStore } from '@/stores/usePlannerDomainStore';
 
 interface Habit {
   id: string;
@@ -34,23 +36,16 @@ export default function HabitsWidget({
 }: HabitsWidgetProps) {
   const theme = useAppTheme();
   const { strings } = useLocalization();
-  const [habits, setHabits] = useState<Habit[]>(incomingHabits);
-
-  useEffect(() => {
-    if (hasData) {
-      setHabits(incomingHabits);
-    } else {
-      setHabits([]);
-    }
-  }, [hasData, incomingHabits]);
+  const logHabitCompletion = usePlannerDomainStore((state) => state.logHabitCompletion);
 
   const toggleHabit = (id: string) => {
     if (!hasData) {
       return;
     }
-    setHabits(prev =>
-      prev.map(h => (h.id === id ? { ...h, completed: !h.completed } : h))
-    );
+    const habit = incomingHabits.find((h) => h.id === id);
+    if (habit) {
+      logHabitCompletion(id, !habit.completed);
+    }
   };
 
   const placeholderHabits = useMemo(
@@ -64,7 +59,7 @@ export default function HabitsWidget({
       })),
     [strings],
   );
-  const displayedHabits = hasData ? habits : placeholderHabits;
+  const displayedHabits = hasData ? incomingHabits : placeholderHabits;
   const resolvedDateLabel = dateLabel || strings.home.header.todayLabel;
 
   return (
@@ -106,7 +101,7 @@ export default function HabitsWidget({
                     {habit.name}
                   </Text>
                   <View style={styles.habitMeta}>
-                    <Flame size={14} color={theme.colors.warning} />
+                    <FireIcon size={14} color={theme.colors.warning} />
                     <Text style={[
                       styles.habitStreak,
                       { color: isPlaceholder ? theme.colors.textMuted : theme.colors.textSecondary },

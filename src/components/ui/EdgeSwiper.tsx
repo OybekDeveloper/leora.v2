@@ -6,6 +6,7 @@ type EdgeSwiperProps = {
   onSwipeClose?: () => void;
   children: React.ReactNode;
   threshold?: number;
+  enabled?: boolean;
 };
 
 /**
@@ -18,17 +19,20 @@ export const EdgeSwiper: React.FC<EdgeSwiperProps> = ({
   onSwipeOpen,
   onSwipeClose,
   threshold = 24,
+  enabled = true,
 }) => {
   const swipeDirection = useRef<'open' | 'close' | null>(null);
 
   const responder = useMemo(
     () =>
       PanResponder.create({
-        onMoveShouldSetPanResponder: (_evt, gesture) => Math.abs(gesture.dx) > 8 && Math.abs(gesture.dy) < 8,
+        onMoveShouldSetPanResponder: (_evt, gesture) => enabled && Math.abs(gesture.dx) > 8 && Math.abs(gesture.dy) < 8,
         onPanResponderMove: (_evt, gesture) => {
+          if (!enabled) return;
           swipeDirection.current = gesture.dx > 0 ? 'open' : 'close';
         },
         onPanResponderRelease: (_evt, gesture) => {
+          if (!enabled) return;
           if (Math.abs(gesture.dx) < threshold) {
             swipeDirection.current = null;
             return;
@@ -41,7 +45,7 @@ export const EdgeSwiper: React.FC<EdgeSwiperProps> = ({
           swipeDirection.current = null;
         },
       }),
-    [onSwipeClose, onSwipeOpen, threshold],
+    [enabled, onSwipeClose, onSwipeOpen, threshold],
   );
 
   return (

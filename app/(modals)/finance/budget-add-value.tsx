@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -25,12 +25,11 @@ const BudgetAddValueModal = () => {
   const { budgetId } = useLocalSearchParams<LocalParams>();
   const normalizedBudgetId = Array.isArray(budgetId) ? budgetId[0] : budgetId ?? null;
 
-  const { budgets, accounts, createTransaction, updateAccount } = useFinanceDomainStore(
+  const { budgets, accounts, createTransaction } = useFinanceDomainStore(
     useShallow((state) => ({
       budgets: state.budgets,
       accounts: state.accounts,
       createTransaction: state.createTransaction,
-      updateAccount: state.updateAccount,
     })),
   );
   const { baseCurrency, convertAmount } = useFinancePreferencesStore(
@@ -45,9 +44,21 @@ const BudgetAddValueModal = () => {
     [budgets, normalizedBudgetId],
   );
 
+  // Determine if this is a spending or saving budget
+  const isSpendingBudget = budget?.transactionType !== 'income';
+
   const [amountInput, setAmountInput] = useState('');
+  // Initialize transaction type based on budget type (will be set by useEffect)
   const [txnType, setTxnType] = useState<TxnType>('income');
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(accounts[0]?.id ?? null);
+
+  // Set the correct transaction type when budget loads
+  useEffect(() => {
+    if (budget) {
+      // Spending budgets track expenses, saving budgets track income (contributions)
+      setTxnType(budget.transactionType === 'income' ? 'income' : 'expense');
+    }
+  }, [budget]);
 
   const handleClose = useCallback(() => router.back(), [router]);
 
@@ -70,6 +81,7 @@ const BudgetAddValueModal = () => {
     const convertedAmountToBudget = amount * rateToBudget;
 
     createTransaction({
+      userId: 'local-user',
       type: txnType,
       amount,
       accountId: account.id,
@@ -81,13 +93,8 @@ const BudgetAddValueModal = () => {
       goalId: budget.linkedGoalId,
       description: detailStrings.actions?.addToBudget ?? 'Add to budget',
       date: nowIso,
-      createdAt: nowIso,
-      updatedAt: nowIso,
     });
-    if (txnType === 'income') {
-      const nextBalance = (account.currentBalance ?? 0) - amount;
-      updateAccount(account.id, { currentBalance: nextBalance, updatedAt: nowIso });
-    }
+    // Note: createTransaction already handles account balance updates via applyTransactionToAccounts
 
     handleClose();
   }, [
@@ -101,9 +108,7 @@ const BudgetAddValueModal = () => {
     handleClose,
     isValid,
     selectedAccountId,
-    transactionsStrings.details?.type,
     txnType,
-    updateAccount,
   ]);
 
   return (
@@ -117,7 +122,9 @@ const BudgetAddValueModal = () => {
         >
           <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
             <Text style={[styles.title, { color: theme.colors.textSecondary }]}>
-              {detailStrings.actions?.addToBudget ?? 'Add to budget'}
+              {isSpendingBudget
+                ? (detailStrings.actions?.recordExpense ?? 'Record expense')
+                : (detailStrings.actions?.addToBudget ?? 'Add to budget')}
             </Text>
             <Pressable onPress={handleClose} hitSlop={12}>
               <Text style={[styles.closeText, { color: theme.colors.textSecondary }]}>{commonStrings.close ?? 'Close'}</Text>
@@ -137,35 +144,6 @@ const BudgetAddValueModal = () => {
                 placeholderTextColor={theme.colors.textMuted}
                 style={[styles.textInput, { color: theme.colors.textPrimary }]}
               />
-            </AdaptiveGlassView>
-          </View>
-
-          <View style={styles.section}>
-            <Text style={[styles.label, { color: theme.colors.textSecondary }]}>
-              {transactionsStrings.filterSheet?.type ?? 'Type'}
-            </Text>
-            <AdaptiveGlassView style={[styles.glassSurface, styles.typeContainer]}>
-              {(['income', 'expense'] as TxnType[]).map((type) => {
-                const active = txnType === type;
-                return (
-                  <Pressable
-                    key={type}
-                    onPress={() => setTxnType(type)}
-                    style={({ pressed }) => [styles.typeOption, pressed && styles.pressed]}
-                  >
-                    <View style={styles.typeOptionContent}>
-                      <Text
-                        style={[
-                          styles.typeLabel,
-                          { color: active ? theme.colors.textPrimary : theme.colors.textSecondary },
-                        ]}
-                      >
-                        {transactionsStrings.filterSheet?.typeOptions?.[type] ?? type}
-                      </Text>
-                    </View>
-                  </Pressable>
-                );
-              })}
             </AdaptiveGlassView>
           </View>
 

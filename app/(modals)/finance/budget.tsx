@@ -154,6 +154,8 @@ export default function BudgetModal() {
     });
   }, [availableCategories]);
 
+  // When switching budget types, keep the period settings (both types can have periods)
+
   const handleLimitInputChange = useCallback((value: string) => {
     const cleaned = value.replace(/[^0-9.,]/g, '').replace(/,/g, '.');
     setLimitInput(cleaned);
@@ -321,6 +323,38 @@ export default function BudgetModal() {
         </View>
 
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          {/* Budget Type Tabs - at the top */}
+          <View style={styles.typeTabs}>
+            <Pressable
+              onPress={() => setTransactionType('outcome')}
+              style={[
+                styles.typeTab,
+                transactionType === 'outcome' && styles.typeTabActive,
+              ]}
+            >
+              <Text style={[
+                styles.typeTabLabel,
+                transactionType === 'outcome' && styles.typeTabLabelActive,
+              ]}>
+                {strings.financeScreens.budgets.form.budgetTypes.spending}
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setTransactionType('income')}
+              style={[
+                styles.typeTab,
+                transactionType === 'income' && styles.typeTabActive,
+              ]}
+            >
+              <Text style={[
+                styles.typeTabLabel,
+                transactionType === 'income' && styles.typeTabLabelActive,
+              ]}>
+                {strings.financeScreens.budgets.form.budgetTypes.saving}
+              </Text>
+            </Pressable>
+          </View>
+
           <ScrollView
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
@@ -343,7 +377,7 @@ export default function BudgetModal() {
 
             <View style={styles.section}>
               <Text style={[styles.label, { color: theme.colors.textSecondary }]}>
-                {`${strings.financeScreens.transactions.details.amount} (${selectedAccountId ? accountMap.get(selectedAccountId)?.currency ?? baseCurrency : baseCurrency})`}
+                {`${transactionType === 'income' ? strings.financeScreens.budgets.form.targetAmount : strings.financeScreens.budgets.form.limitAmount} (${selectedAccountId ? accountMap.get(selectedAccountId)?.currency ?? baseCurrency : baseCurrency})`}
               </Text>
               <AdaptiveGlassView style={[styles.glassSurface, styles.inputContainer]}>
                 <TextInput
@@ -382,6 +416,7 @@ export default function BudgetModal() {
               </ScrollView>
             </View>
 
+            {/* Period section - show for both budget types */}
             <View style={styles.section}>
               <Text style={[styles.label, { color: theme.colors.textSecondary }]}>{strings.financeScreens.budgets.form.periodLabel}</Text>
               <View style={styles.periodChipsRow}>
@@ -429,30 +464,6 @@ export default function BudgetModal() {
                 )}
               </View>
             )}
-
-            <View style={styles.section}>
-              <Text style={[styles.label, { color: theme.colors.textSecondary }]}>{strings.financeScreens.accounts.header}</Text>
-              <AdaptiveGlassView style={[styles.glassSurface, styles.typeContainer]}>
-                <Pressable
-                  onPress={() => setTransactionType('outcome')}
-                  style={({ pressed }) => [styles.typeOption, { borderBottomWidth: 1 }, pressed && styles.pressed]}
-                >
-                  <View style={styles.typeOptionContent}>
-                    <Text style={[styles.typeLabel, { color: transactionType === 'outcome' ? '#FFFFFF' : '#7E8B9A' }]}>
-                      {strings.financeScreens.accounts.outcome}
-                    </Text>
-                  </View>
-                </Pressable>
-
-                <Pressable onPress={() => setTransactionType('income')} style={({ pressed }) => [styles.typeOption, pressed && styles.pressed]}>
-                  <View style={styles.typeOptionContent}>
-                    <Text style={[styles.typeLabel, { color: transactionType === 'income' ? '#FFFFFF' : '#7E8B9A' }]}>
-                      {strings.financeScreens.accounts.income}
-                    </Text>
-                  </View>
-                </Pressable>
-              </AdaptiveGlassView>
-            </View>
 
             <View style={[styles.section, { paddingHorizontal: 0 }]}> 
               <Text style={[styles.label, { paddingHorizontal: 20, color: theme.colors.textSecondary }]}>
@@ -670,20 +681,31 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-  typeContainer: {
-    borderRadius: 18,
-    overflow: 'hidden',
+  typeTabs: {
+    flexDirection: 'row',
+    marginHorizontal: 20,
+    marginTop: 12,
+    marginBottom: 4,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    padding: 4,
   },
-  typeOption: {
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  typeOptionContent: {
+  typeTab: {
+    flex: 1,
+    paddingVertical: 10,
     alignItems: 'center',
+    borderRadius: 10,
   },
-  typeLabel: {
-    fontSize: 15,
+  typeTabActive: {
+    backgroundColor: 'rgba(255,255,255,0.12)',
+  },
+  typeTabLabel: {
+    fontSize: 14,
     fontWeight: '600',
+    color: '#7E8B9A',
+  },
+  typeTabLabelActive: {
+    color: '#FFFFFF',
   },
   categoryChipScroll: {
     paddingVertical: 8,

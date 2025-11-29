@@ -12,10 +12,13 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
-import { AlarmClock, Award, Check, Flame, MoreHorizontal, Sparkles, Trophy, X } from 'lucide-react-native';
+import { AlarmClock, Check, MoreHorizontal, Sparkles, X } from 'lucide-react-native';
+import { FireIcon } from '../../../../assets/icons';
 import { useRouter } from 'expo-router';
 
 import { AdaptiveGlassView } from '@/components/ui/AdaptiveGlassView';
+import EmptyAnimation from '@/components/shared/EmptyAnimation';
+import SelectableListItem from '@/components/shared/SelectableListItem';
 import { createThemedStyles, useAppTheme } from '@/constants/theme';
 import { useLocalization } from '@/localization/useLocalization';
 import type { AppTranslations } from '@/localization/strings';
@@ -27,8 +30,8 @@ import {
   type HabitDayStatus,
 } from '@/features/planner/habits/data';
 import { usePlannerDomainStore } from '@/stores/usePlannerDomainStore';
+import { useSelectionStore } from '@/stores/useSelectionStore';
 import { useShallow } from 'zustand/react/shallow';
-import { startOfDay } from '@/utils/calendar';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -48,17 +51,38 @@ export default function PlannerHabitsTab() {
   const styles = useStyles();
   const { strings, locale } = useLocalization();
   const habitStrings = strings.plannerScreens.habits;
-  const { domainHabits, domainGoals, logHabitCompletion, archiveHabit } = usePlannerDomainStore(
+  const {
+    domainHabits,
+    domainGoals,
+    logHabitCompletion,
+    archiveHabit,
+    resumeHabit,
+    deleteHabitPermanently,
+  } = usePlannerDomainStore(
     useShallow((state) => ({
       domainHabits: state.habits,
       domainGoals: state.goals,
       logHabitCompletion: state.logHabitCompletion,
       archiveHabit: state.archiveHabit,
+      resumeHabit: state.resumeHabit,
+      deleteHabitPermanently: state.deleteHabitPermanently,
     })),
   );
+
+  // Selection mode
+  const {
+    isSelectionMode,
+    entityType,
+    enterSelectionMode,
+    toggleSelection,
+    isSelected,
+  } = useSelectionStore();
+
+  const isHabitSelectionMode = isSelectionMode && entityType === 'habit';
   const storedSelectedDate = useSelectedDayStore((state) => state.selectedDate);
   const selectedDate = storedSelectedDate;
   const activeDomainHabits = useMemo(() => domainHabits.filter((habit) => habit.status !== 'archived'), [domainHabits]);
+  const archivedDomainHabits = useMemo(() => domainHabits.filter((habit) => habit.status === 'archived'), [domainHabits]);
   const goalTitleMap = useMemo(() => {
     const map: Record<string, string> = {};
     domainGoals.forEach((goal) => {
@@ -98,52 +122,141 @@ export default function PlannerHabitsTab() {
     );
   }, []);
 
+  // Selection mode handlers
+  const handleEnterSelectionMode = useCallback(
+    (isHistory = false) => {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      enterSelectionMode('habit', isHistory);
+    },
+    [enterSelectionMode],
+  );
+
+  const handleToggleSelection = useCallback(
+    (id: string) => {
+      toggleSelection(id);
+    },
+    [toggleSelection],
+  );
+
+  // Build archived habits for history section
+  const archivedHabits = useMemo(
+    () => buildHabits(archivedDomainHabits, { selectedDate, locale }),
+    [archivedDomainHabits, selectedDate, locale],
+  );
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
-    >
-      {/* Top Bar */}
-      <View style={styles.topBar}>
-        <Text style={styles.topTitle}>{habitStrings.headerTitle}</Text>
-        <Text style={styles.monthText}>{topMonthLabel}</Text>
-      </View>
-
-
-      {/* Habits list */}
-      {habits.length === 0 ? (
-        <View style={styles.emptyStateWrapper}>
-          <AdaptiveGlassView style={styles.emptyStateCard}>
-            <Text style={styles.emptyTitle}>{habitStrings.empty.title}</Text>
-            <Text style={styles.emptySubtitle}>{habitStrings.empty.subtitle}</Text>
-          </AdaptiveGlassView>
+    <>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={[styles.content, { paddingBottom: isHabitSelectionMode ? 180 : 40 }]}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Top Bar */}
+        <View style={styles.topBar}>
+          <Text style={styles.topTitle}>{habitStrings.headerTitle}</Text>
+          <Text style={styles.monthText}>{topMonthLabel}</Text>
         </View>
-      ) : (
-        <View style={{ gap: 12 }}>
-          {habits.map((habit) => (
-            <HabitCard
-              key={habit.id}
-              data={habit}
-              onToggleExpand={() => toggleExpand(habit.id)}
-              strings={habitStrings}
-              goalTitles={goalTitleMap}
-              onLog={(habitId, status, options) =>
-                logHabitCompletion(habitId, status, {
-                  date: selectedDate,
-                  clear: options?.clear,
-                })
-              }
-              onEditHabit={() => router.push(`/(modals)/planner/habit?id=${habit.id}`)}
-              onDeleteHabit={(habitId) => archiveHabit(habitId)}
-            />
-          ))}
-        </View>
-      )}
 
-      <View style={{ height: 120 }} />
-    </ScrollView>
+
+        {/* Habits list */}
+        {habits.length === 0 && archivedHabits.length === 0 ? (
+          <View style={styles.emptyStateWrapper}>
+            <EmptyAnimation size={180} />
+            <AdaptiveGlassView style={styles.emptyStateCard}>
+              <Text style={styles.emptyTitle}>{habitStrings.empty.title}</Text>
+              <Text style={styles.emptySubtitle}>{habitStrings.empty.subtitle}</Text>
+            </AdaptiveGlassView>
+          </View>
+        ) : (
+          <>
+            {habits.length > 0 && (
+              <View style={[{ gap: 12 }, isHabitSelectionMode && styles.selectionModeContainer]}>
+                {habits.map((habit) => {
+                  const enterSelection = () => {
+                    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                    handleEnterSelectionMode(false);
+                    handleToggleSelection(habit.id);
+                  };
+                  return (
+                    <SelectableListItem
+                      key={habit.id}
+                      id={habit.id}
+                      isSelectionMode={isHabitSelectionMode}
+                      isSelected={isSelected(habit.id)}
+                      onToggleSelect={handleToggleSelection}
+                      onLongPress={enterSelection}
+                      onPress={() => toggleExpand(habit.id)}
+                    >
+                      <HabitCard
+                        data={habit}
+                        onToggleExpand={() => toggleExpand(habit.id)}
+                        onLongPress={enterSelection}
+                        strings={habitStrings}
+                        goalTitles={goalTitleMap}
+                        onLog={(habitId, status, options) =>
+                          logHabitCompletion(habitId, status, {
+                            date: selectedDate,
+                            clear: options?.clear,
+                          })
+                        }
+                        onEditHabit={() => router.push(`/(modals)/planner/habit?id=${habit.id}`)}
+                        onDeleteHabit={(habitId) => archiveHabit(habitId)}
+                      />
+                    </SelectableListItem>
+                  );
+                })}
+              </View>
+            )}
+
+            {/* Archived Habits (History) */}
+            {archivedHabits.length > 0 && (
+              <>
+                <View style={styles.historyHeader}>
+                  <Text style={styles.historyLabel}>Delete History</Text>
+                  <Text style={styles.historyHint}>Recover deleted habits</Text>
+                </View>
+                <View style={[{ gap: 12 }, isHabitSelectionMode && styles.selectionModeContainer]}>
+                  {archivedHabits.map((habit) => {
+                    const enterHistorySelection = () => {
+                      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                      handleEnterSelectionMode(true);
+                      handleToggleSelection(habit.id);
+                    };
+                    return (
+                      <SelectableListItem
+                        key={habit.id}
+                        id={habit.id}
+                        isSelectionMode={isHabitSelectionMode}
+                        isSelected={isSelected(habit.id)}
+                        onToggleSelect={handleToggleSelection}
+                        onLongPress={enterHistorySelection}
+                      >
+                        <HabitCard
+                          data={habit}
+                          onToggleExpand={() => {}}
+                          onLongPress={enterHistorySelection}
+                          strings={habitStrings}
+                          goalTitles={goalTitleMap}
+                          onLog={() => {}}
+                          onEditHabit={() => {}}
+                          onDeleteHabit={() => {}}
+                          onRecover={() => resumeHabit(habit.id)}
+                          onDeleteForever={() => deleteHabitPermanently(habit.id)}
+                          isArchived
+                        />
+                      </SelectableListItem>
+                    );
+                  })}
+                </View>
+              </>
+            )}
+          </>
+        )}
+
+        <View style={{ height: 120 }} />
+      </ScrollView>
+
+    </>
   );
 }
 
@@ -153,19 +266,27 @@ export default function PlannerHabitsTab() {
 function HabitCard({
   data,
   onToggleExpand,
+  onLongPress,
   strings,
   goalTitles,
   onLog,
   onEditHabit,
   onDeleteHabit,
+  onRecover,
+  onDeleteForever,
+  isArchived = false,
 }: {
   data: HabitCardModel;
   onToggleExpand: () => void;
+  onLongPress?: () => void;
   strings: AppTranslations['plannerScreens']['habits'];
   goalTitles: Record<string, string>;
   onLog: (habitId: string, completed: boolean, options?: { clear?: boolean }) => void;
   onEditHabit: () => void;
   onDeleteHabit: (habitId: string) => void;
+  onRecover?: () => void;
+  onDeleteForever?: () => void;
+  isArchived?: boolean;
 }) {
   const theme = useAppTheme();
   const styles = useStyles();
@@ -209,14 +330,14 @@ function HabitCard({
 
   return (
     <AdaptiveGlassView style={styles.card}>
-      <Pressable onPress={onToggleExpand} style={styles.cardPress}>
+      <Pressable onPress={onToggleExpand} onLongPress={onLongPress} delayLongPress={400} style={styles.cardPress}>
         <View style={styles.headerRow}>
           <View style={styles.headerLeft}>
             <Text style={styles.cardTitle}>{data.title}</Text>
             <MoreHorizontal size={16} color={theme.colors.textSecondary} />
           </View>
           <View style={styles.badgeRight}>
-            <Flame size={14} color={theme.colors.textSecondary} />
+            <FireIcon size={14} color={theme.colors.textSecondary} />
             <Text style={styles.badgeText}>{badgeText}</Text>
           </View>
         </View>
@@ -297,10 +418,17 @@ function HabitCard({
               />
             </View>
           )}
-          <View style={styles.dualRow}>
-            <GlassButton label={strings.ctas.edit} compact onPress={onEditHabit} />
-            <GlassButton label={strings.ctas.delete} compact variant="danger" onPress={() => onDeleteHabit(data.id)} />
-          </View>
+          {isArchived ? (
+            <View style={styles.dualRow}>
+              <GlassButton label="Recover" compact onPress={onRecover} />
+              <GlassButton label="Delete Forever" compact variant="danger" onPress={onDeleteForever} />
+            </View>
+          ) : (
+            <View style={styles.dualRow}>
+              <GlassButton label={strings.ctas.edit} compact onPress={onEditHabit} />
+              <GlassButton label={strings.ctas.delete} compact variant="danger" onPress={() => onDeleteHabit(data.id)} />
+            </View>
+          )}
         </View>
         {/* 
         {data.expanded && (
@@ -517,7 +645,8 @@ const useStyles = createThemedStyles((theme) => ({
   container: { flex: 1, backgroundColor: theme.colors.background },
   content: { paddingBottom: 40, gap: 16, paddingHorizontal: 12 },
   emptyStateWrapper: {
-    paddingVertical: 60,
+    paddingVertical: 40,
+    alignItems: 'center',
   },
   emptyStateCard: {
     borderRadius: 20,
@@ -525,16 +654,21 @@ const useStyles = createThemedStyles((theme) => ({
     borderColor: theme.colors.border,
     backgroundColor: theme.colors.card,
     padding: 24,
-    gap: 10,
+    gap: 14,
+    marginTop: 16,
   },
   emptyTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
     color: theme.colors.textPrimary,
+    textAlign: 'center',
   },
   emptySubtitle: {
     fontSize: 14,
+    fontWeight: '500',
     color: theme.colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
   },
 
   topBar: {
@@ -714,6 +848,18 @@ const useStyles = createThemedStyles((theme) => ({
   blockLine: { fontSize: 12, fontWeight: '600', color: theme.colors.textSecondary },
   blockBadgeRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   blockBadgeText: { color: theme.colors.textSecondary, fontSize: 13 },
+  selectionModeContainer: {
+    paddingLeft: 36,
+  },
+  historyHeader: {
+    paddingTop: 18,
+    paddingBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  historyLabel: { fontSize: 14, fontWeight: '700', letterSpacing: 0.3, color: theme.colors.textSecondary },
+  historyHint: { fontSize: 12, fontWeight: '500', color: theme.colors.textTertiary },
 }));
 function LegendButton({
   label,

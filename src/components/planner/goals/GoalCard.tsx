@@ -24,21 +24,25 @@ import { useLocalization } from '@/localization/useLocalization';
 type GoalCardProps = {
   goal: Goal;
   onPress: () => void;
+  onLongPress?: () => void;
   onDelete?: () => void;
   onEdit?: () => void;
   onAddTask?: () => void;
   onRecover?: () => void;
   onDeleteForever?: () => void;
+  disableSwipe?: boolean;
 };
 
 const GoalCardComponent: React.FC<GoalCardProps> = ({
   goal,
   onPress,
+  onLongPress,
   onDelete,
   onEdit,
   onAddTask,
   onRecover,
   onDeleteForever,
+  disableSwipe = false,
 }) => {
   const theme = useAppTheme();
   const { strings } = useLocalization();
@@ -91,9 +95,11 @@ const GoalCardComponent: React.FC<GoalCardProps> = ({
   );
 
   return (
-    <EdgeSwiper onSwipeOpen={() => setMenuOpen(true)} onSwipeClose={() => setMenuOpen(false)}>
+    <EdgeSwiper onSwipeOpen={() => setMenuOpen(true)} onSwipeClose={() => setMenuOpen(false)} enabled={!disableSwipe}>
       <Pressable
         onPress={onPress}
+        onLongPress={onLongPress}
+        delayLongPress={400}
         style={({ pressed }) => [
           styles.pressable,
           pressed && {

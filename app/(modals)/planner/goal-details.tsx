@@ -147,18 +147,6 @@ export default function GoalDetailsModal() {
     return direct ?? debts.find((d) => d.linkedGoalId === goal.id);
   }, [goal, debts]);
 
-  useEffect(() => {
-    if (!goal) {
-      router.back();
-    }
-  }, [goal, router]);
-
-  useEffect(() => {
-    if (!selectedAccountId && accounts[0]) {
-      setSelectedAccountId(accounts[0].id);
-    }
-  }, [accounts, selectedAccountId]);
-
   // Subscribe to events for auto-update
   useEffect(() => {
     const unsubscribe1 = plannerEventBus.subscribe('planner.goal.updated', () => {});
@@ -200,25 +188,10 @@ export default function GoalDetailsModal() {
   );
   const summary = goalSummary ?? fallbackSummary;
 
-  if (!goal) {
-    return null;
-  }
-
-  // Use displayCurrent/displayTarget to account for initialValue properly
-  const numericCurrent = Number(progressData?.displayCurrent ?? summary?.current ?? 0);
-  const numericTarget = Number(progressData?.displayTarget ?? summary?.target ?? 0);
-  const currentDisplay = numericCurrent;
-  const targetDisplay = numericTarget;
-
-  const ratioBase =
-    numericTarget > 0 && Number.isFinite(numericTarget)
-      ? numericCurrent / numericTarget
-      : progressData?.progressPercent ?? summary?.progressPercent ?? 0;
-  const progressPercent = Math.round(Math.min(Math.max(ratioBase, 0), 1) * 100);
-  const clampedProgress = Math.min(Math.max(progressPercent, 0), 100);
-  const isMoneyGoal = goal.goalType === 'financial' || goal.metricType === 'amount';
+  // Format value helper - must be before early return since it's a hook
   const formatValue = useCallback(
     (value: number) => {
+      if (!goal) return `${Math.round(value * 100) / 100}`;
       if (goal.metricType === 'amount' && goal.currency) {
         const maxFraction = goal.currency === 'UZS' ? 0 : 2;
         return new Intl.NumberFormat(undefined, {
@@ -238,58 +211,21 @@ export default function GoalDetailsModal() {
       }
       return `${Math.round(value * 100) / 100}`;
     },
-    [goal.currency, goal.metricType, goal.unit],
+    [goal],
   );
 
-  const getGoalTypeIcon = (type: Goal['goalType']) => {
-    switch (type) {
-      case 'financial':
-        return <DollarSign size={16} color="#10B981" />;
-      case 'health':
-        return <Heart size={16} color="#EF4444" />;
-      case 'education':
-        return <Target size={16} color="#3B82F6" />;
-      case 'productivity':
-        return <TrendingUp size={16} color="#8B5CF6" />;
-      case 'personal':
-        return <Users size={16} color="#F59E0B" />;
-      default:
-        return <Target size={16} color="#94A3B8" />;
-    }
-  };
+  // Computed values that depend on goal - using fallbacks when goal is null
+  const numericCurrent = Number(progressData?.displayCurrent ?? summary?.current ?? 0);
+  const numericTarget = Number(progressData?.displayTarget ?? summary?.target ?? 0);
+  const ratioBase =
+    numericTarget > 0 && Number.isFinite(numericTarget)
+      ? numericCurrent / numericTarget
+      : progressData?.progressPercent ?? summary?.progressPercent ?? 0;
+  const progressPercent = Math.round(Math.min(Math.max(ratioBase, 0), 1) * 100);
+  const clampedProgress = Math.min(Math.max(progressPercent, 0), 100);
+  const isMoneyGoal = goal?.goalType === 'financial' || goal?.metricType === 'amount';
 
-  const getGoalTypeLabel = (type: Goal['goalType']) => {
-    switch (type) {
-      case 'financial':
-        return 'Financial';
-      case 'health':
-        return 'Health';
-      case 'education':
-        return 'Education';
-      case 'productivity':
-        return 'Productivity';
-      case 'personal':
-        return 'Personal';
-      default:
-        return 'Other';
-    }
-  };
-
-  const getPriorityColor = (priority?: 'urgent' | 'high' | 'medium' | 'low') => {
-    switch (priority) {
-      case 'urgent':
-        return '#EF4444';
-      case 'high':
-        return '#F59E0B';
-      case 'medium':
-        return '#3B82F6';
-      case 'low':
-        return '#6B7280';
-      default:
-        return '#94A3B8';
-    }
-  };
-
+  // All useMemo hooks - must be before early return
   const historyItems = useMemo(() => {
     if (!goal) return [];
     const checkInItems = (goal.checkIns ?? []).map((entry) => {
@@ -384,27 +320,6 @@ export default function GoalDetailsModal() {
     };
   }, [goal]);
 
-  const handleHabitToggle = (habitId: string, currentStatus?: 'done' | 'remaining') => {
-    if (currentStatus === 'done') {
-      // Already done, optionally allow un-checking (not implemented here)
-      return;
-    }
-    logHabitCompletion(habitId, true, { date: new Date() });
-  };
-
-  const scrollToSection = useCallback((key: 'tasks' | 'habits' | 'activity') => {
-    const y = sectionPositions.current[key];
-    if (scrollRef.current && y != null && Number.isFinite(y)) {
-      scrollRef.current.scrollTo({ y, animated: true });
-    }
-  }, []);
-
-  const handleCheckInPress = () => {
-    setCheckInNote('');
-    setCheckInValue(goal?.metricType === 'weight' && goal?.initialValue ? goal.initialValue.toString() : '');
-    setCheckInVisible(true);
-  };
-
   const stepperSteps = useMemo(() => {
     if (!goal) return [];
     if (goal.metricType === 'none') return [];
@@ -412,6 +327,14 @@ export default function GoalDetailsModal() {
     if (goal.metricType === 'weight') return [0.5, 1, 5];
     return [1, 5, 10];
   }, [goal]);
+
+  // All useCallback hooks - must be before early return
+  const scrollToSection = useCallback((key: 'tasks' | 'habits' | 'activity') => {
+    const y = sectionPositions.current[key];
+    if (scrollRef.current && y != null && Number.isFinite(y)) {
+      scrollRef.current.scrollTo({ y, animated: true });
+    }
+  }, []);
 
   const applyProgress = useCallback(
     (value: number, note?: string) => {
@@ -447,44 +370,6 @@ export default function GoalDetailsModal() {
     },
     [applyProgress],
   );
-
-  const handleCheckInSubmit = () => {
-    if (!goal || !checkInValue.trim()) return;
-
-    const entered = parseFloat(checkInValue);
-    if (!Number.isFinite(entered)) {
-      Alert.alert('Invalid Input', 'Please enter a valid number');
-      return;
-    }
-
-    const todayKey = new Date().toISOString().slice(0, 10);
-    if (!isMoneyGoal) {
-      const hasTodayEntry = (goal.checkIns ?? []).some(
-        (entry) => (entry.dateKey ?? entry.createdAt?.slice(0, 10)) === todayKey && entry.sourceType === 'manual',
-      );
-      if (hasTodayEntry) {
-        Alert.alert('Already logged', 'You have already checked in for this goal today.');
-        return;
-      }
-    }
-
-    const now = new Date().toISOString();
-    const currentProgress = progressData?.progressValue ?? 0;
-    let delta = entered;
-
-    if (goal.metricType === 'weight') {
-      const start = goal.initialValue ?? entered;
-      const totalLost = Math.max(start - entered, 0);
-      delta = Math.max(totalLost - currentProgress, 0);
-    }
-
-    if (delta <= 0) {
-      Alert.alert('Nothing to add', 'Enter a value that moves this goal forward.');
-      return;
-    }
-
-    applyProgress(delta, checkInNote.trim() || undefined);
-  };
 
   const handleBudgetPick = useCallback(
     (budgetId: string) => {
@@ -583,6 +468,128 @@ export default function GoalDetailsModal() {
     logHabitCompletion,
     progressData?.displayTarget,
   ]);
+
+  // Navigate back when goal is deleted - must be after all hooks
+  useEffect(() => {
+    if (!goal) {
+      router.back();
+    }
+  }, [goal, router]);
+
+  useEffect(() => {
+    if (!selectedAccountId && accounts[0]) {
+      setSelectedAccountId(accounts[0].id);
+    }
+  }, [accounts, selectedAccountId]);
+
+  // Early return AFTER all hooks are called
+  if (!goal) {
+    return null;
+  }
+
+  // Helper functions (not hooks, can be after early return)
+  const getGoalTypeIcon = (type: Goal['goalType']) => {
+    switch (type) {
+      case 'financial':
+        return <DollarSign size={16} color="#10B981" />;
+      case 'health':
+        return <Heart size={16} color="#EF4444" />;
+      case 'education':
+        return <Target size={16} color="#3B82F6" />;
+      case 'productivity':
+        return <TrendingUp size={16} color="#8B5CF6" />;
+      case 'personal':
+        return <Users size={16} color="#F59E0B" />;
+      default:
+        return <Target size={16} color="#94A3B8" />;
+    }
+  };
+
+  const getGoalTypeLabel = (type: Goal['goalType']) => {
+    switch (type) {
+      case 'financial':
+        return 'Financial';
+      case 'health':
+        return 'Health';
+      case 'education':
+        return 'Education';
+      case 'productivity':
+        return 'Productivity';
+      case 'personal':
+        return 'Personal';
+      default:
+        return 'Other';
+    }
+  };
+
+  const getPriorityColor = (priority?: 'urgent' | 'high' | 'medium' | 'low') => {
+    switch (priority) {
+      case 'urgent':
+        return '#EF4444';
+      case 'high':
+        return '#F59E0B';
+      case 'medium':
+        return '#3B82F6';
+      case 'low':
+        return '#6B7280';
+      default:
+        return '#94A3B8';
+    }
+  };
+
+  const handleHabitToggle = (habitId: string, currentStatus?: 'done' | 'remaining') => {
+    if (currentStatus === 'done') {
+      return;
+    }
+    logHabitCompletion(habitId, true, { date: new Date() });
+  };
+
+  const handleCheckInPress = () => {
+    setCheckInNote('');
+    setCheckInValue(goal?.metricType === 'weight' && goal?.initialValue ? goal.initialValue.toString() : '');
+    setCheckInVisible(true);
+  };
+
+  const handleCheckInSubmit = () => {
+    if (!goal || !checkInValue.trim()) return;
+
+    const entered = parseFloat(checkInValue);
+    if (!Number.isFinite(entered)) {
+      Alert.alert('Invalid Input', 'Please enter a valid number');
+      return;
+    }
+
+    const todayKey = new Date().toISOString().slice(0, 10);
+    if (!isMoneyGoal) {
+      const hasTodayEntry = (goal.checkIns ?? []).some(
+        (entry) => (entry.dateKey ?? entry.createdAt?.slice(0, 10)) === todayKey && entry.sourceType === 'manual',
+      );
+      if (hasTodayEntry) {
+        Alert.alert('Already logged', 'You have already checked in for this goal today.');
+        return;
+      }
+    }
+
+    const currentProgress = progressData?.progressValue ?? 0;
+    let delta = entered;
+
+    if (goal.metricType === 'weight') {
+      const start = goal.initialValue ?? entered;
+      const totalLost = Math.max(start - entered, 0);
+      delta = Math.max(totalLost - currentProgress, 0);
+    }
+
+    if (delta <= 0) {
+      Alert.alert('Nothing to add', 'Enter a value that moves this goal forward.');
+      return;
+    }
+
+    applyProgress(delta, checkInNote.trim() || undefined);
+  };
+
+  // Values computed from goal (safe after early return)
+  const currentDisplay = numericCurrent;
+  const targetDisplay = numericTarget;
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.background }]} edges={['top']}>
@@ -1989,5 +1996,8 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 14,
     textDecorationLine: 'underline',
+  },
+  pressed: {
+    opacity: 0.7,
   },
 });

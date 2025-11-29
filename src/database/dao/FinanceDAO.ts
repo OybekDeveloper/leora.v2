@@ -440,6 +440,24 @@ export class BudgetDAO {
     });
   }
 
+  delete(id: string) {
+    const budgetObjectId = toObjectId(id);
+    if (!budgetObjectId) return;
+    if (!hasRealmInstance(this.realm)) return;
+
+    this.realm.write(() => {
+      // First delete associated budget entries
+      const entries = this.realm.objects('BudgetEntry').filtered('budgetId == $0', budgetObjectId);
+      this.realm.delete(entries);
+
+      // Then delete the budget
+      const record = this.realm.objectForPrimaryKey('Budget', budgetObjectId);
+      if (record) {
+        this.realm.delete(record);
+      }
+    });
+  }
+
   recordEntry(entry: BudgetEntry): BudgetEntry {
     const now = new Date();
     let created: any;

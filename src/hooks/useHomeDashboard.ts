@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState, type ComponentType } from 'r
 import type { WidgetType } from '@/config/widgetConfig';
 import { usePlannerDomainStore } from '@/stores/usePlannerDomainStore';
 import { useFinanceDomainStore } from '@/stores/useFinanceDomainStore';
+import { useSelectedDayStore } from '@/stores/selectedDayStore';
 import { useLocalization } from '@/localization/useLocalization';
 import { useFinanceCurrency } from '@/hooks/useFinanceCurrency';
 import type {
@@ -65,8 +66,21 @@ const buildIndicators = (progress: ProgressData | null | undefined): HomeDataSta
 };
 
 export function useHomeDashboard(initialDate?: Date): UseHomeDashboardResult {
-  const [selectedDate, setSelectedDate] = useState<Date>(() => startOfDay(initialDate ?? new Date()));
+  // Use the shared selectedDayStore for consistent date across the app
+  const selectedDate = useSelectedDayStore((state) => state.selectedDate);
+  const setSelectedDateStore = useSelectedDayStore((state) => state.setSelectedDate);
   const [refreshing, setRefreshing] = useState<boolean>(false);
+
+  // Initialize with provided date if different from store
+  useEffect(() => {
+    if (initialDate) {
+      const normalized = startOfDay(initialDate);
+      if (normalized.getTime() !== selectedDate.getTime()) {
+        setSelectedDateStore(normalized);
+      }
+    }
+  }, []);
+
   const plannerState = usePlannerDomainStore(
     useShallow((state) => ({
       tasks: state.tasks,
@@ -86,8 +100,8 @@ export function useHomeDashboard(initialDate?: Date): UseHomeDashboardResult {
   const { convertAmount, globalCurrency } = useFinanceCurrency();
 
   const budgetScore = useMemo(
-    () => computeBudgetScore(financeState.budgets),
-    [financeState.budgets],
+    () => computeBudgetScore(financeState.budgets, financeState.transactions, selectedDate, convertAmount),
+    [financeState.budgets, financeState.transactions, selectedDate, convertAmount],
   );
 
   const progress = useMemo(
@@ -178,8 +192,8 @@ export function useHomeDashboard(initialDate?: Date): UseHomeDashboardResult {
   const selectDate = useCallback((date: Date) => {
     const normalized = startOfDay(date);
     setRefreshing(true);
-    setSelectedDate(normalized);
-  }, []);
+    setSelectedDateStore(normalized);
+  }, [setSelectedDateStore]);
 
   const refresh = useCallback(() => {
     setRefreshing(true);
@@ -285,9 +299,9 @@ function buildWidgetPayloads({
   const habits = mapHabits(plannerState.habits, selectedDate);
   const weeklyStats = buildWeeklyStats(plannerState.tasks, plannerState.focusSessions, plannerState.habits, selectedDate);
   const focusSessions = buildFocusSessions(plannerState.focusSessions, plannerState.tasks, selectedDate);
-  const recentTransactions = buildRecentTransactions(financeState.transactions, locale);
+  const recentTransactions = buildRecentTransactions(financeState.transactions, locale, selectedDate);
   const spending = buildSpendingSummary(financeState.transactions, selectedDate, convertAmount, globalCurrency);
-  const budgetList = buildBudgetList(financeState.budgets, globalCurrency, convertAmount);
+  const budgetList = buildBudgetList(financeState.budgets, financeState.transactions, selectedDate, globalCurrency, convertAmount);
   const cashFlow = buildCashFlowTimeline(financeState.transactions, selectedDate, convertAmount, globalCurrency, locale);
   const productivity = buildProductivityInsights(progressFromStats(weeklyStats, budgetScore), weeklyStats, focusSessions.trend);
   const hasPlannerBacklog = plannerState.tasks.length > 0;
@@ -295,9 +309,12 @@ function buildWidgetPayloads({
   const hasHabits = plannerState.habits.length > 0;
   const hasFocusSessions = plannerState.focusSessions.length > 0;
   const hasWeeklyData = hasPlannerBacklog || hasFocusSessions;
-  const hasTransactions = financeState.transactions.length > 0;
-  const hasExpenses = financeState.transactions.some((txn) => txn.type === 'expense');
-  const hasBudgets = financeState.budgets.length > 0;
+  // Check for transactions on the selected date
+  const hasTransactionsForDate = recentTransactions.length > 0;
+  const hasExpensesForDate = spending.categories.length > 0;
+  const hasBudgets = financeState.budgets.filter((b) => !b.isArchived).length > 0;
+  // For cash flow, check if any transactions exist overall (shows 5-day range)
+  const hasAnyTransactions = financeState.transactions.length > 0;
 
   return {
     'daily-tasks': {
@@ -324,11 +341,11 @@ function buildWidgetPayloads({
       },
     },
     transactions: {
-      hasData: hasTransactions,
+      hasData: hasTransactionsForDate,
       props: { transactions: recentTransactions.slice(0, 5) },
     },
     'spending-summary': {
-      hasData: hasExpenses,
+      hasData: hasExpensesForDate,
       props: { categories: spending.categories, total: spending.total },
     },
     'budget-progress': {
@@ -336,7 +353,7 @@ function buildWidgetPayloads({
       props: { budgets: budgetList.slice(0, 3) },
     },
     'cash-flow': {
-      hasData: hasTransactions,
+      hasData: hasAnyTransactions,
       props: { days: cashFlow.days },
     },
     'productivity-insights': {
@@ -404,15 +421,39 @@ function mapGoals(goals: PlannerGoal[]): HomeGoal[] {
 
 function mapHabits(habits: PlannerHabit[], date: Date) {
   const weekday = date.getDay();
-  return habits
-    .filter((habit) => habit.status === 'active')
-    .map((habit) => ({
+  const dayKey = startOfDay(date).toISOString().split('T')[0]!;
+
+  // Filter habits that are due on the selected day
+  const habitsForDay = habits.filter((habit) => {
+    if (habit.status !== 'active') return false;
+    // Check if habit is scheduled for this day
+    if (habit.daysOfWeek && habit.daysOfWeek.length > 0) {
+      return habit.daysOfWeek.includes(weekday);
+    }
+    // Daily habits are always due
+    if (habit.frequency === 'daily') return true;
+    // Weekly habits without specific days default to due
+    if (habit.frequency === 'weekly') return true;
+    return true;
+  });
+
+  return habitsForDay.map((habit) => {
+    // Check if habit is completed for this specific date
+    let completed = false;
+    if (habit.completionHistory) {
+      const entry = habit.completionHistory[dayKey];
+      const status = typeof entry === 'string' ? entry : entry?.status;
+      completed = status === 'done';
+    }
+
+    return {
       id: habit.id,
       name: habit.title,
       streak: habit.streakCurrent,
-      completed: habit.daysOfWeek ? habit.daysOfWeek.includes(weekday) : false,
+      completed,
       icon: HABIT_ICON_MAP[habit.habitType] ?? HabitatFallbackIcon,
-    }));
+    };
+  });
 }
 
 const HabitatFallbackIcon: ComponentType<{ size?: number; color?: string }> = Heart;
@@ -484,8 +525,14 @@ function buildFocusSessions(
   };
 }
 
-function buildRecentTransactions(transactions: Transaction[], locale: string) {
-  return [...transactions]
+function buildRecentTransactions(transactions: Transaction[], locale: string, selectedDate: Date) {
+  const selectedDateKey = toISODateKey(selectedDate);
+  // Filter transactions for the selected date
+  const dayTransactions = transactions.filter((txn) => {
+    const txnDateKey = toISODateKey(new Date(txn.date));
+    return txnDateKey === selectedDateKey;
+  });
+  return [...dayTransactions]
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 5)
     .map((txn) => ({
@@ -512,12 +559,12 @@ function buildSpendingSummary(
   convertAmount: (amount: number, from: string, to?: string) => number,
   targetCurrency: string,
 ) {
-  const start = startOfMonth(selectedDate);
-  const end = addMonths(start, 1);
+  // Filter expenses for the selected DATE (not month)
+  const selectedDateKey = toISODateKey(selectedDate);
   const expenses = transactions.filter((txn) => {
     if (txn.type !== 'expense') return false;
-    const date = new Date(txn.date);
-    return date >= start && date < end;
+    const txnDateKey = toISODateKey(new Date(txn.date));
+    return txnDateKey === selectedDateKey;
   });
   const categoryTotals = expenses.reduce<Record<string, number>>((acc, txn) => {
     const currency = normalizeFinanceCurrency(txn.currency as string);
@@ -536,16 +583,55 @@ function buildSpendingSummary(
 
 function buildBudgetList(
   budgets: Budget[],
+  transactions: Transaction[],
+  selectedDate: Date,
   targetCurrency: string,
   convertAmount: (amount: number, from: string, to?: string) => number,
 ) {
   return budgets
-    .map((budget) => ({
-      label: budget.name,
-      used: Math.round(convertAmount(budget.spentAmount, normalizeFinanceCurrency(budget.currency as string), targetCurrency)),
-      total: Math.round(convertAmount(budget.limitAmount, normalizeFinanceCurrency(budget.currency as string), targetCurrency)),
-      percentUsed: budget.percentUsed,
-    }))
+    .filter((budget) => !budget.isArchived)
+    .map((budget) => {
+      // Calculate spent amount based on transactions within the budget's period
+      const isSpendingBudget = budget.transactionType !== 'income';
+      const budgetCurrency = normalizeFinanceCurrency(budget.currency as string);
+
+      // Get relevant transactions for this budget
+      const relevantTransactions = transactions.filter((txn) => {
+        // Must match budget ID or category
+        const matchesBudget = txn.budgetId === budget.id;
+        const matchesCategory = budget.categoryIds?.includes(txn.categoryId ?? '') ?? false;
+        const matchesType = isSpendingBudget ? txn.type === 'expense' : txn.type === 'income';
+
+        if (!matchesBudget && !matchesCategory) return false;
+        if (!matchesType) return false;
+
+        // Check if transaction is within budget period
+        const txnDate = new Date(txn.date);
+        if (budget.periodType !== 'none' && budget.startDate && budget.endDate) {
+          const budgetStart = new Date(budget.startDate);
+          const budgetEnd = new Date(budget.endDate);
+          if (txnDate < budgetStart || txnDate > budgetEnd) return false;
+        }
+
+        return true;
+      });
+
+      // Calculate spent amount from transactions
+      const spentAmount = relevantTransactions.reduce((sum, txn) => {
+        const txnCurrency = normalizeFinanceCurrency(txn.currency as string);
+        return sum + convertAmount(Math.abs(txn.amount), txnCurrency, budgetCurrency);
+      }, 0);
+
+      const limitAmount = budget.limitAmount || 0;
+      const percentUsed = limitAmount > 0 ? spentAmount / limitAmount : 0;
+
+      return {
+        label: budget.name,
+        used: Math.round(convertAmount(spentAmount, budgetCurrency, targetCurrency)),
+        total: Math.round(convertAmount(limitAmount, budgetCurrency, targetCurrency)),
+        percentUsed: Math.min(percentUsed, 1), // Cap at 100%
+      };
+    })
     .sort((a, b) => b.percentUsed - a.percentUsed);
 }
 
@@ -601,10 +687,65 @@ function buildProductivityInsights(
   };
 }
 
-function computeBudgetScore(budgets: Budget[]): number {
-  if (!budgets.length) {
+function computeBudgetScore(
+  budgets: Budget[],
+  transactions: Transaction[],
+  selectedDate: Date,
+  convertAmount: (amount: number, from: string, to?: string) => number,
+): number {
+  const activeBudgets = budgets.filter((budget) => !budget.isArchived);
+  if (!activeBudgets.length) {
     return 0;
   }
-  const averageUsage = budgets.reduce((sum, budget) => sum + Math.min(1, budget.percentUsed), 0) / budgets.length;
+
+  // Calculate budget usage from transactions for each budget
+  let totalUsageRatio = 0;
+  let validBudgetCount = 0;
+
+  activeBudgets.forEach((budget) => {
+    const isSpendingBudget = budget.transactionType !== 'income';
+    const budgetCurrency = normalizeFinanceCurrency(budget.currency as string);
+
+    // Get relevant transactions for this budget
+    const relevantTransactions = transactions.filter((txn) => {
+      const matchesBudget = txn.budgetId === budget.id;
+      const matchesCategory = budget.categoryIds?.includes(txn.categoryId ?? '') ?? false;
+      const matchesType = isSpendingBudget ? txn.type === 'expense' : txn.type === 'income';
+
+      if (!matchesBudget && !matchesCategory) return false;
+      if (!matchesType) return false;
+
+      // Check if transaction is within budget period
+      const txnDate = new Date(txn.date);
+      if (budget.periodType !== 'none' && budget.startDate && budget.endDate) {
+        const budgetStart = new Date(budget.startDate);
+        const budgetEnd = new Date(budget.endDate);
+        if (txnDate < budgetStart || txnDate > budgetEnd) return false;
+      }
+
+      return true;
+    });
+
+    // Calculate spent amount from transactions
+    const spentAmount = relevantTransactions.reduce((sum, txn) => {
+      const txnCurrency = normalizeFinanceCurrency(txn.currency as string);
+      return sum + convertAmount(Math.abs(txn.amount), txnCurrency, budgetCurrency);
+    }, 0);
+
+    const limitAmount = budget.limitAmount || 0;
+    if (limitAmount > 0) {
+      const usageRatio = Math.min(spentAmount / limitAmount, 1);
+      totalUsageRatio += usageRatio;
+      validBudgetCount++;
+    }
+  });
+
+  if (validBudgetCount === 0) {
+    return 0;
+  }
+
+  const averageUsage = totalUsageRatio / validBudgetCount;
+  // For spending budgets: lower usage = higher score (100% = used none, 0% = fully used)
+  // For saving budgets: higher contribution = higher score
   return Math.round(Math.max(0, 100 - averageUsage * 100));
 }

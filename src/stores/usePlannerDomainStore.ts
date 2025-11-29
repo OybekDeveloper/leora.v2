@@ -22,12 +22,34 @@ export type PlannerHistoryItem = {
   snapshot?: Task;
 };
 
+export type GoalHistoryItem = {
+  historyId: string;
+  goalId: string;
+  title: string;
+  status: Goal['status'];
+  action: 'deleted';
+  timestamp: string;
+  snapshot: Goal;
+};
+
+export type HabitHistoryItem = {
+  historyId: string;
+  habitId: string;
+  title: string;
+  status: Habit['status'];
+  action: 'deleted';
+  timestamp: string;
+  snapshot: Habit;
+};
+
 interface PlannerDomainState {
   goals: Goal[];
   habits: Habit[];
   tasks: Task[];
   focusSessions: FocusSession[];
   taskHistory: PlannerHistoryItem[];
+  goalHistory: GoalHistoryItem[];
+  habitHistory: HabitHistoryItem[];
   addGoalCheckIn: (payload: { goalId: string; value: number; note?: string; sourceType?: GoalCheckIn['sourceType']; sourceId?: string; dateKey?: string; createdAt?: string }) => GoalCheckIn | undefined;
   removeFinanceContribution: (sourceId: string) => void;
   createGoal: (payload: Omit<Goal, 'id' | 'createdAt' | 'updatedAt' | 'progressPercent' | 'stats'> & { id?: string; progressPercent?: number; stats?: Goal['stats'] }) => Goal;
@@ -35,9 +57,12 @@ interface PlannerDomainState {
   setGoalStatus: (id: string, status: Goal['status']) => void;
   completeGoal: (id: string, completedDate?: string) => void;
   archiveGoal: (id: string) => void;
+  deleteGoal: (id: string) => void;
   pauseGoal: (id: string) => void;
   resumeGoal: (id: string) => void;
   deleteGoalPermanently: (id: string) => void;
+  restoreGoalFromHistory: (historyId: string) => void;
+  removeGoalHistoryEntry: (historyId: string) => void;
   restartGoal: (id: string) => void;
   createHabit: (payload: Omit<Habit, 'id' | 'createdAt' | 'updatedAt' | 'streakCurrent' | 'streakBest' | 'completionRate30d'> & { id?: string; streakCurrent?: number; streakBest?: number; completionRate30d?: number }) => Habit;
   updateHabit: (id: string, updates: Partial<Habit>) => void;
@@ -45,6 +70,10 @@ interface PlannerDomainState {
   pauseHabit: (id: string) => void;
   resumeHabit: (id: string) => void;
   archiveHabit: (id: string) => void;
+  deleteHabit: (id: string) => void;
+  deleteHabitPermanently: (id: string) => void;
+  restoreHabitFromHistory: (historyId: string) => void;
+  removeHabitHistoryEntry: (historyId: string) => void;
   createTask: (payload: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'status' | 'focusTotalMinutes'> & { id?: string; status?: TaskStatus; focusTotalMinutes?: number }) => Task;
   updateTask: (id: string, updates: Partial<Task>) => void;
   completeTask: (id: string, options?: { actualMinutes?: number }) => void;
@@ -57,6 +86,20 @@ interface PlannerDomainState {
   deleteTaskPermanently: (taskId: string) => void;
   restoreTaskFromHistory: (historyId: string) => void;
   removeHistoryEntry: (historyId: string) => void;
+  // Batch operations
+  batchDeleteTasks: (taskIds: string[]) => void;
+  batchDeleteGoals: (goalIds: string[]) => void;
+  batchDeleteHabits: (habitIds: string[]) => void;
+  batchRestoreTasks: (historyIds: string[]) => void;
+  batchRestoreGoals: (historyIds: string[]) => void;
+  batchRestoreHabits: (historyIds: string[]) => void;
+  batchResumeHabits: (habitIds: string[]) => void;
+  batchDeleteTasksPermanently: (taskIds: string[]) => void;
+  batchDeleteGoalsPermanently: (goalIds: string[]) => void;
+  batchDeleteHabitsPermanently: (habitIds: string[]) => void;
+  clearAllTaskHistory: () => void;
+  clearAllGoalHistory: () => void;
+  clearAllHabitHistory: () => void;
   createFocusSession: (payload: Omit<FocusSession, 'id' | 'status' | 'createdAt' | 'updatedAt'> & { status?: FocusSession['status'] }) => FocusSession;
   updateFocusSession: (id: string, updates: Partial<FocusSession>) => void;
   startFocus: (payload: { taskId?: string; goalId?: string; plannedMinutes?: number; notes?: string }) => FocusSession;
@@ -710,6 +753,8 @@ const createInitialPlannerCollections = () => ({
   tasks: DEFAULT_TASKS,
   focusSessions: [] as FocusSession[],
   taskHistory: [] as PlannerHistoryItem[],
+  goalHistory: [] as GoalHistoryItem[],
+  habitHistory: [] as HabitHistoryItem[],
 });
 
 export const usePlannerDomainStore = create<PlannerDomainState>()(
@@ -1097,6 +1142,43 @@ export const usePlannerDomainStore = create<PlannerDomainState>()(
         }
       },
 
+      deleteGoal: (id) => {
+        let deletedGoal: Goal | undefined;
+        set((state) => {
+          const goalToDelete = state.goals.find((goal) => goal.id === id);
+          if (!goalToDelete) return state;
+
+          deletedGoal = { ...goalToDelete, status: 'archived', updatedAt: nowIso() };
+          const historyEntry: GoalHistoryItem = {
+            historyId: generateId('goal-history'),
+            goalId: id,
+            title: goalToDelete.title,
+            status: goalToDelete.status,
+            action: 'deleted',
+            timestamp: nowIso(),
+            snapshot: goalToDelete,
+          };
+
+          const goals = recalcGoalProgress(
+            state.goals.map((goal) =>
+              goal.id === id ? deletedGoal! : goal,
+            ),
+            state.tasks,
+            state.habits,
+            state.focusSessions,
+          );
+
+          return {
+            goals,
+            goalHistory: [historyEntry, ...state.goalHistory].slice(0, 200),
+          };
+        });
+        if (deletedGoal) {
+          persistGoalToRealm(deletedGoal);
+          publishPlannerEvent('planner.goal.archived', { goal: deletedGoal });
+        }
+      },
+
       pauseGoal: (id) => {
         let updated: Goal | undefined;
         set((state) => {
@@ -1192,11 +1274,57 @@ export const usePlannerDomainStore = create<PlannerDomainState>()(
 
         set((state) => {
           const goals = state.goals.filter((goal) => goal.id !== id);
-          return { goals };
+          return {
+            goals,
+            goalHistory: state.goalHistory.filter((entry) => entry.goalId !== id),
+          };
         });
         deleteGoalFromRealm(id);
         publishPlannerEvent('planner.goal.deleted', { goalId: id });
       },
+
+      restoreGoalFromHistory: (historyId) => {
+        let restoredGoal: Goal | undefined;
+        set((state) => {
+          const entryIndex = state.goalHistory.findIndex((item) => item.historyId === historyId);
+          if (entryIndex === -1) return state;
+
+          const entry = state.goalHistory[entryIndex];
+          if (!entry.snapshot) {
+            return {
+              goalHistory: state.goalHistory.filter((_, idx) => idx !== entryIndex),
+            };
+          }
+
+          const restored: Goal = {
+            ...entry.snapshot,
+            status: 'active',
+            updatedAt: nowIso(),
+          };
+          restoredGoal = restored;
+
+          const goals = recalcGoalProgress(
+            [restored, ...state.goals.filter((goal) => goal.id !== restored.id)],
+            state.tasks,
+            state.habits,
+            state.focusSessions,
+          );
+
+          return {
+            goals,
+            goalHistory: state.goalHistory.filter((_, idx) => idx !== entryIndex),
+          };
+        });
+        if (restoredGoal) {
+          persistGoalToRealm(restoredGoal);
+          publishPlannerEvent('planner.goal.updated', { goal: restoredGoal });
+        }
+      },
+
+      removeGoalHistoryEntry: (historyId) =>
+        set((state) => ({
+          goalHistory: state.goalHistory.filter((entry) => entry.historyId !== historyId),
+        })),
 
       createHabit: (payload) => {
         const habit: Habit = {
@@ -1526,6 +1654,88 @@ export const usePlannerDomainStore = create<PlannerDomainState>()(
           }
         }
       },
+
+      deleteHabit: (id) => {
+        let deletedHabit: Habit | undefined;
+        set((state) => {
+          const habitToDelete = state.habits.find((habit) => habit.id === id);
+          if (!habitToDelete) return state;
+
+          deletedHabit = { ...habitToDelete, status: 'archived', updatedAt: nowIso() };
+          const historyEntry: HabitHistoryItem = {
+            historyId: generateId('habit-history'),
+            habitId: id,
+            title: habitToDelete.title,
+            status: habitToDelete.status,
+            action: 'deleted',
+            timestamp: nowIso(),
+            snapshot: habitToDelete,
+          };
+
+          const habits = state.habits.map((habit) =>
+            habit.id === id ? deletedHabit! : habit,
+          );
+
+          return {
+            habits,
+            goals: recalcGoalProgress(state.goals, state.tasks, habits, state.focusSessions),
+            habitHistory: [historyEntry, ...state.habitHistory].slice(0, 200),
+          };
+        });
+        if (deletedHabit) {
+          persistHabitToRealm(deletedHabit);
+        }
+      },
+
+      deleteHabitPermanently: (id) => {
+        set((state) => {
+          const habits = state.habits.filter((habit) => habit.id !== id);
+          return {
+            habits,
+            goals: recalcGoalProgress(state.goals, state.tasks, habits, state.focusSessions),
+            habitHistory: state.habitHistory.filter((entry) => entry.habitId !== id),
+          };
+        });
+        deleteHabitFromRealm(id);
+      },
+
+      restoreHabitFromHistory: (historyId) => {
+        let restoredHabit: Habit | undefined;
+        set((state) => {
+          const entryIndex = state.habitHistory.findIndex((item) => item.historyId === historyId);
+          if (entryIndex === -1) return state;
+
+          const entry = state.habitHistory[entryIndex];
+          if (!entry.snapshot) {
+            return {
+              habitHistory: state.habitHistory.filter((_, idx) => idx !== entryIndex),
+            };
+          }
+
+          const restored: Habit = {
+            ...entry.snapshot,
+            status: 'active',
+            updatedAt: nowIso(),
+          };
+          restoredHabit = restored;
+
+          const habits = [restored, ...state.habits.filter((habit) => habit.id !== restored.id)];
+
+          return {
+            habits,
+            goals: recalcGoalProgress(state.goals, state.tasks, habits, state.focusSessions),
+            habitHistory: state.habitHistory.filter((_, idx) => idx !== entryIndex),
+          };
+        });
+        if (restoredHabit) {
+          persistHabitToRealm(restoredHabit);
+        }
+      },
+
+      removeHabitHistoryEntry: (historyId) =>
+        set((state) => ({
+          habitHistory: state.habitHistory.filter((entry) => entry.historyId !== historyId),
+        })),
 
       createTask: (payload) => {
         const task: Task = {
@@ -1976,6 +2186,56 @@ export const usePlannerDomainStore = create<PlannerDomainState>()(
           taskHistory: state.taskHistory.filter((entry) => entry.historyId !== historyId),
         })),
 
+      // Batch operations
+      batchDeleteTasks: (taskIds) => {
+        taskIds.forEach((id) => get().deleteTask(id));
+      },
+
+      batchDeleteGoals: (goalIds) => {
+        goalIds.forEach((id) => get().deleteGoal(id));
+      },
+
+      batchDeleteHabits: (habitIds) => {
+        habitIds.forEach((id) => get().deleteHabit(id));
+      },
+
+      batchRestoreTasks: (historyIds) => {
+        historyIds.forEach((id) => get().restoreTaskFromHistory(id));
+      },
+
+      batchRestoreGoals: (historyIds) => {
+        historyIds.forEach((id) => get().restoreGoalFromHistory(id));
+      },
+
+      batchRestoreHabits: (historyIds) => {
+        historyIds.forEach((id) => get().restoreHabitFromHistory(id));
+      },
+
+      batchResumeHabits: (habitIds) => {
+        habitIds.forEach((id) => get().resumeHabit(id));
+      },
+
+      batchDeleteTasksPermanently: (taskIds) => {
+        taskIds.forEach((id) => get().deleteTaskPermanently(id));
+      },
+
+      batchDeleteGoalsPermanently: (goalIds) => {
+        goalIds.forEach((id) => get().deleteGoalPermanently(id));
+      },
+
+      batchDeleteHabitsPermanently: (habitIds) => {
+        habitIds.forEach((id) => get().deleteHabitPermanently(id));
+      },
+
+      clearAllTaskHistory: () =>
+        set({ taskHistory: [] }),
+
+      clearAllGoalHistory: () =>
+        set({ goalHistory: [] }),
+
+      clearAllHabitHistory: () =>
+        set({ habitHistory: [] }),
+
       createFocusSession: (payload) => {
         const session: FocusSession = {
           ...payload,
@@ -2136,6 +2396,8 @@ export const usePlannerDomainStore = create<PlannerDomainState>()(
         tasks: state.tasks,
         focusSessions: state.focusSessions,
         taskHistory: state.taskHistory,
+        goalHistory: state.goalHistory,
+        habitHistory: state.habitHistory,
       }),
     }
   )

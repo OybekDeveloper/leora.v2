@@ -18,3 +18,5 @@ export { SearchDocIcon } from './SearchDocIcon';
 export { SettingIcon } from './SettingIcon';
 export { TransactionIcon } from './TransactionIcon';
 export { default as PremiumIcon } from './PremiumIcon';
+export { LightIcon } from './LightIcon';
+export { FireIcon } from './FireIcon';

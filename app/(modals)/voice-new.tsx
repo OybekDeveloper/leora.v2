@@ -76,12 +76,6 @@ type RecordingClip = {
   waveform: number[];
 };
 
-type WaveLayer = {
-  position: number;
-  speed: number;
-  phase: number;
-};
-
 const HEADLINES: Record<VoiceStage, { title: string; subtitle: string }> = {
   idle: {
     title: 'Voice assistant',
@@ -177,242 +171,326 @@ const generateWaveformSamples = (bars: number, variance = 0.6) => {
   return values;
 };
 
-// ============================================================================
-// УЛУЧШЕННАЯ ВЕРСИЯ С ПОСТОЯННОЙ АНИМАЦИЕЙ
-// ============================================================================
-// КЛЮЧЕВАЯ ЛОГИКА:
-// - В режиме LISTENING всегда есть базовая анимация (intensity = 0.12)
-// - При детектировании голоса интенсивность увеличивается (до 0.75)
-// - В режиме ANALYZING фиксированная анимация (intensity = 0.16)
-// - В режиме IDLE волны не отображаются (intensity = 0)
-//
-// Это создает плавный, живой эффект в режиме прослушивания, который
-// становится более драматичным при появлении голоса пользователя
+/**
+ * =====================================================================
+ *  PORT OF HTML CANVAS WAVE LOGIC → react-native-svg
+ * =====================================================================
+ */
 
-// Правильное количество слоев для богатого визуального эффекта
-const MIN_WAVE_LAYERS = 28;  // В режиме покоя минимум 28 линий
-const MAX_WAVE_LAYERS = 38;  // При высокой амплитуде до 38 линий
+const NUM_LINES = 16;
+const NUM_POINTS = 60;
+const PI = Math.PI;
 
-const createWaveLayers = (count: number): WaveLayer[] => {
-  return Array.from({ length: count }).map((_, index) => {
-    const position = index / Math.max(1, count - 1);
-    return {
-      position,
-      // Разная скорость для каждого слоя создает эффект глубины
-      // Больше вариации в скоростях для более естественного движения
-      speed: 0.75 + (index % 5) * 0.12,
-      // Фазовый сдвиг для разнообразия волн
-      phase: position * Math.PI * 1.4 + (index % 3) * 0.3,
-    };
-  });
+type LineConfig = {
+  t: number;
+  phase: number;
+  ampVar: number;
+  vSpread: number;
+  speed: number;
+  alpha: number;
 };
 
-// Функция построения пути волны
-// УЛУЧШЕННАЯ версия с постоянной анимацией в режиме прослушивания
-const buildWavePath = (
-  layer: WaveLayer,
+type PointConfig = {
+  t: number;
+  env: number;
+};
+
+const LINE_CONFIGS: LineConfig[] = (() => {
+  const arr: LineConfig[] = [];
+  for (let i = 0; i < NUM_LINES; i += 1) {
+    const t = i / (NUM_LINES - 1);
+    arr.push({
+      t,
+      phase: t * PI * 2.2 + Math.sin(t * PI * 2.5) * 0.6,
+      ampVar: 0.5 + Math.sin(t * PI * 2 + 0.3) * 0.5,
+      vSpread: (t - 0.5) * 50,
+      speed: 0.8 + t * 0.4,
+      alpha: 0.15 + Math.sin(t * PI) * 0.45,
+    });
+  }
+  return arr;
+})();
+
+const POINT_CONFIGS: PointConfig[] = (() => {
+  const arr: PointConfig[] = [];
+  for (let i = 0; i <= NUM_POINTS; i += 1) {
+    const t = i / NUM_POINTS;
+    const nodes = Math.abs(Math.cos(t * PI * 3));
+    arr.push({
+      t,
+      env: 0.15 + nodes * 0.85,
+    });
+  }
+  return arr;
+})();
+
+type WavePath = {
+  d: string;
+  opacity: number;
+  width: number;
+  gradient: 'top' | 'bottom';
+  dashed?: number[];
+};
+
+const computeWavePaths = (
   radius: number,
   time: number,
   intensity: number,
-  numPoints: number,
-) => {
-  const centerX = radius;
-  const centerY = radius;
-  const startX = centerX - radius;
-  const width = radius * 2;
-  
-  // НОВАЯ ЛОГИКА: Базовая высота 8px обеспечивает видимую анимацию всегда
-  // В режиме прослушивания (intensity >= 0.12) волны всегда видны и анимированы
-  // При детектировании голоса высота увеличивается до 100px+
-  const intensitySquared = Math.pow(intensity, 1.5);
-  const maxHeight = 8 + intensitySquared * 95;
-  
-  // Вертикальное распределение слоев
-  // Даже при базовой интенсивности слои немного разнесены для создания объема
-  const verticalSpread = 0.65 + intensitySquared * 0.9;
-  const yOffset = (layer.position - 0.5) * maxHeight * verticalSpread;
-  
-  let path = '';
+): WavePath[] => {
+  if (radius <= 0 || intensity <= 0) return [];
 
-  for (let i = 0; i <= numPoints; i += 1) {
-    const t = i / numPoints;
-    const x = startX + t * width;
-    
-    // ТРИ волны для богатого, текучего движения
-    // Разные частоты и скорости создают сложную анимацию
-    
-    // Основная медленная волна - создает главный ритм
-    const wave1 = Math.sin(t * Math.PI * 2.4 + time * 1.9 * layer.speed + layer.phase);
-    
-    // Средняя волна - добавляет сложность движения
-    const wave2 = Math.sin(t * Math.PI * 4.2 - time * 1.4 * layer.speed + layer.phase * 1.3);
-    
-    // Быстрая волна - создает детали и мелкую рябь
-    // Ее влияние растет с интенсивностью
-    const wave3 = Math.sin(t * Math.PI * 7.8 + time * 2.6 * layer.speed - layer.phase * 0.7);
-    
-    // УЛУЧШЕННАЯ ОГИБАЮЩАЯ - плавное затухание на краях
-    // Это создает эффект "потока" волн от центра к краям
-    const envelopeBase = Math.sin(t * Math.PI);
-    const envelope = Math.pow(envelopeBase, 1.2 + intensity * 0.3);
-    
-    // Комбинируем волны с разными весами в зависимости от интенсивности
-    // Базовая анимация: в основном первая волна с небольшой добавкой второй
-    // При высокой интенсивности: все три волны для сложного движения
-    const wave3Weight = Math.max(0, (intensity - 0.2) * 0.35);
-    const waveSum = wave1 * 0.65 + wave2 * (0.35 - wave3Weight * 0.5) + wave3 * wave3Weight;
-    
-    // Финальная Y координата
-    // УБРАЛИ quietModeSuppression - теперь волны всегда видны и анимированы
-    const y = centerY + yOffset + waveSum * maxHeight * envelope;
-    
-    path += `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)} `;
+  const cx = radius;
+  const cy = radius;
+  const r = radius * 0.94;
+
+  const waveWidth = r * 2.1;
+  const startX = cx - r * 1.05;
+
+  const paths: WavePath[] = [];
+
+  for (let ribbon = 0; ribbon < 2; ribbon += 1) {
+    const vDir = ribbon === 0 ? -1 : 1;
+    const baseOff = ribbon === 0 ? -25 : 25;
+    const tDir = ribbon === 0 ? 1 : -1;
+    const gradient: 'top' | 'bottom' = ribbon === 0 ? 'top' : 'bottom';
+
+    for (let li = 0; li < LINE_CONFIGS.length; li += 1) {
+      const ld = LINE_CONFIGS[li];
+
+      let d = '';
+      for (let pi = 0; pi < POINT_CONFIGS.length; pi += 1) {
+        const pd = POINT_CONFIGS[pi];
+        const t = pd.t;
+
+        const w1 = Math.sin(
+          t * PI * 3 + time * ld.speed * tDir + ld.phase,
+        ) * 70 * ld.ampVar;
+        const w2 = Math.sin(
+          t * PI * 2 + time * 0.7 * tDir + ld.phase * 0.6,
+        ) * 35 * ld.ampVar;
+        const w3 = Math.sin(
+          t * PI * 5 + time * 1.2 * tDir + ld.t * PI * 1.5,
+        ) * 18;
+
+        const waveY = (w1 + w2 + w3) * pd.env;
+
+        const wx = startX + t * waveWidth;
+        const wy =
+          cy +
+          waveY * intensity * vDir +
+          (baseOff + ld.vSpread) * intensity * pd.env;
+
+        if (pi === 0) {
+          d += `M${wx.toFixed(2)},${wy.toFixed(2)} `;
+        } else {
+          d += `L${wx.toFixed(2)},${wy.toFixed(2)} `;
+        }
+      }
+
+      const alpha = ld.alpha * (0.4 + intensity * 0.6);
+      const lineWidth = lerp(0.8, 1.6, intensity);
+
+      const dashed =
+        intensity > 0.45 && li % 5 === 0 ? [5, 10] : undefined;
+
+      paths.push({
+        d: d.trim(),
+        opacity: alpha,
+        width: lineWidth,
+        gradient,
+        dashed,
+      });
+    }
   }
 
-  return path.trim();
+  return paths;
 };
 
-// ============================================================================
-// ИСПРАВЛЕННЫЙ КОМПОНЕНТ VoiceSphere
-// ============================================================================
-// Теперь с правильной визуализацией для активного и тихого режимов
-
+/**
+ * Сфера + волны (портированная логика из HTML)
+ */
 const VoiceSphere: React.FC<{
   stage: VoiceStage;
   size?: number;
-  intensityTarget?: number;
+  intensityTarget?: number; // 0..1
   accentColor?: string;
 }> = ({ stage, size = 280, intensityTarget = 0, accentColor = '#ffffff' }) => {
   const gradientId = useId();
   const radius = size / 2;
+
   const showWave = stage !== 'idle';
-  const [tick, setTick] = useState(0);
-  
-  // Создаем максимальное количество слоев один раз
-  const layers = useMemo(() => createWaveLayers(MAX_WAVE_LAYERS), []);
-  
-  const amplitudeRef = useRef(0);
+
+  const ampRef = useRef(0);
+  const timeRef = useRef(0);
+  const speedRef = useRef(0.7);
+  const frameRef = useRef(0);
+  const [, setFrame] = useState(0);
+
+  const stageRef = useRef<VoiceStage>(stage);
+  const intensityRef = useRef<number>(intensityTarget);
 
   useEffect(() => {
-    amplitudeRef.current = intensityTarget;
+    stageRef.current = stage;
+  }, [stage]);
+
+  useEffect(() => {
+    intensityRef.current = intensityTarget ?? 0;
   }, [intensityTarget]);
 
-  // Главный цикл анимации
   useEffect(() => {
-    let frame: number;
-    const animate = () => {
-      // Плавная интерполяция - быстрее для роста, медленнее для затухания
-      const interpSpeed = intensityTarget > amplitudeRef.current ? 0.18 : 0.12;
-      amplitudeRef.current +=
-        (intensityTarget - amplitudeRef.current) * interpSpeed;
-      
-      setTick((prev) => (prev + 1) % Number.MAX_SAFE_INTEGER);
-      frame = requestAnimationFrame(animate);
+    let mounted = true;
+    let lastTs: number | null = null;
+
+    const loop = (ts: number) => {
+      if (!mounted) return;
+
+      if (lastTs == null) {
+        lastTs = ts;
+      }
+      const dt = ts - lastTs;
+      lastTs = ts;
+
+      const stageNow = stageRef.current;
+      const intensityNow = clamp01(intensityRef.current || 0);
+
+      let targetAmp = ampRef.current;
+      let targetSpeed = speedRef.current;
+
+      if (stageNow === 'listening') {
+        const lvl = intensityNow;
+        targetAmp = 0.135 + lvl * 0.85;
+        targetSpeed = 0.7 + lvl * 1.3;
+      } else if (stageNow === 'analyzing') {
+        const breathe = (Math.sin(ts / 600) + 1) / 2;
+        targetAmp = 0.3 + breathe * 0.3;
+        targetSpeed = 0.6 + breathe * 0.5;
+      } else {
+        targetAmp = 0;
+        targetSpeed = 0.5;
+      }
+
+      const ampLerp = targetAmp > ampRef.current ? 0.18 : 0.1;
+      const speedLerp = 0.14;
+
+      ampRef.current += (targetAmp - ampRef.current) * ampLerp;
+      speedRef.current += (targetSpeed - speedRef.current) * speedLerp;
+
+      const speed = Number.isFinite(speedRef.current)
+        ? speedRef.current
+        : 0.7;
+      timeRef.current += (speed * dt) / 1000;
+
+      frameRef.current += 1;
+      setFrame(frameRef.current);
+
+      requestAnimationFrame(loop);
     };
-    frame = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(frame);
-  }, [intensityTarget]);
+
+    const id = requestAnimationFrame(loop);
+    return () => {
+      mounted = false;
+      cancelAnimationFrame(id);
+    };
+  }, []);
 
   const wavePaths = useMemo(() => {
     if (!showWave) return [];
-    
-    // Время в секундах
-    const time = tick / 28;
-    
-    // КРИТИЧНО: Не используем минимальную амплитуду если она действительно 0
-    // Это позволяет волнам быть почти невидимыми в режиме тишины
-    const activeAmp = amplitudeRef.current;
-    
-    // Количество видимых слоев зависит от амплитуды
-    // В тихом режиме меньше слоев (28), в активном - больше (38)
-    const numLayers = Math.floor(
-      MIN_WAVE_LAYERS + activeAmp * (MAX_WAVE_LAYERS - MIN_WAVE_LAYERS)
-    );
-    
-    // Количество точек для плавности кривых
-    const numPoints = 80;
-    
-    return layers.slice(0, numLayers).map((layer, index) => {
-      // Вычисляем "глубину" слоя - центральные слои ярче
-      const depth = 1 - Math.abs(layer.position - 0.5) * 2;
-      
-      // УЛУЧШЕННАЯ ПРОЗРАЧНОСТЬ
-      // Теперь в режиме прослушивания (activeAmp >= 0.12) волны всегда хорошо видны
-      // Базовая прозрачность выше, чтобы создать заметную анимацию
-      const baseAlpha = 0.25;
-      const maxAlpha = 0.7;
-      const alpha = lerp(baseAlpha, maxAlpha, depth) * 
-                    (0.6 + activeAmp * 0.4) * 
-                    (stage === 'analyzing' ? 0.7 : 1.0);
-      
-      // Пунктирные линии - только при высокой амплитуде для добавления деталей
-      const isDotted = (index % 11 === 0) && activeAmp > 0.45;
-      
-      return {
-        d: buildWavePath(layer, radius, time, activeAmp, numPoints),
-        opacity: alpha,
-        // Толщина линий - минимум 0.4px для видимости
-        width: lerp(0.4, 0.7, Math.pow(activeAmp, 0.6)),
-        dashed: isDotted ? [3, 6] : undefined,
-      };
-    });
-  }, [layers, radius, showWave, stage, tick]);
+    return computeWavePaths(radius, timeRef.current, ampRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [radius, showWave, ampRef.current]);
 
   return (
-    <View style={{ width: "100%", height: size, justifyContent: 'center', alignItems: 'center' }}>
-      <Svg width={size} height={size} style={{ alignContent: 'center', justifyContent: 'center' }}>
+    <View
+      style={{
+        width: '100%',
+        height: size,
+        justifyContent: 'center',
+        alignItems: 'center',
+      }}
+    >
+      <Svg width={size} height={size}>
         <Defs>
-          {/* Радиальный градиент для базы сферы */}
+          {/* BAZA SFERA – ANCHA QORAROQ */}
           <RadialGradient
             id={`${gradientId}-base`}
-            cx="48%"
-            cy="45%"
-            r="55%"
-            fx="38%"
-            fy="30%"
+            cx="50%"
+            cy="50%"
+            r="60%"
+            fx="50%"
+            fy="40%"
           >
-            <Stop offset="0%" stopColor="#0d1a28" />
-            <Stop offset="55%" stopColor="#0a1320" />
-            <Stop offset="85%" stopColor="#070c17" />
-            <Stop offset="100%" stopColor="#070d15" />
+            {/* markaz ham qoraroq bo‘ldi */}
+            <Stop offset="0%" stopColor="#05070b" />
+            <Stop offset="55%" stopColor="#05070b" />
+            <Stop offset="85%" stopColor="#03040a" />
+            <Stop offset="100%" stopColor="#020308" />
           </RadialGradient>
-          
-          {/* Линейный градиент для волн - cyan → purple → pink */}
+
+          {/* Yuqori lentlar: cyan → purple → cyan */}
           <SvgLinearGradient
-            id={`${gradientId}-waves`}
+            id={`${gradientId}-waves-top`}
             x1="0%"
             y1="0%"
             x2="100%"
             y2="0%"
           >
-            <Stop offset="0%" stopColor="#0cd8ff" />
-            <Stop offset="28%" stopColor="#50b4ff" />
-            <Stop offset="52%" stopColor="#a078ff" />
-            <Stop offset="75%" stopColor="#dc6ec8" />
-            <Stop offset="100%" stopColor="#ff78b4" />
+            <Stop offset="0%" stopColor="#4dd0ff" />
+            <Stop offset="35%" stopColor="#a45bff" />
+            <Stop offset="65%" stopColor="#a45bff" />
+            <Stop offset="100%" stopColor="#4dd0ff" />
           </SvgLinearGradient>
-          
-          {/* Клиппинг по кругу */}
+
+          {/* Pastki lentlar: pink → purple → pink */}
+          <SvgLinearGradient
+            id={`${gradientId}-waves-bottom`}
+            x1="0%"
+            y1="0%"
+            x2="100%"
+            y2="0%"
+          >
+            <Stop offset="0%" stopColor="#ff65e6" />
+            <Stop offset="35%" stopColor="#a45bff" />
+            <Stop offset="65%" stopColor="#a45bff" />
+            <Stop offset="100%" stopColor="#ff65e6" />
+          </SvgLinearGradient>
+
+          {/* Katta klip – sfera ichida */}
           <ClipPath id={`${gradientId}-clip`}>
             <Circle cx={radius} cy={radius} r={radius * 0.94} />
           </ClipPath>
+
+          {/* Highlight – biroz kichikroq va kamroq oq */}
+          <RadialGradient
+            id={`${gradientId}-highlight`}
+            cx="36%"
+            cy="26%"
+            r="40%"
+          >
+            <Stop offset="0%" stopColor="rgba(38, 36, 36, 0.1)" />
+            <Stop offset="40%" stopColor="rgba(55, 53, 53, 0.03)" />
+            <Stop offset="100%" stopColor="rgba(44, 42, 42, 0)" />
+          </RadialGradient>
         </Defs>
-        
-        {/* Базовая заливка сферы */}
+
+        {/* Sfera bazasi */}
         <Circle
           cx={radius}
           cy={radius}
           r={radius * 0.94}
           fill={`url(#${gradientId}-base)`}
         />
-        
-        {/* Волны - обрезанные по кругу */}
+
+        {/* WAVES */}
         <G clipPath={`url(#${gradientId}-clip)`}>
           {wavePaths.map((wave, index) => (
             <Path
               key={index}
               d={wave.d}
-              stroke={`url(#${gradientId}-waves)`}
+              stroke={
+                wave.gradient === 'top'
+                  ? `url(#${gradientId}-waves-top)`
+                  : `url(#${gradientId}-waves-bottom)`
+              }
               strokeWidth={wave.width}
               strokeDasharray={wave.dashed}
               opacity={wave.opacity}
@@ -421,19 +499,27 @@ const VoiceSphere: React.FC<{
             />
           ))}
         </G>
-        
-        {/* Обводка сферы */}
+
+        {/* Yumshoq highlight tepada */}
         <Circle
           cx={radius}
           cy={radius}
           r={radius * 0.94}
-          stroke="rgba(255,255,255,0.28)"
-          strokeWidth={1.4}
+          fill={`url(#${gradientId}-highlight)`}
+          opacity={0.42}
+        />
+
+        {/* Chegarasi ham biroz qoraroq */}
+        <Circle
+          cx={radius}
+          cy={radius}
+          r={radius * 0.94}
+          stroke="rgba(70,84,120,0.7)"
+          strokeWidth={1.2}
           fill="none"
         />
       </Svg>
 
-      {/* Иконка микрофона в режиме покоя */}
       {!showWave && (
         <View style={styles.iconOverlay}>
           <Mic size={38} color={accentColor} />
@@ -443,9 +529,11 @@ const VoiceSphere: React.FC<{
   );
 };
 
-// ============================================================================
-// ОСТАЛЬНОЙ КОД БЕЗ ИЗМЕНЕНИЙ
-// ============================================================================
+/**
+ * =====================================================================
+ *  ОСТАЛЬНОЙ КОД — БЕЗ ИЗМЕНЕНИЙ
+ * =====================================================================
+ */
 
 const ActionIconButton = ({
   icon: Icon,
@@ -497,37 +585,75 @@ const RecognizedCard = ({
         <View
           style={[
             styles.intentBadge,
-            { borderColor: theme.colors.border, backgroundColor: theme.colors.cardItem },
+            {
+              borderColor: theme.colors.border,
+              backgroundColor: theme.colors.cardItem,
+            },
           ]}
         >
           <Icon size={18} color={intentColor} />
         </View>
         <View style={styles.intentInfo}>
-          <Text style={[styles.intentTitle, { color: theme.colors.textPrimary }]}>
+          <Text
+            style={[
+              styles.intentTitle,
+              { color: theme.colors.textPrimary },
+            ]}
+          >
             {item.intent}
           </Text>
-          <Text style={[styles.intentSubtitle, { color: theme.colors.textSecondary }]}>
+          <Text
+            style={[
+              styles.intentSubtitle,
+              { color: theme.colors.textSecondary },
+            ]}
+          >
             {item.status}
           </Text>
         </View>
-        <Text style={[styles.intentAmount, { color: theme.colors.textPrimary }]}>
+        <Text
+          style={[
+            styles.intentAmount,
+            { color: theme.colors.textPrimary },
+          ]}
+        >
           {item.amount}
         </Text>
       </View>
       <View style={styles.cardMetaRow}>
         <View style={styles.metaColumn}>
-          <Text style={[styles.metaLabel, { color: theme.colors.textSecondary }]}>
+          <Text
+            style={[
+              styles.metaLabel,
+              { color: theme.colors.textSecondary },
+            ]}
+          >
             Category
           </Text>
-          <Text style={[styles.metaValue, { color: theme.colors.textPrimary }]}>
+          <Text
+            style={[
+              styles.metaValue,
+              { color: theme.colors.textPrimary },
+            ]}
+          >
             {item.category}
           </Text>
         </View>
         <View style={styles.metaColumn}>
-          <Text style={[styles.metaLabel, { color: theme.colors.textSecondary }]}>
+          <Text
+            style={[
+              styles.metaLabel,
+              { color: theme.colors.textSecondary },
+            ]}
+          >
             Balance
           </Text>
-          <Text style={[styles.metaValue, { color: theme.colors.textPrimary }]}>
+          <Text
+            style={[
+              styles.metaValue,
+              { color: theme.colors.textPrimary },
+            ]}
+          >
             {item.account}
           </Text>
         </View>
@@ -561,8 +687,18 @@ const RecognizedCard = ({
 
 const HistoryCard = ({ theme }: { theme: Theme }) => (
   <View style={styles.historySection}>
-    <View style={[styles.sheetHandle, { backgroundColor: theme.colors.border }]} />
-    <Text style={[styles.sectionTitle, { color: theme.colors.textSecondary }]}>
+    <View
+      style={[
+        styles.sheetHandle,
+        { backgroundColor: theme.colors.border },
+      ]}
+    />
+    <Text
+      style={[
+        styles.sectionTitle,
+        { color: theme.colors.textSecondary },
+      ]}
+    >
       Requests history
     </Text>
     <AdaptiveGlassView
@@ -576,20 +712,40 @@ const HistoryCard = ({ theme }: { theme: Theme }) => (
     >
       <View style={styles.historyHeader}>
         <View>
-          <Text style={[styles.historyTitle, { color: theme.colors.textPrimary }]}>
+          <Text
+            style={[
+              styles.historyTitle,
+              { color: theme.colors.textPrimary },
+            ]}
+          >
             {HISTORY_ENTRY.title}
           </Text>
-          <Text style={[styles.historyMeta, { color: theme.colors.textSecondary }]}>
+          <Text
+            style={[
+              styles.historyMeta,
+              { color: theme.colors.textSecondary },
+            ]}
+          >
             {HISTORY_ENTRY.description}
           </Text>
         </View>
-        <Text style={[styles.historyTime, { color: theme.colors.textSecondary }]}>
+        <Text
+          style={[
+            styles.historyTime,
+            { color: theme.colors.textSecondary },
+          ]}
+        >
           {HISTORY_ENTRY.time}
         </Text>
       </View>
       <TouchableOpacity style={styles.repeatButton} activeOpacity={0.9}>
         <Repeat2 size={15} color={theme.colors.textPrimary} />
-        <Text style={[styles.repeatLabel, { color: theme.colors.textPrimary }]}>
+        <Text
+          style={[
+            styles.repeatLabel,
+            { color: theme.colors.textPrimary },
+          ]}
+        >
           Repeat request
         </Text>
       </TouchableOpacity>
@@ -613,21 +769,41 @@ const SummaryCard = ({
       },
     ]}
   >
-    <Text style={[styles.summaryLabel, { color: theme.colors.textSecondary }]}>
+    <Text
+      style={[
+        styles.summaryLabel,
+        { color: theme.colors.textSecondary },
+      ]}
+    >
       {analyzing ? 'Analyzing' : 'Recognized'}
     </Text>
-    <Text style={[styles.summaryTitle, { color: theme.colors.textPrimary }]}>
+    <Text
+      style={[
+        styles.summaryTitle,
+        { color: theme.colors.textPrimary },
+      ]}
+    >
       {analyzing ? 'Data processing...' : 'Latest statement'}
     </Text>
     {!analyzing && (
-      <Text style={[styles.summaryBody, { color: theme.colors.textSecondary }]}>
+      <Text
+        style={[
+          styles.summaryBody,
+          { color: theme.colors.textSecondary },
+        ]}
+      >
         {SUMMARY_TEXT}
       </Text>
     )}
     {analyzing && (
       <View style={styles.processingRow}>
         <Activity size={14} color={theme.colors.textSecondary} />
-        <Text style={[styles.processingText, { color: theme.colors.textSecondary }]}>
+        <Text
+          style={[
+            styles.processingText,
+            { color: theme.colors.textSecondary },
+          ]}
+        >
           AI is matching entities
         </Text>
       </View>
@@ -638,7 +814,7 @@ const SummaryCard = ({
 const RecordingPlaybackRow = ({
   clip,
   theme,
-  styles,
+  styles: stylesWithTheme,
 }: {
   clip: RecordingClip;
   theme: Theme;
@@ -648,18 +824,24 @@ const RecordingPlaybackRow = ({
   const status = useAudioPlayerStatus(player);
   const isPlaying = status?.playing ?? false;
   const durationSeconds =
-    clip.durationMs != null ? clip.durationMs / 1000 : status?.duration ?? 0;
+    clip.durationMs != null
+      ? clip.durationMs / 1000
+      : status?.duration ?? 0;
   const currentSeconds = status?.currentTime ?? 0;
   const progress =
-    durationSeconds > 0 ? Math.min(1, currentSeconds / durationSeconds) : 0;
+    durationSeconds > 0
+      ? Math.min(1, currentSeconds / durationSeconds)
+      : 0;
 
   const togglePlayback = useCallback(async () => {
     try {
       if (isPlaying) {
         void player.pause();
       } else {
-        if (durationSeconds > 0 && currentSeconds >= durationSeconds - 0.05) {
-          // reset to beginning when replaying
+        if (
+          durationSeconds > 0 &&
+          currentSeconds >= durationSeconds - 0.05
+        ) {
           await player.seekTo(0);
         }
         void player.play();
@@ -670,7 +852,8 @@ const RecordingPlaybackRow = ({
   }, [currentSeconds, durationSeconds, isPlaying, player]);
 
   const durationLabel = formatDurationMs(
-    clip.durationMs ?? (status?.duration ? status.duration * 1000 : undefined),
+    clip.durationMs ??
+    (status?.duration ? status.duration * 1000 : undefined),
   );
 
   const createdLabel = useMemo(() => {
@@ -684,16 +867,22 @@ const RecordingPlaybackRow = ({
   return (
     <AdaptiveGlassView
       style={[
-        styles.recordingCard,
-        { borderColor: theme.colors.border, backgroundColor: theme.colors.card },
+        stylesWithTheme.recordingCard,
+        {
+          borderColor: theme.colors.border,
+          backgroundColor: theme.colors.card,
+        },
       ]}
     >
       <TouchableOpacity
         onPress={togglePlayback}
         activeOpacity={0.85}
         style={[
-          styles.playButton,
-          { borderColor: theme.colors.border, backgroundColor: theme.colors.cardItem },
+          stylesWithTheme.playButton,
+          {
+            borderColor: theme.colors.border,
+            backgroundColor: theme.colors.cardItem,
+          },
         ]}
       >
         {isPlaying ? (
@@ -702,11 +891,21 @@ const RecordingPlaybackRow = ({
           <Play size={16} color={theme.colors.textPrimary} />
         )}
       </TouchableOpacity>
-      <View style={styles.recordingInfo}>
-        <Text style={[styles.recordingTitle, { color: theme.colors.textPrimary }]}>
+      <View style={stylesWithTheme.recordingInfo}>
+        <Text
+          style={[
+            stylesWithTheme.recordingTitle,
+            { color: theme.colors.textPrimary },
+          ]}
+        >
           {clip.label}
         </Text>
-        <Text style={[styles.recordingMeta, { color: theme.colors.textSecondary }]}>
+        <Text
+          style={[
+            stylesWithTheme.recordingMeta,
+            { color: theme.colors.textSecondary },
+          ]}
+        >
           {createdLabel}
         </Text>
         <PlaybackWaveform
@@ -714,10 +913,15 @@ const RecordingPlaybackRow = ({
           progress={progress}
           waveform={clip.waveform}
           theme={theme}
-          styles={styles}
+          styles={stylesWithTheme}
         />
       </View>
-      <Text style={[styles.recordingDuration, { color: theme.colors.textSecondary }]}>
+      <Text
+        style={[
+          stylesWithTheme.recordingDuration,
+          { color: theme.colors.textSecondary },
+        ]}
+      >
         {isPlaying && durationSeconds > 0
           ? formatDurationMs(currentSeconds * 1000)
           : durationLabel}
@@ -731,7 +935,7 @@ const PlaybackWaveform = ({
   progress,
   waveform,
   theme,
-  styles,
+  styles: stylesWithTheme,
 }: {
   active: boolean;
   progress: number;
@@ -739,7 +943,9 @@ const PlaybackWaveform = ({
   theme: Theme;
   styles: ReturnType<typeof createStyles>;
 }) => {
-  const [bars, setBars] = useState<number[]>(waveform.length ? waveform : generateWaveformSamples(32));
+  const [bars, setBars] = useState<number[]>(
+    waveform.length ? waveform : generateWaveformSamples(32),
+  );
 
   useEffect(() => {
     if (!active) {
@@ -771,15 +977,16 @@ const PlaybackWaveform = ({
   }, [active, waveform]);
 
   return (
-    <View style={styles.waveformRow}>
+    <View style={stylesWithTheme.waveformRow}>
       {bars.map((value, index) => {
-        const ratio = bars.length > 1 ? index / (bars.length - 1) : 0;
+        const ratio =
+          bars.length > 1 ? index / (bars.length - 1) : 0;
         const isPlayed = ratio <= progress;
         return (
           <View
             key={`wave-${index}`}
             style={[
-              styles.waveformBar,
+              stylesWithTheme.waveformBar,
               {
                 height: 6 + value * 18,
                 backgroundColor: isPlayed
@@ -800,36 +1007,50 @@ const VoiceMode = () => {
   const theme = useAppTheme();
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const stylesWithTheme = useMemo(() => createStyles(theme), [theme]);
+  const stylesWithTheme = useMemo(
+    () => createStyles(theme),
+    [theme],
+  );
   const [stage, setStage] = useState<VoiceStage>('idle');
   const [inputLevel, setInputLevel] = useState(0);
-  const [micStatus, setMicStatus] = useState<'unknown' | 'granted' | 'denied'>(
-    'unknown',
-  );
+  const [micStatus, setMicStatus] = useState<
+    'unknown' | 'granted' | 'denied'
+  >('unknown');
   const [hasAnalysis, setHasAnalysis] = useState(false);
   const [recordings, setRecordings] = useState<RecordingClip[]>([]);
   const recorder = useAudioRecorder(RECORDER_OPTIONS);
   const recorderState = useAudioRecorderState(recorder, 80);
-  const analyzingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const analyzingTimerRef =
+    useRef<ReturnType<typeof setTimeout> | null>(null);
   const scrollRef = useRef<ScrollView>(null);
   const resultsAnchorY = useRef(0);
   const recordingDurationRef = useRef(0);
   const plannerCommands = useMemo(
     () => [
-      { id: 'task', label: 'Add task "Write brief" tomorrow at 15:00', command: 'Add task "Write brief" tomorrow at 15:00 at @work' },
-      { id: 'habit', label: 'Add habit "Drink water" every morning', command: 'Add habit "Drink water" every morning' },
-      { id: 'focus', label: 'Start focus on "Prototype review"', command: 'Start focus on "Prototype review" pomodoro' },
+      {
+        id: 'task',
+        label: 'Add task "Write brief" tomorrow at 15:00',
+        command:
+          'Add task "Write brief" tomorrow at 15:00 at @work',
+      },
+      {
+        id: 'habit',
+        label: 'Add habit "Drink water" every morning',
+        command: 'Add habit "Drink water" every morning',
+      },
+      {
+        id: 'focus',
+        label: 'Start focus on "Prototype review"',
+        command: 'Start focus on "Prototype review" pomodoro',
+      },
     ],
     [],
   );
   const [plannerLogs, setPlannerLogs] = useState<string[]>([]);
-  const handlePlannerCommand = useCallback(
-    (command: string) => {
-      const result = executePlannerVoiceIntent(command);
-      setPlannerLogs((prev) => [result.message, ...prev].slice(0, 3));
-    },
-    [],
-  );
+  const handlePlannerCommand = useCallback((command: string) => {
+    const result = executePlannerVoiceIntent(command);
+    setPlannerLogs((prev) => [result.message, ...prev].slice(0, 3));
+  }, []);
 
   const sphereSize = Math.min(width - 64, 320);
 
@@ -851,7 +1072,8 @@ const VoiceMode = () => {
       const current = await getRecordingPermissionsAsync();
       granted = current.status === 'granted';
       if (!granted) {
-        const requestResult = await requestRecordingPermissionsAsync();
+        const requestResult =
+          await requestRecordingPermissionsAsync();
         granted = requestResult.status === 'granted';
       }
       if (granted) {
@@ -881,16 +1103,21 @@ const VoiceMode = () => {
       const linear = clamp01(Math.pow(10, metering / 20));
       const smoothing = isListening ? 0.93 : 0.8;
       ambientLevelRef.current =
-        ambientLevelRef.current * smoothing + linear * (1 - smoothing);
-      const platformFloorFactor = Platform.OS === 'android' ? 0.75 : 1;
+        ambientLevelRef.current * smoothing +
+        linear * (1 - smoothing);
+      const platformFloorFactor =
+        Platform.OS === 'android' ? 0.75 : 1;
       const noiseFloor =
         ambientLevelRef.current *
         (isListening ? 1.15 : 1) *
         platformFloorFactor;
       const signal = Math.max(0, linear - noiseFloor);
       const platformGain = Platform.OS === 'android' ? 26 : 14;
-      const responseCurve = Platform.OS === 'android' ? 0.78 : 0.85;
-      const scaled = clamp01(Math.pow(signal * platformGain, responseCurve));
+      const responseCurve =
+        Platform.OS === 'android' ? 0.78 : 0.85;
+      const scaled = clamp01(
+        Math.pow(signal * platformGain, responseCurve),
+      );
       setInputLevel((prev) => prev * 0.35 + scaled * 0.65);
     },
     [],
@@ -901,11 +1128,17 @@ const VoiceMode = () => {
   }, [ensurePermission]);
 
   useEffect(() => {
-    updateInputLevelFromMetering(recorderState.metering, stage === 'listening');
+    updateInputLevelFromMetering(
+      recorderState.metering,
+      stage === 'listening',
+    );
   }, [recorderState.metering, stage, updateInputLevelFromMetering]);
 
   useEffect(() => {
-    if (stage === 'listening' && typeof recorderState.durationMillis === 'number') {
+    if (
+      stage === 'listening' &&
+      typeof recorderState.durationMillis === 'number'
+    ) {
       recordingDurationRef.current = recorderState.durationMillis;
     }
   }, [recorderState.durationMillis, stage]);
@@ -1025,7 +1258,9 @@ const VoiceMode = () => {
   const recordingsArchive =
     recordings.length > 0 ? (
       <View style={stylesWithTheme.recordingsSection}>
-        <Text style={stylesWithTheme.sectionTitle}>Captured audio</Text>
+        <Text style={stylesWithTheme.sectionTitle}>
+          Captured audio
+        </Text>
         {recordings.map((clip) => (
           <RecordingPlaybackRow
             key={clip.id}
@@ -1038,10 +1273,7 @@ const VoiceMode = () => {
     ) : null;
 
   return (
-    <SafeAreaView
-      style={stylesWithTheme.safeArea}
-      edges={['top']}
-    >
+    <SafeAreaView style={stylesWithTheme.safeArea} edges={['top']}>
       <View style={stylesWithTheme.header}>
         <Text style={stylesWithTheme.headerTitle}>LEORA VOICE</Text>
         <TouchableOpacity
@@ -1054,36 +1286,40 @@ const VoiceMode = () => {
         </TouchableOpacity>
       </View>
 
-        <ScrollView
-          ref={scrollRef}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={stylesWithTheme.scrollContent}
-        >
-          <View style={stylesWithTheme.heroSection}>
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() => {
-                if (stage === 'idle') {
-                  void beginListening();
-                }
-              }}
-            >
-              <VoiceSphere
-                stage={stage}
-                size={sphereSize}
-                accentColor={theme.colors.textPrimary}
-                intensityTarget={
-                  stage === 'listening'
-                    ? Math.max(0.12, Math.min(0.75, 0.12 + inputLevel * 0.6))
-                    : stage === 'analyzing'
-                      ? 0.16
-                      : 0
-                }
-              />
-            </TouchableOpacity>
+      <ScrollView
+        ref={scrollRef}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={stylesWithTheme.scrollContent}
+      >
+        <View style={stylesWithTheme.heroSection}>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => {
+              if (stage === 'idle') {
+                void beginListening();
+              }
+            }}
+          >
+            <VoiceSphere
+              stage={stage}
+              size={sphereSize}
+              accentColor={theme.colors.textPrimary}
+              intensityTarget={
+                stage === 'listening'
+                  ? Math.max(0, Math.min(1, 0.12 + inputLevel * 0.6))
+                  : stage === 'analyzing'
+                    ? 0.16
+                    : 0
+              }
+            />
+          </TouchableOpacity>
           <View style={stylesWithTheme.stageCopy}>
-            <Text style={stylesWithTheme.stageLabel}>{stage.toUpperCase()}</Text>
-            <Text style={stylesWithTheme.stageTitle}>{HEADLINES[stage].title}</Text>
+            <Text style={stylesWithTheme.stageLabel}>
+              {stage.toUpperCase()}
+            </Text>
+            <Text style={stylesWithTheme.stageTitle}>
+              {HEADLINES[stage].title}
+            </Text>
             <Text style={stylesWithTheme.stageSubtitle}>
               {HEADLINES[stage].subtitle}
             </Text>
@@ -1100,22 +1336,33 @@ const VoiceMode = () => {
         {stage === 'idle' && hasAnalysis && (
           <View
             onLayout={(event) => {
-              resultsAnchorY.current = event.nativeEvent.layout.y;
+              resultsAnchorY.current =
+                event.nativeEvent.layout.y;
             }}
           >
             <SummaryCard theme={theme} />
             {recordingsArchive}
-            <Text style={stylesWithTheme.sectionTitle}>Recognized requests</Text>
+            <Text style={stylesWithTheme.sectionTitle}>
+              Recognized requests
+            </Text>
             {RECOGNIZED_REQUESTS.map((item) => (
-              <RecognizedCard key={item.id} item={item} theme={theme} />
+              <RecognizedCard
+                key={item.id}
+                item={item}
+                theme={theme}
+              />
             ))}
           </View>
         )}
 
-        {stage === 'idle' && !hasAnalysis && <HistoryCard theme={theme} />}
+        {stage === 'idle' && !hasAnalysis && (
+          <HistoryCard theme={theme} />
+        )}
 
         <View style={stylesWithTheme.plannerSection}>
-          <Text style={stylesWithTheme.sectionTitle}>Planner quick commands</Text>
+          <Text style={stylesWithTheme.sectionTitle}>
+            Planner quick commands
+          </Text>
           {plannerCommands.map((cmd) => (
             <TouchableOpacity
               key={cmd.id}
@@ -1123,13 +1370,18 @@ const VoiceMode = () => {
               onPress={() => handlePlannerCommand(cmd.command)}
               activeOpacity={0.9}
             >
-              <Text style={stylesWithTheme.plannerCommandText}>{cmd.label}</Text>
+              <Text style={stylesWithTheme.plannerCommandText}>
+                {cmd.label}
+              </Text>
             </TouchableOpacity>
           ))}
           {plannerLogs.length > 0 && (
             <View style={stylesWithTheme.plannerLog}>
               {plannerLogs.map((log, index) => (
-                <Text key={`${log}-${index}`} style={stylesWithTheme.plannerLogText}>
+                <Text
+                  key={`${log}-${index}`}
+                  style={stylesWithTheme.plannerLogText}
+                >
                   {log}
                 </Text>
               ))}
@@ -1154,7 +1406,8 @@ const VoiceMode = () => {
           onPress={handlePrimaryAction}
           style={[
             stylesWithTheme.primaryButton,
-            buttonDisabled && stylesWithTheme.primaryButtonDisabled,
+            buttonDisabled &&
+            stylesWithTheme.primaryButtonDisabled,
             { borderColor: theme.colors.border, borderWidth: 1 },
           ]}
         >
@@ -1162,16 +1415,23 @@ const VoiceMode = () => {
             style={[
               stylesWithTheme.primaryButtonFill,
               {
-                backgroundColor: stage === 'listening' ? theme.colors.cardItem : theme.colors.card,
+                backgroundColor:
+                  stage === 'listening'
+                    ? theme.colors.cardItem
+                    : theme.colors.card,
               },
             ]}
           >
             {stage === 'analyzing' ? (
-              <ActivityIndicator color={theme.colors.textPrimary} />
+              <ActivityIndicator
+                color={theme.colors.textPrimary}
+              />
             ) : (
               <Mic size={18} color={theme.colors.textPrimary} />
             )}
-            <Text style={stylesWithTheme.primaryButtonLabel}>{buttonLabel}</Text>
+            <Text style={stylesWithTheme.primaryButtonLabel}>
+              {buttonLabel}
+            </Text>
           </View>
         </TouchableOpacity>
 
@@ -1184,7 +1444,9 @@ const VoiceMode = () => {
             activeOpacity={0.8}
           >
             <Square size={16} color={theme.colors.textPrimary} />
-            <Text style={stylesWithTheme.secondaryLabel}>Stop talking</Text>
+            <Text style={stylesWithTheme.secondaryLabel}>
+              Stop talking
+            </Text>
           </TouchableOpacity>
         )}
 
@@ -1196,15 +1458,20 @@ const VoiceMode = () => {
             }}
             activeOpacity={0.8}
           >
-            <Repeat2 size={16} color={theme.colors.textPrimary} />
-            <Text style={stylesWithTheme.secondaryLabel}>Reset session</Text>
+            <Repeat2
+              size={16}
+              color={theme.colors.textPrimary}
+            />
+            <Text style={stylesWithTheme.secondaryLabel}>
+              Reset session
+            </Text>
           </TouchableOpacity>
         )}
 
         {micStatus === 'denied' && (
           <Text style={stylesWithTheme.permissionText}>
-            Microphone access is required. Enable it in system settings to use
-            Leora Voice.
+            Microphone access is required. Enable it in system
+            settings to use Leora Voice.
           </Text>
         )}
       </View>
@@ -1495,13 +1762,16 @@ const createStyles = (theme: Theme) =>
     recordingTitle: {
       fontSize: 14,
       fontWeight: '600',
+      color: theme.colors.textPrimary,
     },
     recordingMeta: {
       fontSize: 12,
+      color: theme.colors.textSecondary,
     },
     recordingDuration: {
       fontSize: 12,
       fontWeight: '500',
+      color: theme.colors.textSecondary,
     },
     waveformRow: {
       flexDirection: 'row',

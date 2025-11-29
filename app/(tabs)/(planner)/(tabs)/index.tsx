@@ -27,14 +27,18 @@ import {
   MoreHorizontal,
   RotateCcw,
   Pencil,
+  CalendarDays,
 } from 'lucide-react-native';
 
 import { AdaptiveGlassView } from '@/components/ui/AdaptiveGlassView';
 import EdgeSwipeable from '@/components/shared/EdgeSwipeable';
+import EmptyAnimation from '@/components/shared/EmptyAnimation';
+import SelectableListItem from '@/components/shared/SelectableListItem';
 import { useAppTheme } from '@/constants/theme';
 import { useLocalization } from '@/localization/useLocalization';
 import type { AppTranslations } from '@/localization/strings';
 import { useRouter } from 'expo-router';
+import { useSelectionStore } from '@/stores/useSelectionStore';
 
 import type { PlannerTask, PlannerTaskSection, PlannerTaskStatus } from '@/types/planner';
 import { startOfDay } from '@/utils/calendar';
@@ -135,7 +139,6 @@ export default function PlannerTasksTab() {
     setTaskStatus,
     completeTask,
     deleteTask: deleteDomainTask,
-    deleteTaskPermanently,
     restoreTaskFromHistory,
     removeHistoryEntry,
   } = usePlannerDomainStore(
@@ -143,13 +146,23 @@ export default function PlannerTasksTab() {
       setTaskStatus: state.setTaskStatus,
       completeTask: state.completeTask,
       deleteTask: state.deleteTask,
-      deleteTaskPermanently: state.deleteTaskPermanently,
       restoreTaskFromHistory: state.restoreTaskFromHistory,
       removeHistoryEntry: state.removeHistoryEntry,
     })),
   );
 
-  const { groupedTasks, historyTasks, normalizedDay, summaryCounts } = usePlannerTasksForDay(expandedMap);
+  // Selection mode
+  const {
+    isSelectionMode,
+    entityType,
+    enterSelectionMode,
+    toggleSelection,
+    isSelected,
+  } = useSelectionStore();
+
+  const isTaskSelectionMode = isSelectionMode && entityType === 'task';
+
+  const { groupedTasks, historyTasks, normalizedDay, summaryCounts, progressStats } = usePlannerTasksForDay(expandedMap);
   const doneCount = (arr: PlannerTaskCard[]) => arr.filter((t) => t.status === 'completed').length;
 
   const handleToggleDone = useCallback(
@@ -201,6 +214,22 @@ export default function PlannerTasksTab() {
     [removeHistoryEntry],
   );
 
+  // Selection mode handlers
+  const handleEnterSelectionMode = useCallback(
+    (isHistory = false) => {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      enterSelectionMode('task', isHistory);
+    },
+    [enterSelectionMode],
+  );
+
+  const handleToggleSelection = useCallback(
+    (id: string) => {
+      toggleSelection(id);
+    },
+    [toggleSelection],
+  );
+
   const dateFormatter = useMemo(
     () =>
       new Intl.DateTimeFormat(locale, {
@@ -226,10 +255,10 @@ export default function PlannerTasksTab() {
   const summaryLabel = useMemo(
     () =>
       tasksStrings.dailySummary
-        .replace('{tasks}', String(summaryCounts.tasks))
-        .replace('{habits}', String(summaryCounts.habits))
+        .replace('{tasks}', `${progressStats.tasksCompleted}/${progressStats.tasksTotal}`)
+        .replace('{habits}', `${progressStats.habitsCompleted}/${progressStats.habitsTotal}`)
         .replace('{goals}', String(summaryCounts.goals)),
-    [summaryCounts.goals, summaryCounts.habits, summaryCounts.tasks, tasksStrings.dailySummary],
+    [progressStats.tasksCompleted, progressStats.tasksTotal, progressStats.habitsCompleted, progressStats.habitsTotal, summaryCounts.goals, tasksStrings.dailySummary],
   );
 
   return (
@@ -271,6 +300,10 @@ export default function PlannerTasksTab() {
             onFocusTask={handleStartFocus}
             onEditTask={handleEditTask}
             tasksStrings={tasksStrings}
+            isSelectionMode={isTaskSelectionMode}
+            isSelected={isSelected}
+            onToggleSelect={handleToggleSelection}
+            onEnterSelectionMode={() => handleEnterSelectionMode(false)}
           />
         )}
 
@@ -288,6 +321,10 @@ export default function PlannerTasksTab() {
             onFocusTask={handleStartFocus}
             onEditTask={handleEditTask}
             tasksStrings={tasksStrings}
+            isSelectionMode={isTaskSelectionMode}
+            isSelected={isSelected}
+            onToggleSelect={handleToggleSelection}
+            onEnterSelectionMode={() => handleEnterSelectionMode(false)}
           />
         )}
 
@@ -305,8 +342,29 @@ export default function PlannerTasksTab() {
             onFocusTask={handleStartFocus}
             onEditTask={handleEditTask}
             tasksStrings={tasksStrings}
+            isSelectionMode={isTaskSelectionMode}
+            isSelected={isSelected}
+            onToggleSelect={handleToggleSelection}
+            onEnterSelectionMode={() => handleEnterSelectionMode(false)}
           />
         )}
+
+        {groupedTasks.morning.length === 0 &&
+          groupedTasks.afternoon.length === 0 &&
+          groupedTasks.evening.length === 0 &&
+          historyTasks.length === 0 && (
+            <View style={styles.emptyStateWrapper}>
+              <EmptyAnimation size={180} />
+              <AdaptiveGlassView style={[styles.emptyStateCard, { backgroundColor: theme.colors.card }]}>
+                <Text style={[styles.emptyTitle, { color: theme.colors.textPrimary }]}>
+                  {tasksStrings.empty?.title ?? 'No tasks yet'}
+                </Text>
+                <Text style={[styles.emptySubtitle, { color: theme.colors.textSecondary }]}>
+                  {tasksStrings.empty?.subtitle ?? 'Add your first task to start planning your day.'}
+                </Text>
+              </AdaptiveGlassView>
+            </View>
+          )}
 
         {historyTasks.length > 0 && (
           <HistorySection
@@ -315,11 +373,16 @@ export default function PlannerTasksTab() {
             onRestore={handleRestore}
             onRemove={handleRemoveFromHistory}
             tasksStrings={tasksStrings}
+            isSelectionMode={isTaskSelectionMode}
+            isSelected={isSelected}
+            onToggleSelect={handleToggleSelection}
+            onEnterSelectionMode={() => handleEnterSelectionMode(true)}
           />
         )}
 
-        <View style={{ height: 100 }} />
+        <View style={{ height: isTaskSelectionMode ? 180 : 100 }} />
       </ScrollView>
+
     </>
   );
 }
@@ -340,6 +403,10 @@ function Section({
   onFocusTask,
   onEditTask,
   tasksStrings,
+  isSelectionMode,
+  isSelected,
+  onToggleSelect,
+  onEnterSelectionMode,
 }: {
   id: PlannerTaskSection;
   items: PlannerTaskCard[];
@@ -353,6 +420,10 @@ function Section({
   onFocusTask: (task: PlannerTaskCard) => void;
   onEditTask: (task: PlannerTaskCard) => void;
   tasksStrings: AppTranslations['plannerScreens']['tasks'];
+  isSelectionMode: boolean;
+  isSelected: (id: string) => boolean;
+  onToggleSelect: (id: string) => void;
+  onEnterSelectionMode: () => void;
 }) {
   const meta = sectionMeta(theme, id, tasksStrings.sections);
   return (
@@ -369,21 +440,38 @@ function Section({
       </View>
       <Text style={[styles.sectionTip, { color: theme.colors.textTertiary }]}>{tasksStrings.sectionTip}</Text>
 
-      <View style={{ gap: 10 }}>
-        {items.map((t) => (
-          <TaskCard
-            key={t.id}
-            task={t}
-            theme={theme}
-            onToggleDone={() => onToggleDone(t)}
-            onToggleExpand={() => onToggleExpand(t.id)}
-            onDelete={() => onDelete(t.id)}
-            onComplete={() => onComplete(t)}
-            onFocusTask={() => onFocusTask(t)}
-            onEditTask={() => onEditTask(t)}
-            tasksStrings={tasksStrings}
-          />
-        ))}
+      <View style={[{ gap: 10 }, isSelectionMode && styles.selectionModeContainer]}>
+        {items.map((t) => {
+          const enterSelection = () => {
+            onEnterSelectionMode();
+            onToggleSelect(t.id);
+          };
+          return (
+            <SelectableListItem
+              key={t.id}
+              id={t.id}
+              isSelectionMode={isSelectionMode}
+              isSelected={isSelected(t.id)}
+              onToggleSelect={onToggleSelect}
+              onLongPress={enterSelection}
+              onPress={() => onToggleExpand(t.id)}
+            >
+              <TaskCard
+                task={t}
+                theme={theme}
+                onToggleDone={() => onToggleDone(t)}
+                onToggleExpand={() => onToggleExpand(t.id)}
+                onLongPress={enterSelection}
+                onDelete={() => onDelete(t.id)}
+                onComplete={() => onComplete(t)}
+                onFocusTask={() => onFocusTask(t)}
+                onEditTask={() => onEditTask(t)}
+                tasksStrings={tasksStrings}
+                disableSwipe={isSelectionMode}
+              />
+            </SelectableListItem>
+          );
+        })}
       </View>
     </>
   );
@@ -397,6 +485,7 @@ function TaskCard({
   theme,
   onToggleDone,
   onToggleExpand,
+  onLongPress,
   onDelete,
   onComplete,
   onRestore,
@@ -404,11 +493,13 @@ function TaskCard({
   onFocusTask,
   onEditTask,
   tasksStrings,
+  disableSwipe = false,
 }: {
   task: PlannerTaskCard;
   theme: ReturnType<typeof useAppTheme>;
   onToggleDone: () => void;
   onToggleExpand: () => void;
+  onLongPress?: () => void;
   onDelete: () => void;
   onComplete: () => void;
   onRestore?: () => void;
@@ -416,6 +507,7 @@ function TaskCard({
   onFocusTask?: (task: PlannerTaskCard) => void;
   onEditTask?: (task: PlannerTaskCard) => void;
   tasksStrings: AppTranslations['plannerScreens']['tasks'];
+  disableSwipe?: boolean;
 }) {
   const isHistory = mode === 'history';
   const isCompleted = task.status === 'completed';
@@ -563,6 +655,7 @@ function TaskCard({
       activationEdgeRatio={0.25}
       rightThreshold={72}
       renderRightActions={renderRightActions}
+      enabled={!disableSwipe}
     >
       <AdaptiveGlassView
         style={[
@@ -574,7 +667,7 @@ function TaskCard({
           },
         ]}
       >
-        <Pressable style={styles.cardPress} onPress={handleCardPress} disabled={isHistory}>
+        <Pressable style={styles.cardPress} onPress={handleCardPress} onLongPress={onLongPress} delayLongPress={400} disabled={isHistory}>
           {isHistory && task.deletedAt && (
             <View style={[styles.historyBadge, { borderColor: theme.colors.danger }]}>
               <Text style={[styles.historyBadgeText, { color: theme.colors.danger }]}>
@@ -705,12 +798,20 @@ function HistorySection({
   onRestore,
   onRemove,
   tasksStrings,
+  isSelectionMode,
+  isSelected,
+  onToggleSelect,
+  onEnterSelectionMode,
 }: {
   items: PlannerTaskCard[];
   theme: ReturnType<typeof useAppTheme>;
   onRestore: (historyId?: string) => void;
   onRemove: (historyId?: string) => void;
   tasksStrings: AppTranslations['plannerScreens']['tasks'];
+  isSelectionMode: boolean;
+  isSelected: (id: string) => boolean;
+  onToggleSelect: (id: string) => void;
+  onEnterSelectionMode: () => void;
 }) {
   return (
     <>
@@ -722,21 +823,38 @@ function HistorySection({
       </View>
       <Text style={[styles.sectionTip, { color: theme.colors.textTertiary }]}>{tasksStrings.history.tip}</Text>
 
-      <View style={{ gap: 10 }}>
-        {items.map((task) => (
-          <TaskCard
-            key={task.historyId ?? task.id}
-            task={task}
-            theme={theme}
-            onToggleDone={() => { }}
-            onToggleExpand={() => { }}
-            onDelete={() => onRemove(task.historyId ?? task.id)}
-            onComplete={() => { }}
-            onRestore={() => onRestore(task.historyId ?? task.id)}
-            mode="history"
-            tasksStrings={tasksStrings}
-          />
-        ))}
+      <View style={[{ gap: 10 }, isSelectionMode && styles.selectionModeContainer]}>
+        {items.map((task) => {
+          const itemId = task.historyId ?? task.id;
+          const enterHistorySelection = () => {
+            onEnterSelectionMode();
+            onToggleSelect(itemId);
+          };
+          return (
+            <SelectableListItem
+              key={itemId}
+              id={itemId}
+              isSelectionMode={isSelectionMode}
+              isSelected={isSelected(itemId)}
+              onToggleSelect={onToggleSelect}
+              onLongPress={enterHistorySelection}
+            >
+              <TaskCard
+                task={task}
+                theme={theme}
+                onToggleDone={() => { }}
+                onToggleExpand={() => { }}
+                onLongPress={enterHistorySelection}
+                onDelete={() => onRemove(itemId)}
+                onComplete={() => { }}
+                onRestore={() => onRestore(itemId)}
+                mode="history"
+                tasksStrings={tasksStrings}
+                disableSwipe={isSelectionMode}
+              />
+            </SelectableListItem>
+          );
+        })}
       </View>
     </>
   );
@@ -936,5 +1054,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     elevation: 6,
+  },
+
+  emptyStateWrapper: {
+    paddingVertical: 40,
+    alignItems: 'center',
+  },
+  emptyStateCard: {
+    borderRadius: 20,
+    padding: 24,
+    gap: 14,
+    marginTop: 16,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    fontWeight: '500',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  selectionModeContainer: {
+    paddingLeft: 36,
   },
 });

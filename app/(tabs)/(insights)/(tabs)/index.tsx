@@ -920,8 +920,8 @@ const InsightsIndexScreen: React.FC = () => {
                   <Icon size={16} color={theme.colors.textSecondary} />
                   <Text style={styles.changeTitle}>{group.title}</Text>
                 </View>
-                {group.bullets.map((item) => (
-                  <Text key={item} style={styles.bulletText}>
+                {group.bullets.map((item, index) => (
+                  <Text key={`${group.key}-bullet-${index}`} style={styles.bulletText}>
                     • {item}
                   </Text>
                 ))}

@@ -376,6 +376,7 @@ function RootNavigator({
           options={{
             presentation: 'modal',
             headerShown: false,
+            animation: "slide_from_bottom",
           }}
         />
         <Stack.Screen
@@ -383,6 +384,7 @@ function RootNavigator({
           options={{
             presentation: 'modal',
             headerShown: false,
+            animation: "slide_from_bottom",
           }}
         />
         <Stack.Screen
@@ -417,9 +419,7 @@ function RootNavigator({
           options={{
             headerShown: false,
             presentation: 'modal',
-            headerTitle: 'Menage Widget',
-            headerStyle: { backgroundColor: palette.surface },
-            headerTintColor: palette.textPrimary,
+            animation:"slide_from_bottom",
           }}
         />
         <Stack.Screen
@@ -523,6 +523,7 @@ function RootNavigator({
           options={{
             presentation: 'modal',
             headerShown: false,
+            animation: "slide_from_bottom",
           }}
         />
         <Stack.Screen

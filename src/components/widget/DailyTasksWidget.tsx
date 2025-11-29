@@ -1,11 +1,13 @@
 import type { Task } from '@/types/home';
 import { CheckIcon } from '@assets/icons';
 import { Dot } from 'lucide-react-native';
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { AdaptiveGlassView } from '@/components/ui/AdaptiveGlassView';
 import { useAppTheme } from '@/constants/theme';
 import { useLocalization } from '@/localization/useLocalization';
+import { usePlannerDomainStore } from '@/stores/usePlannerDomainStore';
+import { useShallow } from 'zustand/shallow';
 
 interface DailyTasksWidgetProps {
   initialTasks?: Task[];
@@ -78,23 +80,25 @@ export default function DailyTasksWidget({
 }: DailyTasksWidgetProps) {
   const theme = useAppTheme();
   const { strings } = useLocalization();
-  const [tasks, setTasks] = useState<Task[]>(initialTasks);
-
-  useEffect(() => {
-    if (hasData) {
-      setTasks(initialTasks);
-    } else {
-      setTasks([]);
-    }
-  }, [hasData, initialTasks]);
+  const { completeTask, setTaskStatus } = usePlannerDomainStore(
+    useShallow((state) => ({
+      completeTask: state.completeTask,
+      setTaskStatus: state.setTaskStatus,
+    })),
+  );
 
   const handleTaskToggle = (taskId: string) => {
     if (!hasData) {
       return;
     }
-    setTasks(prev =>
-      prev.map(t => (t.id === taskId ? { ...t, completed: !t.completed } : t))
-    );
+    const task = initialTasks.find((t) => t.id === taskId);
+    if (task) {
+      if (task.completed) {
+        setTaskStatus(taskId, 'active');
+      } else {
+        completeTask(taskId);
+      }
+    }
     onTaskToggle?.(taskId);
   };
 
@@ -105,7 +109,7 @@ export default function DailyTasksWidget({
     completed: false,
   }));
 
-  const displayedTasks = hasData ? tasks : placeholderTasks;
+  const displayedTasks = hasData ? initialTasks : placeholderTasks;
   const resolvedDateLabel = dateLabel || strings.home.header.todayLabel;
 
   return (

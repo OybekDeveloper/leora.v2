@@ -47,9 +47,14 @@ export function calculateHabitProgress(habits: Habit[], targetDate: Date = new D
 
   const activeHabitsForDay = habits.filter((habit) => {
     if (habit.status !== 'active') return false;
-    if (habit.frequency === 'weekly' && habit.daysOfWeek?.length) {
+    // Check if habit is due on this day based on frequency and daysOfWeek
+    if (habit.daysOfWeek && habit.daysOfWeek.length > 0) {
       return habit.daysOfWeek.includes(weekday);
     }
+    // Daily habits are always due
+    if (habit.frequency === 'daily') return true;
+    // Weekly habits without specific days default to due
+    if (habit.frequency === 'weekly') return true;
     return true;
   });
 

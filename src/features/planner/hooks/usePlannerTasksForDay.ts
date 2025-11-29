@@ -16,6 +16,15 @@ type SummaryCounts = {
   goals: number;
 };
 
+type ProgressStats = {
+  tasksTotal: number;
+  tasksCompleted: number;
+  tasksProgress: number;
+  habitsTotal: number;
+  habitsCompleted: number;
+  habitsProgress: number;
+};
+
 type GroupedTasks = Record<PlannerTaskSection, PlannerTaskCard[]>;
 
 const ACTIVE_TASK_STATUSES = new Set<Task['status']>([
@@ -64,7 +73,8 @@ export const usePlannerTasksForDay = (expandedMap: Record<string, boolean>) => {
   const tasksForDay = useMemo(
     () =>
       plannerTasks.filter((task) => {
-        if (task.dueAt == null) return true;
+        // Only include tasks that have a due date matching the selected day
+        if (task.dueAt == null) return false;
         return task.dueAt >= dayStart && task.dueAt < dayEnd;
       }),
     [dayEnd, dayStart, plannerTasks],
@@ -124,6 +134,36 @@ export const usePlannerTasksForDay = (expandedMap: Record<string, boolean>) => {
     [goalsForDay.size, habitsDueToday, tasksForDay.length],
   );
 
+  // Calculate progress stats for the selected day
+  const progressStats: ProgressStats = useMemo(() => {
+    const dayKey = normalizedDay.toISOString().split('T')[0]!;
+
+    // Task progress: completed / total for the day
+    const tasksTotal = tasksForDay.length;
+    const tasksCompleted = tasksForDay.filter((t) => t.status === 'completed').length;
+    const tasksProgress = tasksTotal > 0 ? Math.round((tasksCompleted / tasksTotal) * 100) : 0;
+
+    // Habit progress: completed / due for the day
+    const habitsDueForDay = habits.filter((habit) => isHabitDueOnDate(habit, normalizedDay));
+    const habitsTotal = habitsDueForDay.length;
+    const habitsCompleted = habitsDueForDay.filter((habit) => {
+      if (!habit.completionHistory) return false;
+      const entry = habit.completionHistory[dayKey];
+      const status = typeof entry === 'string' ? entry : entry?.status;
+      return status === 'done';
+    }).length;
+    const habitsProgress = habitsTotal > 0 ? Math.round((habitsCompleted / habitsTotal) * 100) : 0;
+
+    return {
+      tasksTotal,
+      tasksCompleted,
+      tasksProgress,
+      habitsTotal,
+      habitsCompleted,
+      habitsProgress,
+    };
+  }, [habits, normalizedDay, tasksForDay]);
+
   return {
     normalizedDay,
     dayStart,
@@ -132,5 +172,6 @@ export const usePlannerTasksForDay = (expandedMap: Record<string, boolean>) => {
     tasksForDay,
     historyTasks,
     summaryCounts,
+    progressStats,
   };
 };

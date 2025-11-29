@@ -65,6 +65,9 @@ interface FinanceDomainState {
   createBudget: (payload: Omit<Budget, 'id' | 'spentAmount' | 'remainingAmount' | 'percentUsed' | 'createdAt' | 'updatedAt'>) => Budget;
   updateBudget: (id: string, updates: Partial<Budget>) => void;
   archiveBudget: (id: string) => void;
+  batchArchiveBudgets: (ids: string[]) => void;
+  deleteBudgetPermanently: (id: string) => void;
+  batchDeleteBudgetsPermanently: (ids: string[]) => void;
   createDebt: (payload: CreateDebtInput) => Debt;
   updateDebt: (id: string, updates: Partial<Debt>) => void;
   deleteDebt: (id: string) => void;
@@ -332,19 +335,44 @@ const buildBudgetEntriesForTransaction = (
   if (transaction.type === 'transfer') {
     return [];
   }
+
   const amount = Math.abs(transaction.amount);
+  const txnDate = new Date(transaction.date);
+
   return budgets
     .filter((budget) => {
-      if (transaction.budgetId && budget.id !== transaction.budgetId) {
-        return false;
+      // 1. If transaction has explicit budgetId, only match that budget
+      if (transaction.budgetId) {
+        return budget.id === transaction.budgetId;
       }
-      if (!transaction.currency) {
-        return true;
+
+      // 2. Match by transaction type
+      // Spending budgets (expense) match expense transactions
+      // Saving budgets (income) match income transactions
+      const isSpendingBudget = budget.transactionType === 'expense';
+      const isIncomeTransaction = transaction.type === 'income';
+      if (isSpendingBudget && isIncomeTransaction) return false;
+      if (!isSpendingBudget && !isIncomeTransaction) return false;
+
+      // 3. Match by category
+      const txnCategory = transaction.categoryId;
+      if (budget.categoryIds && budget.categoryIds.length > 0 && txnCategory) {
+        if (!budget.categoryIds.includes(txnCategory)) return false;
       }
-      if (budget.currency === transaction.currency) {
-        return true;
+
+      // 4. Match by period (if budget has period)
+      if (budget.periodType !== 'none' && budget.startDate && budget.endDate) {
+        const budgetStart = new Date(budget.startDate);
+        const budgetEnd = new Date(budget.endDate);
+        if (txnDate < budgetStart || txnDate > budgetEnd) return false;
       }
-      return transaction.baseCurrency === budget.currency;
+
+      // 5. Currency compatibility
+      if (transaction.currency && budget.currency !== transaction.currency) {
+        if (transaction.baseCurrency !== budget.currency) return false;
+      }
+
+      return true;
     })
     .map((budget) => {
       const sameCurrency = budget.currency === transaction.currency;
@@ -414,6 +442,32 @@ const persistChangedAccounts = (updatedAccounts: Account[]) => {
       currentBalance: account.currentBalance,
       updatedAt: account.updatedAt,
     });
+  });
+};
+
+const persistChangedBudgets = (updatedBudgets: Budget[], previousBudgets: Budget[]) => {
+  if (!updatedBudgets.length) {
+    return;
+  }
+  const { budgets: budgetDao } = getFinanceDaoRegistry();
+  updatedBudgets.forEach((budget) => {
+    const previous = previousBudgets.find((b) => b.id === budget.id);
+    // Only persist if values actually changed
+    if (
+      previous &&
+      (previous.spentAmount !== budget.spentAmount ||
+        previous.remainingAmount !== budget.remainingAmount ||
+        previous.percentUsed !== budget.percentUsed)
+    ) {
+      budgetDao.update(budget.id, {
+        spentAmount: budget.spentAmount,
+        remainingAmount: budget.remainingAmount,
+        percentUsed: budget.percentUsed,
+        contributionTotal: budget.contributionTotal,
+        currentBalance: budget.currentBalance,
+        updatedAt: budget.updatedAt,
+      });
+    }
   });
 };
 
@@ -532,6 +586,7 @@ export const useFinanceDomainStore = create<FinanceDomainState>((set, get) => ({
         const convertedAmountToBase = payload.convertedAmountToBase ?? payload.amount * rateUsedToBase;
         const { transactions: txnDao, budgets: budgetDao } = getFinanceDaoRegistry();
         const prevAccounts = get().accounts;
+        const prevBudgets = get().budgets;
         const created = txnDao.create({
           ...payload,
           baseCurrency,
@@ -542,6 +597,7 @@ export const useFinanceDomainStore = create<FinanceDomainState>((set, get) => ({
         const newEntries = buildBudgetEntriesForTransaction(created, get().budgets, timestamp);
         const persistedEntries = newEntries.map((entry) => budgetDao.recordEntry(entry));
         const nextAccountsSnapshot: Account[] = [];
+        const nextBudgetsSnapshot: Budget[] = [];
         set((state) => {
           const nextAccounts = applyTransactionToAccounts(state.accounts, created, 1, timestamp);
           const nextBudgetEntries = [...state.budgetEntries, ...persistedEntries];
@@ -573,6 +629,7 @@ export const useFinanceDomainStore = create<FinanceDomainState>((set, get) => ({
             updatedDebts = state.debts.map((debt) => (debt.id === updatedDebt.id ? updatedDebt : debt));
           }
           nextAccountsSnapshot.push(...nextAccounts);
+          nextBudgetsSnapshot.push(...updatedBudgets);
           return {
             accounts: nextAccounts,
             transactions: [created, ...state.transactions],
@@ -586,6 +643,8 @@ export const useFinanceDomainStore = create<FinanceDomainState>((set, get) => ({
           return previous && previous.currentBalance !== account.currentBalance;
         });
         persistChangedAccounts(changedAccounts);
+        // Persist updated budget values to Realm
+        persistChangedBudgets(nextBudgetsSnapshot, prevBudgets);
         plannerEventBus.publish('finance.tx.created', { transaction: created });
         applyFinanceContributionToGoals(created, { budgets: get().budgets, debts: get().debts });
         return created;
@@ -602,6 +661,7 @@ export const useFinanceDomainStore = create<FinanceDomainState>((set, get) => ({
         const convertedAmountToBase = updates.convertedAmountToBase ?? amount * rateUsedToBase;
         const { transactions: txnDao, budgets: budgetDao } = getFinanceDaoRegistry();
         const prevAccounts = get().accounts;
+        const prevBudgets = get().budgets;
         const updated = txnDao.update(id, {
           ...updates,
           baseCurrency,
@@ -617,6 +677,7 @@ export const useFinanceDomainStore = create<FinanceDomainState>((set, get) => ({
         const newEntries = buildBudgetEntriesForTransaction(updated, get().budgets, timestamp);
         const persistedEntries = newEntries.map((entry) => budgetDao.recordEntry(entry));
         const nextAccountsSnapshot: Account[] = [];
+        const nextBudgetsSnapshot: Budget[] = [];
         set((state) => {
           const revertedAccounts = applyTransactionToAccounts(state.accounts, existing, -1, timestamp);
           const nextAccounts = applyTransactionToAccounts(revertedAccounts, updated, 1, timestamp);
@@ -674,6 +735,7 @@ export const useFinanceDomainStore = create<FinanceDomainState>((set, get) => ({
             adjustedDebts = adjustedDebts.map((debt) => (debt.id === debtUpdated.id ? debtUpdated : debt));
           }
           nextAccountsSnapshot.push(...nextAccounts);
+          nextBudgetsSnapshot.push(...updatedBudgets);
           return {
             accounts: nextAccounts,
             transactions: state.transactions.map((transaction) =>
@@ -689,6 +751,8 @@ export const useFinanceDomainStore = create<FinanceDomainState>((set, get) => ({
           return previous && previous.currentBalance !== account.currentBalance;
         });
         persistChangedAccounts(changedAccounts);
+        // Persist updated budget values to Realm
+        persistChangedBudgets(nextBudgetsSnapshot, prevBudgets);
         applyFinanceContributionToGoals(updated, { budgets: get().budgets, debts: get().debts });
         plannerEventBus.publish('finance.tx.updated', { transaction: updated });
       },
@@ -700,10 +764,12 @@ export const useFinanceDomainStore = create<FinanceDomainState>((set, get) => ({
         }
         const { transactions: txnDao, budgets: budgetDao } = getFinanceDaoRegistry();
         const prevAccounts = get().accounts;
+        const prevBudgets = get().budgets;
         txnDao.delete(id);
         budgetDao.removeEntriesForTransaction(id);
         const timestamp = new Date().toISOString();
         const nextAccountsSnapshot: Account[] = [];
+        const nextBudgetsSnapshot: Budget[] = [];
         set((state) => {
           const revertedAccounts = applyTransactionToAccounts(state.accounts, existing, -1, timestamp);
           const nextBudgetEntries = removeBudgetEntriesForTransaction(state.budgetEntries, id);
@@ -735,6 +801,7 @@ export const useFinanceDomainStore = create<FinanceDomainState>((set, get) => ({
             updatedDebts = state.debts.map((debt) => (debt.id === debtUpdated.id ? debtUpdated : debt));
           }
           nextAccountsSnapshot.push(...revertedAccounts);
+          nextBudgetsSnapshot.push(...updatedBudgets);
           return {
             accounts: revertedAccounts,
             transactions: state.transactions.filter((txn) => txn.id !== id),
@@ -748,6 +815,8 @@ export const useFinanceDomainStore = create<FinanceDomainState>((set, get) => ({
           return previous && previous.currentBalance !== account.currentBalance;
         });
         persistChangedAccounts(changedAccounts);
+        // Persist updated budget values to Realm
+        persistChangedBudgets(nextBudgetsSnapshot, prevBudgets);
         removeFinanceContributionForTransaction(id, existing, { budgets: get().budgets, debts: get().debts });
       },
 
@@ -899,6 +968,36 @@ export const useFinanceDomainStore = create<FinanceDomainState>((set, get) => ({
             budget.id === id ? { ...budget, isArchived: true } : budget,
           ),
         }));
+      },
+
+      batchArchiveBudgets: (ids: string[]) => {
+        ids.forEach((id) => get().archiveBudget(id));
+      },
+
+      deleteBudgetPermanently: (id: string) => {
+        const budget = get().budgets.find((b) => b.id === id);
+
+        // Unlink goal before deleting
+        if (budget?.linkedGoalId) {
+          const plannerStore = usePlannerDomainStore.getState();
+          if (plannerStore?.updateGoal) {
+            plannerStore.updateGoal(budget.linkedGoalId, {
+              linkedBudgetId: undefined,
+            });
+          }
+        }
+
+        const { budgets: budgetDao } = getFinanceDaoRegistry();
+        // Delete budget entries first, then the budget
+        budgetDao.delete(id);
+        set((state) => ({
+          budgets: state.budgets.filter((b) => b.id !== id),
+          budgetEntries: state.budgetEntries.filter((entry) => entry.budgetId !== id),
+        }));
+      },
+
+      batchDeleteBudgetsPermanently: (ids: string[]) => {
+        ids.forEach((id) => get().deleteBudgetPermanently(id));
       },
 
       createDebt: (payload) => {
@@ -1239,10 +1338,20 @@ export const useFinanceDomainStore = create<FinanceDomainState>((set, get) => ({
           budgetType: budget.budgetType,
         } satisfies BudgetSnapshot)),
       hydrateFromRealm: (payload) =>
-        set((state) => ({
-          ...state,
-          ...payload,
-        })),
+        set((state) => {
+          const nextBudgets = payload.budgets ?? state.budgets;
+          const nextBudgetEntries = payload.budgetEntries ?? state.budgetEntries;
+          const timestamp = new Date().toISOString();
+
+          // Recalculate budget values from entries on hydration
+          const recalculatedBudgets = recalcBudgetsFromEntries(nextBudgets, nextBudgetEntries, timestamp);
+
+          return {
+            ...state,
+            ...payload,
+            budgets: recalculatedBudgets,
+          };
+        }),
       reset: () => set(createInitialFinanceCollections()),
 }));
 

@@ -1,14 +1,17 @@
 // app/(tabs)/(planner)/(tabs)/goals.tsx
 import React, { useCallback, useMemo } from 'react';
-import { SectionList, StyleSheet, Text, View } from 'react-native';
+import { LayoutAnimation, SectionList, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import { AdaptiveGlassView } from '@/components/ui/AdaptiveGlassView';
+import EmptyAnimation from '@/components/shared/EmptyAnimation';
+import SelectableListItem from '@/components/shared/SelectableListItem';
 import { GoalCard } from '@/components/planner/goals/GoalCard';
 import { createThemedStyles } from '@/constants/theme';
 import { createGoalSections, type Goal, type GoalSection } from '@/features/planner/goals/data';
 import { useLocalization } from '@/localization/useLocalization';
 import { usePlannerDomainStore } from '@/stores/usePlannerDomainStore';
+import { useSelectionStore } from '@/stores/useSelectionStore';
 import { useShallow } from 'zustand/react/shallow';
 
 const GoalsPage: React.FC = () => {
@@ -16,7 +19,12 @@ const GoalsPage: React.FC = () => {
   const router = useRouter();
   const { strings, locale } = useLocalization();
   const goalStrings = strings.plannerScreens.goals;
-  const { goals: domainGoals, archiveGoal, resumeGoal, deleteGoalPermanently } = usePlannerDomainStore(
+  const {
+    goals: domainGoals,
+    archiveGoal,
+    resumeGoal,
+    deleteGoalPermanently,
+  } = usePlannerDomainStore(
     useShallow((state) => ({
       goals: state.goals,
       archiveGoal: state.archiveGoal,
@@ -24,6 +32,17 @@ const GoalsPage: React.FC = () => {
       deleteGoalPermanently: state.deleteGoalPermanently,
     })),
   );
+
+  // Selection mode
+  const {
+    isSelectionMode,
+    entityType,
+    enterSelectionMode,
+    toggleSelection,
+    isSelected,
+  } = useSelectionStore();
+
+  const isGoalSelectionMode = isSelectionMode && entityType === 'goal';
 
   const activeGoals = useMemo(() => domainGoals.filter((goal) => goal.status !== 'archived'), [domainGoals]);
   const deletedGoals = useMemo(() => domainGoals.filter((goal) => goal.status === 'archived'), [domainGoals]);
@@ -67,50 +86,90 @@ const GoalsPage: React.FC = () => {
     [router],
   );
 
+  // Selection mode handlers
+  const handleEnterSelectionMode = useCallback(
+    (isHistory = false) => {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      enterSelectionMode('goal', isHistory);
+    },
+    [enterSelectionMode],
+  );
+
+  const handleToggleSelection = useCallback(
+    (id: string) => {
+      toggleSelection(id);
+    },
+    [toggleSelection],
+  );
+
   const renderItem = useCallback(
-    ({ item }: { item: Goal }) => {
+    ({ item, section }: { item: Goal; section: GoalSection }) => {
+      const isDeletedSection = section.id === 'deleted';
+
+      const enterSelection = () => {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        handleEnterSelectionMode(isDeletedSection);
+        handleToggleSelection(item.id);
+      };
+
       return (
-        <GoalCard
-          goal={item}
+        <SelectableListItem
+          id={item.id}
+          isSelectionMode={isGoalSelectionMode}
+          isSelected={isSelected(item.id)}
+          onToggleSelect={handleToggleSelection}
+          onLongPress={enterSelection}
           onPress={() => handleOpenGoal(item.id)}
-          onDelete={item.status !== 'archived' ? () => archiveGoal(item.id) : undefined}
-          onEdit={item.status !== 'archived' ? () => router.push(`/(modals)/planner/goal?id=${item.id}`) : undefined}
-          onAddTask={item.status !== 'archived' ? () => router.push(`/(modals)/planner/task?goalId=${item.id}`) : undefined}
-          onRecover={item.status === 'archived' ? () => resumeGoal(item.id) : undefined}
-          onDeleteForever={item.status === 'archived' ? () => deleteGoalPermanently(item.id) : undefined}
-        />
+          style={isGoalSelectionMode ? styles.selectionModeItem : undefined}
+        >
+          <GoalCard
+            goal={item}
+            onPress={() => handleOpenGoal(item.id)}
+            onLongPress={enterSelection}
+            onDelete={item.status !== 'archived' ? () => archiveGoal(item.id) : undefined}
+            onEdit={item.status !== 'archived' ? () => router.push(`/(modals)/planner/goal?id=${item.id}`) : undefined}
+            onAddTask={item.status !== 'archived' ? () => router.push(`/(modals)/planner/task?goalId=${item.id}`) : undefined}
+            onRecover={item.status === 'archived' ? () => resumeGoal(item.id) : undefined}
+            onDeleteForever={item.status === 'archived' ? () => deleteGoalPermanently(item.id) : undefined}
+            disableSwipe={isGoalSelectionMode}
+          />
+        </SelectableListItem>
       );
     },
-    [archiveGoal, deleteGoalPermanently, handleOpenGoal, resumeGoal, router],
+    [archiveGoal, deleteGoalPermanently, handleOpenGoal, resumeGoal, router, isGoalSelectionMode, isSelected, handleToggleSelection, handleEnterSelectionMode, styles.selectionModeItem],
   );
 
   return (
-    <View style={styles.screen}>
-      <SectionList
-        sections={sections}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContent}
-        stickySectionHeadersEnabled
-        renderSectionHeader={renderSectionHeader}
-        renderItem={renderItem}
-        ListHeaderComponent={
-          <View style={styles.pageHeader}>
-            <View>
-              <Text style={styles.pageTitle}>{goalStrings.header.title}</Text>
-              <Text style={styles.pageSubtitle}>{goalStrings.header.subtitle}</Text>
+    <>
+      <View style={styles.screen}>
+        <SectionList
+          sections={sections}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={[styles.listContent, { paddingBottom: isGoalSelectionMode ? 180 : 80 }]}
+          stickySectionHeadersEnabled
+          renderSectionHeader={renderSectionHeader}
+          renderItem={renderItem}
+          ListHeaderComponent={
+            <View style={styles.pageHeader}>
+              <View>
+                <Text style={styles.pageTitle}>{goalStrings.header.title}</Text>
+                <Text style={styles.pageSubtitle}>{goalStrings.header.subtitle}</Text>
+              </View>
             </View>
-          </View>
-        }
-        ListEmptyComponent={
-          <View style={styles.emptyStateWrapper}>
-            <AdaptiveGlassView style={styles.emptyStateCard}>
-              <Text style={styles.emptyTitle}>{goalStrings.empty.title}</Text>
-              <Text style={styles.emptySubtitle}>{goalStrings.empty.subtitle}</Text>
-            </AdaptiveGlassView>
-          </View>
-        }
-      />
-    </View>
+          }
+          ListEmptyComponent={
+            <View style={styles.emptyStateWrapper}>
+              <EmptyAnimation size={180} />
+              <AdaptiveGlassView style={styles.emptyStateCard}>
+                <Text style={styles.emptyTitle}>{goalStrings.empty.title}</Text>
+                <Text style={styles.emptySubtitle}>{goalStrings.empty.subtitle}</Text>
+              </AdaptiveGlassView>
+            </View>
+          }
+        />
+      </View>
+
+    </>
   );
 };
 
@@ -170,6 +229,7 @@ const useStyles = createThemedStyles((theme) => ({
   },
   emptyStateWrapper: {
     paddingVertical: 40,
+    alignItems: 'center',
   },
   emptyStateCard: {
     borderRadius: 20,
@@ -177,18 +237,24 @@ const useStyles = createThemedStyles((theme) => ({
     borderColor: theme.colors.border,
     padding: 24,
     gap: 14,
+    marginTop: 16,
     backgroundColor: theme.colors.card,
   },
   emptyTitle: {
     fontSize: 20,
     fontWeight: '700',
     color: theme.colors.textPrimary,
+    textAlign: 'center',
   },
   emptySubtitle: {
     fontSize: 14,
     fontWeight: '500',
     color: theme.colors.textMuted,
     lineHeight: 20,
+    textAlign: 'center',
+  },
+  selectionModeItem: {
+    paddingLeft: 36,
   },
 }));
 

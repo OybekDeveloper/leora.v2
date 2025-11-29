@@ -25,9 +25,10 @@ const InfoRow: React.FC<InfoRowProps> = ({ label, value }) => {
   );
 };
 
-const resolveBudgetState = (limit: number, spent: number): 'exceeding' | 'within' | 'fixed' => {
+const resolveBudgetState = (limit: number, spent: number): 'exceeding' | 'warning' | 'within' | 'fixed' => {
   if (limit <= 0) return 'fixed';
   if (spent > limit) return 'exceeding';
+  if (spent >= limit * 0.9) return 'warning';
   return 'within';
 };
 
@@ -123,6 +124,9 @@ const BudgetDetail = () => {
     [formatCurrency, globalCurrency],
   );
 
+  // Determine if this is a spending or saving budget
+  const isSpendingBudget = budget?.transactionType !== 'income';
+
   const statusLabel = useMemo(() => {
     const state = resolveBudgetState(limitValue, spentValue);
     return strings.financeScreens.budgets.states[state];
@@ -194,11 +198,15 @@ const BudgetDetail = () => {
 
         <AdaptiveGlassView style={[styles.glassSurface, styles.card, styles.summaryCard]}>
           <View style={styles.summaryRow}>
-            <Text style={[styles.summaryLabel, { color: theme.colors.textSecondary }]}>{detailStrings.limitLabel}</Text>
+            <Text style={[styles.summaryLabel, { color: theme.colors.textSecondary }]}>
+              {isSpendingBudget ? detailStrings.limitLabel : (detailStrings.targetLabel ?? 'Target')}
+            </Text>
             <Text style={[styles.summaryValue, { color: theme.colors.textPrimary }]}>{formatValue(limitValue)}</Text>
           </View>
           <View style={styles.summaryRow}>
-            <Text style={[styles.summaryLabel, { color: theme.colors.textSecondary }]}>{detailStrings.spentLabel}</Text>
+            <Text style={[styles.summaryLabel, { color: theme.colors.textSecondary }]}>
+              {isSpendingBudget ? detailStrings.spentLabel : (detailStrings.contributedLabel ?? 'Contributed')}
+            </Text>
             <Text style={[styles.summaryValue, { color: theme.colors.textPrimary }]}>{formatValue(spentValue)}</Text>
           </View>
           <View style={styles.summaryRow}>
@@ -267,7 +275,9 @@ const BudgetDetail = () => {
             style={styles.actionRow}
           >
             <Text style={[styles.actionLabel, { color: theme.colors.textPrimary }]}>
-              {detailStrings.actions.addToBudget ?? 'Add to budget'}
+              {isSpendingBudget
+                ? (detailStrings.actions.recordExpense ?? 'Record expense')
+                : (detailStrings.actions.addToBudget ?? 'Add to budget')}
             </Text>
           </Pressable>
           <Pressable

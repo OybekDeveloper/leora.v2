@@ -840,7 +840,7 @@ export type AppTranslations = {
       categoriesTitle: string;
       addCategory: string;
       setLimit: string;
-      states: { exceeding: string; fixed: string; within: string };
+      states: { exceeding: string; warning: string; fixed: string; within: string };
       detail: {
         title: string;
         status: string;
@@ -856,6 +856,9 @@ export type AppTranslations = {
         updatedAt: string;
         categoriesLabel: string;
         notifyLabel: string;
+        targetLabel: string;
+        contributedLabel: string;
+        savedLabel: string;
         valueAddTitle: string;
         valueAddAccountCurrency: string;
         valueAddBudgetCurrency: string;
@@ -866,6 +869,8 @@ export type AppTranslations = {
           delete: string;
           viewGoal: string;
           viewTransactions: string;
+          addToBudget: string;
+          recordExpense: string;
           confirmDeleteTitle: string;
           confirmDeleteMessage: string;
           confirmDeleteConfirm: string;
@@ -873,10 +878,22 @@ export type AppTranslations = {
         };
       };
       form: {
+        nameLabel: string;
+        namePlaceholder: string;
+        limitPlaceholder: string;
         periodLabel: string;
         periodOptions: Record<'weekly' | 'monthly' | 'custom_range', string>;
         selectedRangeLabel: string;
         customRange: { start: string; end: string; helper: string; error: string };
+        budgetTypeLabel: string;
+        budgetTypes: {
+          spending: string;
+          spendingHint: string;
+          saving: string;
+          savingHint: string;
+        };
+        limitAmount: string;
+        targetAmount: string;
       };
     };
     analytics: {
@@ -1962,7 +1979,7 @@ const t = {
       categoriesTitle: 'Categories',
       addCategory: 'Add category',
       setLimit: 'Set a limit',
-      states: { exceeding: 'Exceeding', fixed: 'Fixed', within: 'Within' },
+      states: { exceeding: 'Exceeding', warning: 'Approaching limit', fixed: 'Fixed', within: 'Within' },
       detail: {
         title: 'Budget details',
         status: 'Status',
@@ -1978,6 +1995,9 @@ const t = {
         updatedAt: 'Updated',
         categoriesLabel: 'Categories',
         notifyLabel: 'Notify on exceed',
+        targetLabel: 'Target',
+        contributedLabel: 'Contributed',
+        savedLabel: 'Saved',
         valueAddTitle: 'Value add',
         valueAddAccountCurrency: 'Account currency',
         valueAddBudgetCurrency: 'Budget currency',
@@ -1989,6 +2009,7 @@ const t = {
           viewGoal: 'View linked goal',
           viewTransactions: 'View transactions',
           addToBudget: 'Add to budget',
+          recordExpense: 'Record expense',
           confirmDeleteTitle: 'Delete budget?',
           confirmDeleteMessage: 'This will archive the budget and unlink related goals.',
           confirmDeleteConfirm: 'Delete',
@@ -2008,6 +2029,15 @@ const t = {
           helper: 'Select a custom range',
           error: 'Select both start and end dates',
         },
+        budgetTypeLabel: 'Budget type',
+        budgetTypes: {
+          spending: 'Spending budget',
+          spendingHint: 'Track expenses against a limit',
+          saving: 'Saving budget',
+          savingHint: 'Accumulate toward a target',
+        },
+        limitAmount: 'Limit amount',
+        targetAmount: 'Target amount',
       },
     },
       analytics: {
@@ -3107,7 +3137,7 @@ const t = {
       categoriesTitle: 'Категории',
       addCategory: 'Добавить категорию',
       setLimit: 'Установить лимит',
-      states: { exceeding: 'Превышение', fixed: 'Фиксировано', within: 'В пределах' },
+      states: { exceeding: 'Превышение', warning: 'Приближается к лимиту', fixed: 'Фиксировано', within: 'В пределах' },
       detail: {
         title: 'Детали бюджета',
         status: 'Статус',
@@ -3123,6 +3153,9 @@ const t = {
         updatedAt: 'Обновлён',
         categoriesLabel: 'Категории',
         notifyLabel: 'Уведомлять при превышении',
+        targetLabel: 'Цель',
+        contributedLabel: 'Внесено',
+        savedLabel: 'Накоплено',
         valueAddTitle: 'Value add',
         valueAddAccountCurrency: 'Валюта счёта',
         valueAddBudgetCurrency: 'Валюта бюджета',
@@ -3134,6 +3167,7 @@ const t = {
           viewGoal: 'Открыть цель',
           viewTransactions: 'Транзакции',
           addToBudget: 'Добавить в бюджет',
+          recordExpense: 'Записать расход',
           confirmDeleteTitle: 'Удалить бюджет?',
           confirmDeleteMessage: 'Бюджет будет архивирован и отвязан от целей.',
           confirmDeleteConfirm: 'Удалить',
@@ -3157,6 +3191,15 @@ const t = {
           helper: 'Укажите произвольный диапазон',
           error: 'Выберите даты начала и окончания',
         },
+        budgetTypeLabel: 'Тип бюджета',
+        budgetTypes: {
+          spending: 'Бюджет расходов',
+          spendingHint: 'Контроль расходов по лимиту',
+          saving: 'Накопительный бюджет',
+          savingHint: 'Накопление к цели',
+        },
+        limitAmount: 'Сумма лимита',
+        targetAmount: 'Целевая сумма',
       },
     },
       analytics: {
@@ -4256,7 +4299,7 @@ const t = {
       categoriesTitle: 'Kategoriyalar',
       addCategory: 'Kategoriya qo‘shish',
       setLimit: 'Limit qo‘yish',
-      states: { exceeding: 'Limitdan oshgan', fixed: 'Belgilangan', within: 'Doirada' },
+      states: { exceeding: 'Limitdan oshgan', warning: 'Limitga yaqinlashmoqda', fixed: 'Belgilangan', within: 'Doirada' },
       detail: {
         title: 'Byudjet tafsilotlari',
         status: 'Holat',
@@ -4272,20 +4315,24 @@ const t = {
         updatedAt: 'Yangilangan',
         categoriesLabel: 'Kategoriyalar',
         notifyLabel: 'Limit oshsa xabarnoma',
-        valueAddTitle: 'Qiymat qo‘shish',
+        targetLabel: 'Maqsad',
+        contributedLabel: "Qo'shilgan",
+        savedLabel: "Jamg'arilgan",
+        valueAddTitle: "Qiymat qo'shish",
         valueAddAccountCurrency: 'Hisob valyutasi',
         valueAddBudgetCurrency: 'Byudjet valyutasi',
-        valueAddDisplayCurrency: 'Ko‘rsatish valyutasi',
+        valueAddDisplayCurrency: "Ko'rsatish valyutasi",
         actions: {
           title: 'Harakatlar',
           edit: 'Byudjetni tahrirlash',
-          delete: 'Byudjetni o‘chirish',
-          viewGoal: 'Maqsadni ko‘rish',
+          delete: "Byudjetni o'chirish",
+          viewGoal: "Maqsadni ko'rish",
           viewTransactions: 'Tranzaksiyalar',
-          addToBudget: 'Byudjetni to‘ldirish',
-          confirmDeleteTitle: 'Byudjet o‘chirilsinmi?',
+          addToBudget: "Byudjetni to'ldirish",
+          recordExpense: 'Xarajatni qayd etish',
+          confirmDeleteTitle: "Byudjet o'chirilsinmi?",
           confirmDeleteMessage: 'Byudjet arxivlanadi va maqsadlardan uziladi.',
-          confirmDeleteConfirm: 'O‘chirish',
+          confirmDeleteConfirm: "O'chirish",
           confirmDeleteCancel: 'Bekor qilish',
         },
       },
@@ -4306,6 +4353,15 @@ const t = {
           helper: 'Moslashuvchan davrni tanlang',
           error: 'Boshlanish va tugash sanalarini belgilang',
         },
+        budgetTypeLabel: 'Byudjet turi',
+        budgetTypes: {
+          spending: 'Xarajat byudjeti',
+          spendingHint: 'Limitga qarab xarajatni kuzating',
+          saving: "Jamg'arma byudjeti",
+          savingHint: "Maqsadga yetguncha to'plash",
+        },
+        limitAmount: 'Limit summasi',
+        targetAmount: 'Maqsad summasi',
       },
     },
       analytics: {
@@ -5405,7 +5461,7 @@ const t = {
       categoriesTitle: 'الفئات',
       addCategory: 'إضافة فئة',
       setLimit: 'تحديد حد',
-      states: { exceeding: 'تجاوز', fixed: 'ثابت', within: 'ضمن الحد' },
+      states: { exceeding: 'تجاوز', warning: 'يقترب من الحد', fixed: 'ثابت', within: 'ضمن الحد' },
       detail: {
         title: 'تفاصيل الميزانية',
         status: 'الحالة',
@@ -5421,6 +5477,9 @@ const t = {
         updatedAt: 'آخر تحديث',
         categoriesLabel: 'الفئات',
         notifyLabel: 'تنبيه عند التجاوز',
+        targetLabel: 'الهدف',
+        contributedLabel: 'المساهمة',
+        savedLabel: 'المدخر',
         valueAddTitle: 'قيمة مضافة',
         valueAddAccountCurrency: 'عملة الحساب',
         valueAddBudgetCurrency: 'عملة الميزانية',
@@ -5432,6 +5491,7 @@ const t = {
           viewGoal: 'عرض الهدف',
           viewTransactions: 'عرض المعاملات',
           addToBudget: 'إضافة إلى الميزانية',
+          recordExpense: 'تسجيل مصروف',
           confirmDeleteTitle: 'حذف الميزانية؟',
           confirmDeleteMessage: 'سيتم أرشفة الميزانية وفصلها عن الأهداف.',
           confirmDeleteConfirm: 'حذف',
@@ -5455,6 +5515,15 @@ const t = {
           helper: 'اختر نطاقاً زمنياً مخصصاً',
           error: 'يرجى تحديد تاريخي البداية والنهاية',
         },
+        budgetTypeLabel: 'نوع الميزانية',
+        budgetTypes: {
+          spending: 'ميزانية الإنفاق',
+          spendingHint: 'تتبع النفقات مقابل الحد',
+          saving: 'ميزانية الادخار',
+          savingHint: 'التراكم نحو الهدف',
+        },
+        limitAmount: 'مبلغ الحد',
+        targetAmount: 'المبلغ المستهدف',
       },
     },
       analytics: {
@@ -6554,7 +6623,7 @@ const t = {
       categoriesTitle: 'Kategoriler',
       addCategory: 'Kategori ekle',
       setLimit: 'Limit belirle',
-      states: { exceeding: 'Limit aşıldı', fixed: 'Sabit', within: 'Sınır içinde' },
+      states: { exceeding: 'Limit aşıldı', warning: 'Limite yaklaşıyor', fixed: 'Sabit', within: 'Sınır içinde' },
       detail: {
         title: 'Bütçe detayları',
         status: 'Durum',
@@ -6570,6 +6639,9 @@ const t = {
         updatedAt: 'Güncellendi',
         categoriesLabel: 'Kategoriler',
         notifyLabel: 'Limit aşımında uyar',
+        targetLabel: 'Hedef',
+        contributedLabel: 'Katkı',
+        savedLabel: 'Biriken',
         valueAddTitle: 'Değer ekleme',
         valueAddAccountCurrency: 'Hesap para birimi',
         valueAddBudgetCurrency: 'Bütçe para birimi',
@@ -6581,6 +6653,7 @@ const t = {
           viewGoal: 'Hedefi aç',
           viewTransactions: 'İşlemleri gör',
           addToBudget: 'Bütçeye ekle',
+          recordExpense: 'Harcama kaydet',
           confirmDeleteTitle: 'Bütçe silinsin mi?',
           confirmDeleteMessage: 'Bütçe arşivlenecek ve hedef bağlantıları kaldırılacak.',
           confirmDeleteConfirm: 'Sil',
@@ -6604,6 +6677,15 @@ const t = {
           helper: 'Özel bir tarih aralığı seçin',
           error: 'Başlangıç ve bitiş tarihlerini seçin',
         },
+        budgetTypeLabel: 'Bütçe türü',
+        budgetTypes: {
+          spending: 'Harcama bütçesi',
+          spendingHint: 'Limite göre harcamaları takip et',
+          saving: 'Tasarruf bütçesi',
+          savingHint: 'Hedefe doğru biriktir',
+        },
+        limitAmount: 'Limit tutarı',
+        targetAmount: 'Hedef tutar',
       },
     },
       analytics: {

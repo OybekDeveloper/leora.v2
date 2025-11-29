@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Dot, Flame } from 'lucide-react-native';
+import { Dot } from 'lucide-react-native';
+import { FireIcon } from '../../../assets/icons';
 import { AdaptiveGlassView } from '@/components/ui/AdaptiveGlassView';
 import { useAppTheme } from '@/constants/theme';
 import { useLocalization } from '@/localization/useLocalization';
@@ -103,7 +104,7 @@ export default function WeeklyReviewWidget({
 
             <View style={[styles.statCard, styles.fullWidth, { backgroundColor: theme.colors.cardItem }]}>
               <View style={styles.streakRow}>
-                <Flame size={16} color={theme.colors.warning} />
+                <FireIcon size={16} color={theme.colors.warning} />
                 <Text style={[
                   styles.statValue,
                   { color: hasData ? theme.colors.textPrimary : theme.colors.textMuted },

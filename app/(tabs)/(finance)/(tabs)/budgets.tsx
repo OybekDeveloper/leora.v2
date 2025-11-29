@@ -1,21 +1,24 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, LayoutAnimation, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { AlertCircle, Check } from 'lucide-react-native';
 
 import { AdaptiveGlassView } from '@/components/ui/AdaptiveGlassView';
+import SelectableListItem from '@/components/shared/SelectableListItem';
+import SelectionToolbar from '@/components/shared/SelectionToolbar';
 import { useSelectedDayStore } from '@/stores/selectedDayStore';
 import { startOfDay } from '@/utils/calendar';
 import { useLocalization } from '@/localization/useLocalization';
 import { useFinanceDomainStore } from '@/stores/useFinanceDomainStore';
 import { useFinancePreferencesStore } from '@/stores/useFinancePreferencesStore';
+import { useSelectionStore } from '@/stores/useSelectionStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useRouter } from 'expo-router';
 import { useFinanceCurrency } from '@/hooks/useFinanceCurrency';
 import { normalizeFinanceCurrency } from '@/utils/financeCurrency';
 import type { FinanceCurrency } from '@/stores/useFinancePreferencesStore';
 
-type BudgetState = 'exceeding' | 'within' | 'fixed';
+type BudgetState = 'exceeding' | 'warning' | 'within' | 'fixed';
 
 type CategoryBudget = {
   id: string;
@@ -28,6 +31,7 @@ type CategoryBudget = {
   accountName: string;
   categories: string[];
   notifyOnExceed: boolean;
+  budgetKind: 'spending' | 'saving';
 };
 
 const PROGRESS_HEIGHT = 32;
@@ -38,6 +42,9 @@ const resolveBudgetState = (limit: number, spent: number): BudgetState => {
   }
   if (spent > limit) {
     return 'exceeding';
+  }
+  if (spent >= limit * 0.9) {
+    return 'warning';
   }
   return 'within';
 };
@@ -119,6 +126,13 @@ const buildProgressAppearance = (
         icon: 'alert',
         textColor: '#FFFFFF',
       };
+    case 'warning':
+      return {
+        fillColor: '#FFB347',
+        label: labels.warning,
+        icon: 'alert',
+        textColor: '#FFFFFF',
+      };
     case 'fixed':
       return {
         fillColor: '#51CF66',
@@ -162,6 +176,7 @@ interface CategoryBudgetCardProps {
   index: number;
   labels: Record<BudgetState, string>;
   actionLabel: string;
+  savedLabel: string;
   onManage?: (budgetId: string) => void;
   onOpen?: (budgetId: string) => void;
   formatValue: (value: number) => string;
@@ -172,6 +187,7 @@ const CategoryBudgetCard: React.FC<CategoryBudgetCardProps> = ({
   index,
   labels,
   actionLabel,
+  savedLabel,
   onManage,
   onOpen,
   formatValue,
@@ -235,9 +251,11 @@ const CategoryBudgetCard: React.FC<CategoryBudgetCardProps> = ({
 
           <AnimatedProgressBar percentage={progress} appearance={appearance} />
           <Text style={styles.remainingLabel}>
-            {appearance.label === labels.exceeding
-              ? `${labels.exceeding}: ${formatValue(category.spent - category.limit)}`
-              : `${labels.within}: ${formatValue(remainingAmount)}`}
+            {category.budgetKind === 'saving'
+              ? `${savedLabel}: ${formatValue(category.spent)}`
+              : appearance.label === labels.exceeding
+                ? `${labels.exceeding}: ${formatValue(category.spent - category.limit)}`
+                : `${labels.within}: ${formatValue(remainingAmount)}`}
           </Text>
         </AdaptiveGlassView>
       </Animated.View>
@@ -257,12 +275,30 @@ const BudgetsScreen: React.FC = () => {
     [selectedDate],
   );
   const baseCurrency = useFinancePreferencesStore((state) => state.baseCurrency);
-  const { budgets: domainBudgets, accounts: domainAccounts } = useFinanceDomainStore(
+  const { budgets: domainBudgets, accounts: domainAccounts, batchArchiveBudgets, batchDeleteBudgetsPermanently } = useFinanceDomainStore(
     useShallow((state) => ({
       budgets: state.budgets,
       accounts: state.accounts,
+      batchArchiveBudgets: state.batchArchiveBudgets,
+      batchDeleteBudgetsPermanently: state.batchDeleteBudgetsPermanently,
     })),
   );
+
+  // Selection mode
+  const {
+    isSelectionMode,
+    entityType,
+    selectedIds,
+    enterSelectionMode,
+    exitSelectionMode,
+    toggleSelection,
+    selectAll,
+    deselectAll,
+    isSelected,
+    getSelectedCount,
+  } = useSelectionStore();
+
+  const isBudgetSelectionMode = isSelectionMode && entityType === 'budget';
 
   const accountMap = useMemo(
     () => new Map(domainAccounts.map((account) => [account.id, account])),
@@ -279,7 +315,10 @@ const BudgetsScreen: React.FC = () => {
   );
 
   const aggregate = useMemo(() => {
-    const total = domainBudgets.reduce(
+    // Filter out archived budgets
+    const activeBudgets = domainBudgets.filter((b) => !b.isArchived);
+
+    const total = activeBudgets.reduce(
       (acc, budget) => {
         const account = budget.accountId ? accountMap.get(budget.accountId) : undefined;
         const resolvedCurrency = normalizeFinanceCurrency(
@@ -293,7 +332,7 @@ const BudgetsScreen: React.FC = () => {
       },
       { current: 0, total: 0 },
     );
-    const categories = domainBudgets.map((budget) => {
+    const categories = activeBudgets.map((budget) => {
       const account = budget.accountId ? accountMap.get(budget.accountId) : undefined;
       const resolvedCurrency = normalizeFinanceCurrency(
         (budget.currency ?? account?.currency ?? baseCurrency) as FinanceCurrency,
@@ -312,6 +351,7 @@ const BudgetsScreen: React.FC = () => {
         accountName: account?.name ?? strings.financeScreens.accounts.header,
         categories: budget.categoryIds ?? [],
         notifyOnExceed: Boolean(budget.notifyOnExceed),
+        budgetKind: (budget.transactionType === 'income' ? 'saving' : 'spending') as 'spending' | 'saving',
       };
     });
     return {
@@ -363,48 +403,154 @@ const BudgetsScreen: React.FC = () => {
     [router],
   );
 
+  // Selection mode handlers
+  const activeBudgetIds = useMemo(
+    () => aggregate.categories.map((cat) => cat.id),
+    [aggregate.categories]
+  );
+
+  const handleEnterSelectionMode = useCallback(() => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    enterSelectionMode('budget');
+  }, [enterSelectionMode]);
+
+  const handleToggleSelection = useCallback(
+    (id: string) => {
+      toggleSelection(id);
+    },
+    [toggleSelection]
+  );
+
+  const handleSelectAll = useCallback(() => {
+    const allSelected = selectedIds.length === activeBudgetIds.length;
+    if (allSelected) {
+      deselectAll();
+    } else {
+      selectAll(activeBudgetIds);
+    }
+  }, [selectedIds.length, activeBudgetIds, selectAll, deselectAll]);
+
+  const handleArchiveSelected = useCallback(() => {
+    const count = selectedIds.length;
+    Alert.alert(
+      'Archive Budgets',
+      `Archive ${count} budget${count > 1 ? 's' : ''}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Archive',
+          onPress: () => {
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+            batchArchiveBudgets(selectedIds);
+            exitSelectionMode();
+          },
+        },
+      ],
+    );
+  }, [selectedIds, batchArchiveBudgets, exitSelectionMode]);
+
+  const handleDeleteSelected = useCallback(() => {
+    const detailStrings = strings.financeScreens.budgets.detail;
+    Alert.alert(
+      detailStrings.actions.confirmDeleteTitle,
+      detailStrings.actions.confirmDeleteMessage,
+      [
+        { text: detailStrings.actions.confirmDeleteCancel, style: 'cancel' },
+        {
+          text: detailStrings.actions.confirmDeleteConfirm,
+          style: 'destructive',
+          onPress: () => {
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+            batchDeleteBudgetsPermanently(selectedIds);
+            exitSelectionMode();
+          },
+        },
+      ],
+    );
+  }, [selectedIds, batchDeleteBudgetsPermanently, exitSelectionMode, strings]);
+
+  const handleCancelSelection = useCallback(() => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    exitSelectionMode();
+  }, [exitSelectionMode]);
+
   return (
-    <ScrollView
-      style={styles.screen}
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
-    >
-      <Text style={styles.dateCaption}>{selectedDateLabel}</Text>
-      <Text style={styles.sectionHeading}>{budgetsStrings.mainTitle}</Text>
+    <>
+      <ScrollView
+        style={styles.screen}
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: isBudgetSelectionMode ? 200 : 120 },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        <Text style={styles.dateCaption}>{selectedDateLabel}</Text>
+        <Text style={styles.sectionHeading}>{budgetsStrings.mainTitle}</Text>
 
-      <MainBudgetProgress
-        budget={aggregate.main}
-        labels={budgetsStrings.states}
-        formatValue={formatValue}
+        <MainBudgetProgress
+          budget={aggregate.main}
+          labels={budgetsStrings.states}
+          formatValue={formatValue}
+        />
+
+        <View style={styles.sectionHeaderRow}>
+          <Text style={styles.sectionHeading}>{budgetsStrings.categoriesTitle}</Text>
+          <Pressable
+            style={({ pressed }) => [styles.addCategoryButton, pressed && styles.pressed]}
+            onPress={handleOpenCreateBudget}
+          >
+            <AdaptiveGlassView style={[styles.glassSurface, styles.addCategoryButtonInner]}>
+              <Text style={styles.addCategoryText}>{budgetsStrings.setLimit}</Text>
+            </AdaptiveGlassView>
+          </Pressable>
+        </View>
+
+        <View style={styles.categoriesList}>
+          {aggregate.categories.map((category, index) => {
+            const enterSelection = () => {
+              LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+              handleEnterSelectionMode();
+              handleToggleSelection(category.id);
+            };
+
+            return (
+              <SelectableListItem
+                key={category.id}
+                id={category.id}
+                isSelectionMode={isBudgetSelectionMode}
+                isSelected={isSelected(category.id)}
+                onToggleSelect={handleToggleSelection}
+                onLongPress={enterSelection}
+                onPress={() => handleOpenDetailBudget(category.id)}
+                style={isBudgetSelectionMode ? styles.selectionModeItem : undefined}
+              >
+                <CategoryBudgetCard
+                  category={category}
+                  index={index}
+                  labels={budgetsStrings.states}
+                  actionLabel={manageLabel}
+                  savedLabel={budgetsStrings.detail.savedLabel ?? 'Saved'}
+                  onManage={isBudgetSelectionMode ? undefined : handleManageBudget}
+                  onOpen={isBudgetSelectionMode ? undefined : handleOpenDetailBudget}
+                  formatValue={formatValue}
+                />
+              </SelectableListItem>
+            );
+          })}
+        </View>
+      </ScrollView>
+
+      <SelectionToolbar
+        visible={isBudgetSelectionMode}
+        selectedCount={getSelectedCount()}
+        totalCount={activeBudgetIds.length}
+        onSelectAll={handleSelectAll}
+        onArchive={handleArchiveSelected}
+        onDelete={handleDeleteSelected}
+        onCancel={handleCancelSelection}
+        isHistoryMode={false}
       />
-
-      <View style={styles.sectionHeaderRow}>
-        <Text style={styles.sectionHeading}>{budgetsStrings.categoriesTitle}</Text>
-        <Pressable
-          style={({ pressed }) => [styles.addCategoryButton, pressed && styles.pressed]}
-          onPress={handleOpenCreateBudget}
-        >
-          <AdaptiveGlassView style={[styles.glassSurface, styles.addCategoryButtonInner]}>
-            <Text style={styles.addCategoryText}>{budgetsStrings.setLimit}</Text>
-          </AdaptiveGlassView>
-        </Pressable>
-      </View>
-
-      <View style={styles.categoriesList}>
-        {aggregate.categories.map((category, index) => (
-          <CategoryBudgetCard
-            key={category.id}
-            category={category}
-            index={index}
-            labels={budgetsStrings.states}
-            actionLabel={manageLabel}
-            onManage={handleManageBudget}
-            onOpen={handleOpenDetailBudget}
-            formatValue={formatValue}
-          />
-        ))}
-      </View>
-    </ScrollView>
+    </>
   );
 };
 
@@ -570,6 +716,9 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.7,
+  },
+  selectionModeItem: {
+    paddingLeft: 36,
   },
   header: {
     alignItems: 'center',

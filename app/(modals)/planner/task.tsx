@@ -6,7 +6,6 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  StyleSheet,
   Switch,
   Text,
   TextInput,
@@ -24,6 +23,7 @@ import {
   AtSign,
   Bell,
   CalendarDays,
+  Check,
   ChevronDown,
   Clock4,
   CreditCard,
@@ -39,10 +39,12 @@ import {
   X,
   Zap,
 } from 'lucide-react-native';
+import { Dropdown } from 'react-native-element-dropdown';
 
-import { useAppTheme } from '@/constants/theme';
+import { createThemedStyles, useAppTheme } from '@/constants/theme';
 import { useLocalization } from '@/localization/useLocalization';
 import { usePlannerDomainStore } from '@/stores/usePlannerDomainStore';
+import { AdaptiveGlassView } from '@/components/ui/AdaptiveGlassView';
 import type { TaskFinanceLink, TaskPriorityLevel } from '@/types/planner';
 import { addDays, startOfDay } from '@/utils/calendar';
 
@@ -110,6 +112,7 @@ const validateSchedule = (mode: AddTaskDateMode, dateValue?: Date, timeValue?: s
 };
 
 export default function TaskModalScreen() {
+  const styles = useStyles();
   const theme = useAppTheme();
   const router = useRouter();
   const { strings } = useLocalization();
@@ -127,20 +130,6 @@ export default function TaskModalScreen() {
 
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
-
-  const tokens = useMemo(
-    () => ({
-      card: theme.colors.card,
-      cardItem: theme.colors.cardItem,
-      elevated: theme.colors.surfaceElevated,
-      textPrimary: theme.colors.textPrimary,
-      textSecondary: theme.colors.textSecondary,
-      muted: theme.colors.textMuted,
-      separator: theme.colors.border,
-      accent: theme.colors.primary,
-    }),
-    [theme.colors],
-  );
 
   const categoryOptions = useMemo(
     () =>
@@ -164,8 +153,6 @@ export default function TaskModalScreen() {
   const [priority, setPriority] = useState<TaskPriorityLevel>('medium');
   const [selectedCategoryId, setSelectedCategoryId] = useState<PlannerTaskCategoryId>(defaultCategoryId);
   const [selectedGoalId, setSelectedGoalId] = useState<string | undefined>(initialGoalId);
-  const [progressValue, setProgressValue] = useState('');
-  const [progressUnit, setProgressUnit] = useState('');
   const [financeLink, setFinanceLink] = useState<TaskFinanceLink>('none');
 
   const [reminderEnabled, setReminderEnabled] = useState(true);
@@ -176,9 +163,6 @@ export default function TaskModalScreen() {
   const [scheduleError, setScheduleError] = useState<string | undefined>();
   const [submitted, setSubmitted] = useState(false);
   const [titleTouched, setTitleTouched] = useState(false);
-  const [contextOpen, setContextOpen] = useState(false);
-  const [energyOpen, setEnergyOpen] = useState(false);
-  const [priorityOpen, setPriorityOpen] = useState(false);
 
   const [subtasksOpen, setSubtasksOpen] = useState(false);
   const [subtasks, setSubtasks] = useState<string[]>([]);
@@ -192,19 +176,11 @@ export default function TaskModalScreen() {
     [goals],
   );
 
-  const selectedGoal = useMemo(() => goals.find((goal) => goal.id === selectedGoalId), [goals, selectedGoalId]);
-
   useEffect(() => {
     if (!categoryOptions.some((option) => option.id === selectedCategoryId)) {
       setSelectedCategoryId(defaultCategoryId);
     }
   }, [categoryOptions, defaultCategoryId, selectedCategoryId]);
-
-  useEffect(() => {
-    if (selectedGoal?.unit && !progressUnit) {
-      setProgressUnit(selectedGoal.unit);
-    }
-  }, [selectedGoal, progressUnit]);
 
   // Load task data if editing
   useEffect(() => {
@@ -224,7 +200,6 @@ export default function TaskModalScreen() {
         setSelectedGoalId(task.goalId);
         setFinanceLink(task.financeLink ?? 'none');
         setNeedFocus(Boolean((task as any).needFocus ?? (task.focusTotalMinutes ?? 0) > 0));
-        // Load other fields as needed
       }
     }
   }, [taskId, tasks]);
@@ -293,6 +268,7 @@ export default function TaskModalScreen() {
     priority,
     selectedGoalId,
     financeLink,
+    needFocus,
     taskId,
     createTask,
     updateTask,
@@ -428,14 +404,14 @@ export default function TaskModalScreen() {
 
   return (
     <>
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['bottom',"top"]}>
+      <SafeAreaView style={styles.container} edges={['bottom','top']}>
         {/* Header outside KeyboardAvoidingView */}
-        <View style={[styles.header, { borderBottomColor: tokens.separator }]}>
-          <Text style={[styles.headerTitle, { color: tokens.textSecondary }]}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>
             {taskId ? 'Edit Task' : 'Create Task'}
           </Text>
           <Pressable onPress={() => router.back()} hitSlop={12}>
-            <Text style={[styles.closeText, { color: tokens.textSecondary }]}>Close</Text>
+            <Text style={styles.closeText}>Close</Text>
           </Pressable>
         </View>
 
@@ -451,19 +427,13 @@ export default function TaskModalScreen() {
 
             {/* Task title */}
             <View style={styles.fieldSection}>
-              <Text style={[styles.fieldLabel, { color: tokens.textSecondary }]}>
-                Task title <Text style={{ color: theme.colors.danger ?? '#EF4444' }}>*</Text>
+              <Text style={styles.fieldLabel}>
+                Task title <Text style={styles.required}>*</Text>
               </Text>
-              <View
+              <AdaptiveGlassView
                 style={[
                   styles.inputContainer,
-                  {
-                    backgroundColor: tokens.cardItem,
-                    borderColor:
-                      (!title.trim() && (submitted || titleTouched))
-                        ? theme.colors.danger ?? '#EF4444'
-                        : tokens.separator,
-                  },
+                  (!title.trim() && (submitted || titleTouched)) && styles.inputError,
                 ]}
               >
                 <TextInput
@@ -471,17 +441,17 @@ export default function TaskModalScreen() {
                   onChangeText={setTitle}
                   onBlur={() => setTitleTouched(true)}
                   placeholder="Title"
-                  placeholderTextColor={tokens.muted}
-                  style={[styles.textInput, { color: tokens.textPrimary }]}
+                  placeholderTextColor={theme.colors.textMuted}
+                  style={styles.textInput}
                   autoFocus
                 />
-              </View>
+              </AdaptiveGlassView>
             </View>
 
             {/* Goal selection */}
             {goalOptions.length > 0 && (
               <View style={styles.section}>
-                <Text style={[styles.sectionLabel, { color: tokens.textSecondary }]}>
+                <Text style={styles.sectionLabel}>
                   {addTaskStrings.goalLabel}
                 </Text>
                 <ScrollView
@@ -490,47 +460,47 @@ export default function TaskModalScreen() {
                   contentContainerStyle={styles.goalScroll}
                 >
                   <Pressable onPress={() => setSelectedGoalId(undefined)}>
-                    <View
+                    <AdaptiveGlassView
                       style={[
                         styles.goalChip,
-                        { backgroundColor: tokens.card, opacity: selectedGoalId ? 0.5 : 1 },
+                        !selectedGoalId && styles.goalChipActive,
                       ]}
                     >
                       <Text
                         style={[
                           styles.goalChipLabel,
-                          { color: selectedGoalId ? tokens.muted : tokens.textPrimary },
+                          !selectedGoalId && styles.goalChipLabelActive,
                         ]}
                       >
                         {addTaskStrings.goalUnset}
                       </Text>
-                    </View>
+                    </AdaptiveGlassView>
                   </Pressable>
                   {goalOptions.map((goal) => {
                     const active = goal.id === selectedGoalId;
                     return (
                       <Pressable key={goal.id} onPress={() => setSelectedGoalId(goal.id)}>
-                        <View
+                        <AdaptiveGlassView
                           style={[
                             styles.goalChip,
-                            { backgroundColor: tokens.card, opacity: active ? 1 : 0.6 },
+                            active && styles.goalChipActive,
                           ]}
                         >
                           <Text
                             style={[
                               styles.goalChipLabel,
-                              { color: active ? tokens.textPrimary : tokens.muted },
+                              active && styles.goalChipLabelActive,
                             ]}
                             numberOfLines={1}
                           >
                             {goal.title}
                           </Text>
-                        </View>
+                        </AdaptiveGlassView>
                       </Pressable>
                     );
                   })}
                 </ScrollView>
-                <Text style={[styles.goalHelper, { color: tokens.muted }]}>
+                <Text style={styles.goalHelper}>
                   {addTaskStrings.goalHelper}
                 </Text>
               </View>
@@ -538,7 +508,7 @@ export default function TaskModalScreen() {
 
             {/* When */}
             <View style={styles.fieldSection}>
-              <Text style={[styles.fieldLabel, { color: tokens.textSecondary }]}>When</Text>
+              <Text style={styles.fieldLabel}>When</Text>
               <View style={styles.dateRow}>
                 {DATE_OPTIONS.map((option) => {
                   const isActive = dateMode === option;
@@ -551,42 +521,39 @@ export default function TaskModalScreen() {
                     <Pressable
                       key={option}
                       onPress={() => handleDateModePress(option)}
-                      style={({ pressed }) => [styles.dateButton, pressed && styles.pressed]}
+                      style={styles.dateButton}
                     >
-                      <View
+                      <AdaptiveGlassView
                         style={[
                           styles.dateButtonInner,
-                          { backgroundColor: isActive ? tokens.card : tokens.cardItem },
+                          isActive && styles.dateButtonActive,
                         ]}
                       >
-                        <Icon size={20} color={isActive ? tokens.accent : tokens.textSecondary} />
+                        <Icon size={20} color={isActive ? theme.colors.primary : theme.colors.textSecondary} />
                         <Text
                           style={[
                             styles.dateButtonText,
-                            { color: isActive ? tokens.textPrimary : tokens.textSecondary },
+                            isActive && styles.dateButtonTextActive,
                           ]}
                         >
                           {label}
                         </Text>
-                      </View>
+                      </AdaptiveGlassView>
                     </Pressable>
                   );
                 })}
               </View>
 
-              <Pressable
-                onPress={handleOpenTimeSheet}
-                style={({ pressed }) => [styles.timeButton, pressed && styles.pressed]}
-              >
-                <View style={[styles.timeButtonInner, { backgroundColor: tokens.cardItem }]}>
-                  <Clock4 size={20} color={tokens.textSecondary} />
-                  <Text style={[styles.timeButtonText, { color: tokens.textSecondary }]}>
+              <Pressable onPress={handleOpenTimeSheet}>
+                <AdaptiveGlassView style={styles.timeButtonInner}>
+                  <Clock4 size={20} color={theme.colors.textSecondary} />
+                  <Text style={styles.timeButtonText}>
                     {timeLabel}
                   </Text>
-                </View>
+                </AdaptiveGlassView>
               </Pressable>
               {scheduleError && (
-                <Text style={[styles.errorText, { color: theme.colors.danger ?? '#EF4444' }]}>
+                <Text style={styles.errorText}>
                   {scheduleError}
                 </Text>
               )}
@@ -594,438 +561,386 @@ export default function TaskModalScreen() {
 
             {/* Description/Notes */}
             <View style={styles.fieldSection}>
-              <Text style={[styles.fieldLabel, { color: tokens.textSecondary }]}>Description</Text>
-              <View style={[styles.descriptionContainer, { backgroundColor: tokens.cardItem }]}>
+              <Text style={styles.fieldLabel}>Description</Text>
+              <AdaptiveGlassView style={styles.descriptionContainer}>
                 <TextInput
                   value={notes}
                   onChangeText={setNotes}
                   placeholder="Description (not necessary)"
-                  placeholderTextColor={tokens.muted}
+                  placeholderTextColor={theme.colors.textMuted}
                   multiline
-                  style={[styles.descriptionInput, { color: tokens.textPrimary }]}
+                  style={styles.descriptionInput}
                 />
-              </View>
+              </AdaptiveGlassView>
             </View>
 
             {/* Context */}
-            <View style={styles.rowField}>
-              <Text style={[styles.rowLabel, { color: tokens.textSecondary }]}>Context:</Text>
-              <Pressable
-                style={({ pressed }) => [styles.rowInput, { backgroundColor: tokens.cardItem }, pressed && styles.pressed]}
-                onPress={() => {
-                  setContextOpen((prev) => !prev);
-                  setEnergyOpen(false);
-                  setPriorityOpen(false);
+            <View style={styles.fieldSection}>
+              <Text style={styles.fieldLabel}>Context</Text>
+              <Dropdown
+                mode="default"
+                data={categoryOptions}
+                labelField="label"
+                valueField="context"
+                value={context}
+                onChange={(item) => {
+                  setSelectedCategoryId(item.id as PlannerTaskCategoryId);
+                  setContext(item.context);
                 }}
-              >
-                <AtSign size={18} color={tokens.textSecondary} />
-                <Text style={[styles.rowInputText, { color: tokens.textPrimary }]}>
-                  {context ?? '@work'}
-                </Text>
-                <ChevronDown size={16} color={tokens.textSecondary} />
-              </Pressable>
+                style={styles.dropdown}
+                containerStyle={[styles.dropdownContainer, { backgroundColor: theme.colors.card }]}
+                itemContainerStyle={styles.dropdownItemContainer}
+                renderLeftIcon={() => (
+                  <AtSign size={18} color={theme.colors.textSecondary} style={{ marginRight: 10 }} />
+                )}
+                renderItem={(item) => {
+                  const active = item.context === context;
+                  return (
+                    <View style={[styles.dropdownItem, active && styles.dropdownItemActive]}>
+                      <AtSign size={16} color={active ? theme.colors.primary : theme.colors.textSecondary} />
+                      <Text style={[styles.dropdownItemLabel, active && styles.dropdownItemLabelActive]}>
+                        {item.label}
+                      </Text>
+                      <Text style={[styles.dropdownItemContext, active && styles.dropdownItemLabelActive]}>
+                        {item.context}
+                      </Text>
+                      {active && <Check size={16} color={theme.colors.primary} />}
+                    </View>
+                  );
+                }}
+                renderRightIcon={() => (
+                  <ChevronDown size={18} color={theme.colors.textSecondary} />
+                )}
+                activeColor={theme.colors.cardItem}
+                selectedTextStyle={styles.dropdownSelectedText}
+                placeholderStyle={styles.dropdownPlaceholder}
+              />
             </View>
-            {contextOpen && (
-              <View style={[styles.dropdown, { backgroundColor: tokens.cardItem, borderColor: tokens.separator }]}>
-                {categoryOptions.map((option) => (
-                  <Pressable
-                    key={option.id}
-                    onPress={() => {
-                      setSelectedCategoryId(option.id as PlannerTaskCategoryId);
-                      setContext(option.context);
-                      setContextOpen(false);
-                    }}
-                    style={({ pressed }) => [styles.dropdownOption, pressed && styles.pressed]}
-                  >
-                    <Text style={[styles.dropdownLabel, { color: tokens.textPrimary }]}>
-                      {option.label} ({option.context})
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-            )}
 
             {/* Energy */}
-            <View style={styles.rowField}>
-              <Text style={[styles.rowLabel, { color: tokens.textSecondary }]}>Energy:</Text>
-              <Pressable
-                style={({ pressed }) => [styles.rowInput, { backgroundColor: tokens.cardItem }, pressed && styles.pressed]}
-                onPress={() => {
-                  setEnergyOpen((prev) => !prev);
-                  setContextOpen(false);
-                  setPriorityOpen(false);
-                }}
-              >
-                <Zap size={18} color={tokens.textSecondary} />
-                <Text style={[styles.rowInputText, { color: tokens.textPrimary }]}>
-                  {energy === 1 ? 'Low' : energy === 2 ? 'Medium' : 'High'}
-                </Text>
-                <View style={styles.energyIcons}>
-                  {[1, 2, 3].map((level) => (
-                    <Zap
-                      key={level}
-                      size={16}
-                      color={level <= energy ? tokens.textPrimary : tokens.textSecondary}
-                      fill={level <= energy ? tokens.textPrimary : 'none'}
-                    />
-                  ))}
-                </View>
-                <ChevronDown size={16} color={tokens.textSecondary} />
-              </Pressable>
-            </View>
-            {energyOpen && (
-              <View style={[styles.dropdown, { backgroundColor: tokens.cardItem, borderColor: tokens.separator }]}>
-                {[1, 2, 3].map((level) => (
-                  <Pressable
-                    key={level}
-                    onPress={() => {
-                      setEnergy(level as 1 | 2 | 3);
-                      setEnergyOpen(false);
-                    }}
-                    style={({ pressed }) => [styles.dropdownOption, pressed && styles.pressed]}
-                  >
-                    <View style={styles.dropdownOptionRow}>
-                      {[1, 2, 3].map((iconLevel) => (
-                        <Zap
-                          key={`${level}-${iconLevel}`}
-                          size={14}
-                          color={iconLevel <= level ? tokens.accent : tokens.textSecondary}
-                          fill={iconLevel <= level ? tokens.accent : 'none'}
-                        />
-                      ))}
+            <View style={styles.fieldSection}>
+              <Text style={styles.fieldLabel}>Energy Level</Text>
+              <Dropdown
+                mode="default"
+                data={[
+                  { value: 1, label: 'Low' },
+                  { value: 2, label: 'Medium' },
+                  { value: 3, label: 'High' },
+                ]}
+                labelField="label"
+                valueField="value"
+                value={energy}
+                onChange={(item) => setEnergy(item.value as 1 | 2 | 3)}
+                style={styles.dropdown}
+                containerStyle={[styles.dropdownContainer, { backgroundColor: theme.colors.card }]}
+                itemContainerStyle={styles.dropdownItemContainer}
+                renderLeftIcon={() => (
+                  <View style={[styles.energyIconsRow, { marginRight: 10 }]}>
+                    {[1, 2, 3].map((level) => (
+                      <Zap
+                        key={level}
+                        size={16}
+                        color={level <= energy ? theme.colors.warning : theme.colors.textMuted}
+                        fill={level <= energy ? theme.colors.warning : 'none'}
+                      />
+                    ))}
+                  </View>
+                )}
+                renderItem={(item) => {
+                  const active = item.value === energy;
+                  return (
+                    <View style={[styles.dropdownItem, active && styles.dropdownItemActive]}>
+                      <View style={styles.energyIconsRow}>
+                        {[1, 2, 3].map((iconLevel) => (
+                          <Zap
+                            key={iconLevel}
+                            size={14}
+                            color={iconLevel <= item.value ? (active ? theme.colors.primary : theme.colors.warning) : theme.colors.textMuted}
+                            fill={iconLevel <= item.value ? (active ? theme.colors.primary : theme.colors.warning) : 'none'}
+                          />
+                        ))}
+                      </View>
+                      <Text style={[styles.dropdownItemLabel, active && styles.dropdownItemLabelActive]}>
+                        {item.label}
+                      </Text>
+                      {active && <Check size={16} color={theme.colors.primary} />}
                     </View>
-                    <Text style={[styles.dropdownLabel, { color: tokens.textPrimary }]}>
-                      {level === 1 ? 'Low' : level === 2 ? 'Medium' : 'High'}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-            )}
+                  );
+                }}
+                renderRightIcon={() => (
+                  <ChevronDown size={18} color={theme.colors.textSecondary} />
+                )}
+                activeColor={theme.colors.cardItem}
+                selectedTextStyle={styles.dropdownSelectedText}
+                placeholderStyle={styles.dropdownPlaceholder}
+              />
+            </View>
 
             {/* Priority */}
-            <View style={styles.rowField}>
-              <Text style={[styles.rowLabel, { color: tokens.textSecondary }]}>Priority:</Text>
-              <Pressable
-                style={({ pressed }) => [styles.rowInput, { backgroundColor: tokens.cardItem }, pressed && styles.pressed]}
-                onPress={() => {
-                  setPriorityOpen((prev) => !prev);
-                  setContextOpen(false);
-                  setEnergyOpen(false);
+            <View style={styles.fieldSection}>
+              <Text style={styles.fieldLabel}>Priority</Text>
+              <Dropdown
+                mode="default"
+                data={[
+                  { value: 'low' as TaskPriorityLevel, label: 'Low' },
+                  { value: 'medium' as TaskPriorityLevel, label: 'Medium' },
+                  { value: 'high' as TaskPriorityLevel, label: 'High' },
+                ]}
+                labelField="label"
+                valueField="value"
+                value={priority}
+                onChange={(item) => setPriority(item.value)}
+                style={styles.dropdown}
+                containerStyle={[styles.dropdownContainer, { backgroundColor: theme.colors.card }]}
+                itemContainerStyle={styles.dropdownItemContainer}
+                renderLeftIcon={() => (
+                  <Flag
+                    size={18}
+                    color={
+                      priority === 'high' ? theme.colors.danger :
+                      priority === 'medium' ? theme.colors.warning :
+                      theme.colors.textSecondary
+                    }
+                    style={{ marginRight: 10 }}
+                  />
+                )}
+                renderItem={(item) => {
+                  const active = item.value === priority;
+                  const flagColor = item.value === 'high' ? theme.colors.danger :
+                                   item.value === 'medium' ? theme.colors.warning :
+                                   theme.colors.textSecondary;
+                  return (
+                    <View style={[styles.dropdownItem, active && styles.dropdownItemActive]}>
+                      <Flag size={16} color={active ? theme.colors.primary : flagColor} />
+                      <Text style={[styles.dropdownItemLabel, active && styles.dropdownItemLabelActive]}>
+                        {item.label}
+                      </Text>
+                      {active && <Check size={16} color={theme.colors.primary} />}
+                    </View>
+                  );
                 }}
-              >
-                <Flag size={18} color={tokens.textSecondary} />
-                <Text style={[styles.rowInputText, { color: tokens.textPrimary }]}>
-                  {priority.charAt(0).toUpperCase() + priority.slice(1)}
-                </Text>
-                <ChevronDown size={16} color={tokens.textSecondary} />
-              </Pressable>
+                renderRightIcon={() => (
+                  <ChevronDown size={18} color={theme.colors.textSecondary} />
+                )}
+                activeColor={theme.colors.cardItem}
+                selectedTextStyle={styles.dropdownSelectedText}
+                placeholderStyle={styles.dropdownPlaceholder}
+              />
             </View>
-            {priorityOpen && (
-              <View style={[styles.dropdown, { backgroundColor: tokens.cardItem, borderColor: tokens.separator }]}>
-                {(['low', 'medium', 'high'] as TaskPriorityLevel[]).map((level) => (
-                  <Pressable
-                    key={level}
-                    onPress={() => {
-                      setPriority(level);
-                      setPriorityOpen(false);
-                    }}
-                    style={({ pressed }) => [styles.dropdownOption, pressed && styles.pressed]}
-                  >
-                    <Text style={[styles.dropdownLabel, { color: tokens.textPrimary }]}>
-                      {level.charAt(0).toUpperCase() + level.slice(1)}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-            )}
 
             {/* Finance Link */}
             <View style={styles.fieldSection}>
-              <Text style={[styles.fieldLabel, { color: tokens.textSecondary }]}>
+              <Text style={styles.fieldLabel}>
                 Finance Action
               </Text>
               <View style={styles.financeLinkGrid}>
-                <Pressable
-                  onPress={() => setFinanceLink('record_expenses')}
-                  style={({ pressed }) => [pressed && styles.pressed]}
-                >
-                  <View
+                <Pressable onPress={() => setFinanceLink('record_expenses')}>
+                  <AdaptiveGlassView
                     style={[
                       styles.financeLinkButton,
-                      {
-                        backgroundColor:
-                          financeLink === 'record_expenses' ? tokens.card : tokens.cardItem,
-                        borderWidth: financeLink === 'record_expenses' ? 1.5 : 0,
-                        borderColor:
-                          financeLink === 'record_expenses' ? tokens.accent : 'transparent',
-                      },
+                      financeLink === 'record_expenses' && styles.financeLinkButtonActive,
                     ]}
                   >
                     <DollarSign
                       size={20}
-                      color={
-                        financeLink === 'record_expenses' ? tokens.accent : tokens.textSecondary
-                      }
+                      color={financeLink === 'record_expenses' ? theme.colors.primary : theme.colors.textSecondary}
                     />
                     <Text
                       style={[
                         styles.financeLinkLabel,
-                        {
-                          color:
-                            financeLink === 'record_expenses'
-                              ? tokens.textPrimary
-                              : tokens.textSecondary,
-                        },
+                        financeLink === 'record_expenses' && styles.financeLinkLabelActive,
                       ]}
                     >
                       Record expenses
                     </Text>
-                  </View>
+                  </AdaptiveGlassView>
                 </Pressable>
 
-                <Pressable
-                  onPress={() => setFinanceLink('pay_debt')}
-                  style={({ pressed }) => [pressed && styles.pressed]}
-                >
-                  <View
+                <Pressable onPress={() => setFinanceLink('pay_debt')}>
+                  <AdaptiveGlassView
                     style={[
                       styles.financeLinkButton,
-                      {
-                        backgroundColor: financeLink === 'pay_debt' ? tokens.card : tokens.cardItem,
-                        borderWidth: financeLink === 'pay_debt' ? 1.5 : 0,
-                        borderColor: financeLink === 'pay_debt' ? tokens.accent : 'transparent',
-                      },
+                      financeLink === 'pay_debt' && styles.financeLinkButtonActive,
                     ]}
                   >
                     <CreditCard
                       size={20}
-                      color={financeLink === 'pay_debt' ? tokens.accent : tokens.textSecondary}
+                      color={financeLink === 'pay_debt' ? theme.colors.primary : theme.colors.textSecondary}
                     />
                     <Text
                       style={[
                         styles.financeLinkLabel,
-                        {
-                          color:
-                            financeLink === 'pay_debt' ? tokens.textPrimary : tokens.textSecondary,
-                        },
+                        financeLink === 'pay_debt' && styles.financeLinkLabelActive,
                       ]}
                     >
                       Pay debt
                     </Text>
-                  </View>
+                  </AdaptiveGlassView>
                 </Pressable>
 
-                <Pressable
-                  onPress={() => setFinanceLink('review_budget')}
-                  style={({ pressed }) => [pressed && styles.pressed]}
-                >
-                  <View
+                <Pressable onPress={() => setFinanceLink('review_budget')}>
+                  <AdaptiveGlassView
                     style={[
                       styles.financeLinkButton,
-                      {
-                        backgroundColor:
-                          financeLink === 'review_budget' ? tokens.card : tokens.cardItem,
-                        borderWidth: financeLink === 'review_budget' ? 1.5 : 0,
-                        borderColor: financeLink === 'review_budget' ? tokens.accent : 'transparent',
-                      },
+                      financeLink === 'review_budget' && styles.financeLinkButtonActive,
                     ]}
                   >
                     <PieChart
                       size={20}
-                      color={financeLink === 'review_budget' ? tokens.accent : tokens.textSecondary}
+                      color={financeLink === 'review_budget' ? theme.colors.primary : theme.colors.textSecondary}
                     />
                     <Text
                       style={[
                         styles.financeLinkLabel,
-                        {
-                          color:
-                            financeLink === 'review_budget'
-                              ? tokens.textPrimary
-                              : tokens.textSecondary,
-                        },
+                        financeLink === 'review_budget' && styles.financeLinkLabelActive,
                       ]}
                     >
                       Review budget
                     </Text>
-                  </View>
+                  </AdaptiveGlassView>
                 </Pressable>
 
-                <Pressable
-                  onPress={() => setFinanceLink('transfer_money')}
-                  style={({ pressed }) => [pressed && styles.pressed]}
-                >
-                  <View
+                <Pressable onPress={() => setFinanceLink('transfer_money')}>
+                  <AdaptiveGlassView
                     style={[
                       styles.financeLinkButton,
-                      {
-                        backgroundColor:
-                          financeLink === 'transfer_money' ? tokens.card : tokens.cardItem,
-                        borderWidth: financeLink === 'transfer_money' ? 1.5 : 0,
-                        borderColor:
-                          financeLink === 'transfer_money' ? tokens.accent : 'transparent',
-                      },
+                      financeLink === 'transfer_money' && styles.financeLinkButtonActive,
                     ]}
                   >
                     <ArrowLeftRight
                       size={20}
-                      color={
-                        financeLink === 'transfer_money' ? tokens.accent : tokens.textSecondary
-                      }
+                      color={financeLink === 'transfer_money' ? theme.colors.primary : theme.colors.textSecondary}
                     />
                     <Text
                       style={[
                         styles.financeLinkLabel,
-                        {
-                          color:
-                            financeLink === 'transfer_money'
-                              ? tokens.textPrimary
-                              : tokens.textSecondary,
-                        },
+                        financeLink === 'transfer_money' && styles.financeLinkLabelActive,
                       ]}
                     >
                       Transfer money
                     </Text>
-                  </View>
+                  </AdaptiveGlassView>
                 </Pressable>
 
-                <Pressable
-                  onPress={() => setFinanceLink('none')}
-                  style={({ pressed }) => [pressed && styles.pressed]}
-                >
-                  <View
+                <Pressable onPress={() => setFinanceLink('none')}>
+                  <AdaptiveGlassView
                     style={[
                       styles.financeLinkButton,
-                      {
-                        backgroundColor: financeLink === 'none' ? tokens.card : tokens.cardItem,
-                        borderWidth: financeLink === 'none' ? 1.5 : 0,
-                        borderColor: financeLink === 'none' ? tokens.accent : 'transparent',
-                      },
+                      financeLink === 'none' && styles.financeLinkButtonActive,
                     ]}
                   >
-                    <X size={20} color={financeLink === 'none' ? tokens.accent : tokens.textSecondary} />
+                    <X size={20} color={financeLink === 'none' ? theme.colors.primary : theme.colors.textSecondary} />
                     <Text
                       style={[
                         styles.financeLinkLabel,
-                        {
-                          color:
-                            financeLink === 'none' ? tokens.textPrimary : tokens.textSecondary,
-                        },
+                        financeLink === 'none' && styles.financeLinkLabelActive,
                       ]}
                     >
                       None
                     </Text>
-                  </View>
+                  </AdaptiveGlassView>
                 </Pressable>
               </View>
             </View>
 
             {/* Additional */}
             <View style={styles.fieldSection}>
-              <Text style={[styles.fieldLabel, { color: tokens.textSecondary }]}>Additional</Text>
+              <Text style={styles.fieldLabel}>Additional</Text>
 
               {/* Reminder */}
-              <View style={[styles.switchRow, { backgroundColor: tokens.cardItem }]}>
+              <AdaptiveGlassView style={styles.switchRow}>
                 <View style={styles.switchLeft}>
-                  <Bell size={18} color={tokens.textSecondary} />
-                  <Text style={[styles.switchLabel, { color: tokens.textSecondary }]}>
+                  <Bell size={18} color={theme.colors.textSecondary} />
+                  <Text style={styles.switchLabel}>
                     Reminder before
                   </Text>
                 </View>
                 <View style={styles.switchRight}>
-                  <Text style={[styles.switchValue, { color: tokens.textSecondary }]}>
+                  <Text style={styles.switchValue}>
                     ({remindBeforeMin} min)
                   </Text>
                   <Switch
                     value={reminderEnabled}
                     onValueChange={setReminderEnabled}
-                    trackColor={{ true: tokens.accent, false: tokens.separator }}
-                    thumbColor={tokens.card}
-                    ios_backgroundColor={tokens.separator}
+                    trackColor={{ true: theme.colors.primary, false: theme.colors.border }}
+                    thumbColor="#FFFFFF"
                   />
                 </View>
-              </View>
+              </AdaptiveGlassView>
 
               {/* Repeat */}
-              <View style={[styles.switchRow, { backgroundColor: tokens.cardItem }]}>
+              <AdaptiveGlassView style={styles.switchRow}>
                 <View style={styles.switchLeft}>
-                  <Repeat size={18} color={tokens.textSecondary} />
-                  <Text style={[styles.switchLabel, { color: tokens.textSecondary }]}>
+                  <Repeat size={18} color={theme.colors.textSecondary} />
+                  <Text style={styles.switchLabel}>
                     Repeat
                   </Text>
                 </View>
                 <View style={styles.switchRight}>
-                  <Text style={[styles.switchValue, { color: tokens.textSecondary }]}>
+                  <Text style={styles.switchValue}>
                     ({repeatRule})
                   </Text>
                   <Switch
                     value={repeatEnabled}
                     onValueChange={setRepeatEnabled}
-                    trackColor={{ true: tokens.accent, false: tokens.separator }}
-                    thumbColor={tokens.card}
-                    ios_backgroundColor={tokens.separator}
+                    trackColor={{ true: theme.colors.primary, false: theme.colors.border }}
+                    thumbColor="#FFFFFF"
                   />
                 </View>
-              </View>
+              </AdaptiveGlassView>
 
               {/* Need FOCUS */}
-              <View style={[styles.switchRow, { backgroundColor: tokens.cardItem }]}>
+              <AdaptiveGlassView style={styles.switchRow}>
                 <View style={styles.switchLeft}>
-                  <Heart size={18} color={tokens.textSecondary} />
-                  <Text style={[styles.switchLabel, { color: tokens.textSecondary }]}>
+                  <Heart size={18} color={theme.colors.textSecondary} />
+                  <Text style={styles.switchLabel}>
                     Need FOCUS
                   </Text>
                 </View>
                 <Switch
                   value={needFocus}
                   onValueChange={setNeedFocus}
-                  trackColor={{ true: tokens.accent, false: tokens.separator }}
-                  thumbColor={tokens.card}
-                  ios_backgroundColor={tokens.separator}
+                  trackColor={{ true: theme.colors.primary, false: theme.colors.border }}
+                  thumbColor="#FFFFFF"
                 />
-              </View>
+              </AdaptiveGlassView>
 
               {/* Subtasks */}
-              <Pressable
-                onPress={() => setSubtasksOpen((prev) => !prev)}
-                style={({ pressed }) => [pressed && styles.pressed]}
-              >
-                <View style={[styles.switchRow, { backgroundColor: tokens.cardItem }]}>
+              <Pressable onPress={() => setSubtasksOpen((prev) => !prev)}>
+                <AdaptiveGlassView style={styles.switchRow}>
                   <View style={styles.switchLeft}>
-                    <List size={18} color={tokens.textSecondary} />
-                    <Text style={[styles.switchLabel, { color: tokens.textSecondary }]}>
+                    <List size={18} color={theme.colors.textSecondary} />
+                    <Text style={styles.switchLabel}>
                       Subtasks:
                     </Text>
                   </View>
-                  <ChevronDown size={18} color={tokens.textSecondary} />
-                </View>
+                  <ChevronDown size={18} color={theme.colors.textSecondary} />
+                </AdaptiveGlassView>
               </Pressable>
 
               {subtasksOpen && (
                 <View style={styles.subtasksList}>
                   {subtasks.map((value, index) => (
-                    <View
+                    <AdaptiveGlassView
                       key={`subtask-${index}`}
-                      style={[styles.subtaskInput, { backgroundColor: tokens.cardItem }]}
+                      style={styles.subtaskInput}
                     >
                       <TextInput
                         value={value}
                         onChangeText={(textValue) => updateSubtask(index, textValue)}
                         placeholder={addTaskStrings.subtaskPlaceholder}
-                        placeholderTextColor={tokens.muted}
-                        style={[styles.textInput, { color: tokens.textPrimary }]}
+                        placeholderTextColor={theme.colors.textMuted}
+                        style={styles.textInput}
                       />
-                    </View>
+                    </AdaptiveGlassView>
                   ))}
-                  <Pressable
-                    onPress={addSubtask}
-                    style={({ pressed }) => [pressed && styles.pressed]}
-                  >
-                    <View style={[styles.subtaskAddButton, { backgroundColor: tokens.cardItem }]}>
-                      <Plus size={16} color={tokens.accent} />
-                      <Text style={{ color: tokens.accent, fontSize: 13, fontWeight: '600' }}>
+                  <Pressable onPress={addSubtask}>
+                    <AdaptiveGlassView style={styles.subtaskAddButton}>
+                      <Plus size={16} color={theme.colors.primary} />
+                      <Text style={styles.subtaskAddText}>
                         {addTaskStrings.subtaskPlaceholder}
                       </Text>
-                    </View>
+                    </AdaptiveGlassView>
                   </Pressable>
                 </View>
               )}
@@ -1035,37 +950,25 @@ export default function TaskModalScreen() {
             <View style={styles.actionButtons}>
               <Pressable
                 onPress={() => router.back()}
-                style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}
+                style={styles.secondaryButton}
               >
-                <Text style={[styles.secondaryButtonText, { color: tokens.textSecondary }]}>
-                  Cancel
-                </Text>
+                <AdaptiveGlassView style={styles.secondaryButtonInner}>
+                  <Text style={styles.secondaryButtonText}>
+                    Cancel
+                  </Text>
+                </AdaptiveGlassView>
               </Pressable>
               <Pressable
                 disabled={disablePrimary}
                 onPress={handleSubmit}
-                style={({ pressed }) => [
+                style={[
                   styles.primaryButton,
-                  pressed && !disablePrimary && styles.pressed,
+                  disablePrimary && styles.primaryButtonDisabled,
                 ]}
               >
-                <View
-                  style={[
-                    styles.primaryButtonInner,
-                    {
-                      backgroundColor: disablePrimary ? tokens.cardItem : tokens.accent,
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.primaryButtonText,
-                      { color: disablePrimary ? tokens.textSecondary : '#FFFFFF' },
-                    ]}
-                  >
-                    {taskId ? 'Update' : 'Create'} task
-                  </Text>
-                </View>
+                <Text style={styles.primaryButtonText}>
+                  {taskId ? 'Update' : 'Create'} task
+                </Text>
               </Pressable>
             </View>
           </ScrollView>
@@ -1085,7 +988,7 @@ export default function TaskModalScreen() {
               style={styles.timePickerBackdrop}
               onPress={() => setShowTimePicker(false)}
             />
-            <View style={[styles.timePickerCard, { backgroundColor: tokens.cardItem }]}>
+            <View style={styles.timePickerCard}>
               <DateTimePicker
                 value={timePickerValue}
                 mode="time"
@@ -1097,7 +1000,7 @@ export default function TaskModalScreen() {
                 style={styles.timePickerDoneButton}
                 onPress={() => setShowTimePicker(false)}
               >
-                <Text style={[styles.timePickerDoneText, { color: tokens.accent }]}>Done</Text>
+                <Text style={styles.timePickerDoneText}>Done</Text>
               </Pressable>
             </View>
           </View>
@@ -1117,7 +1020,7 @@ export default function TaskModalScreen() {
               style={styles.timePickerBackdrop}
               onPress={() => setShowDatePicker(false)}
             />
-            <View style={[styles.timePickerCard, { backgroundColor: tokens.cardItem }]}>
+            <View style={styles.timePickerCard}>
               <DateTimePicker
                 value={datePickerValue}
                 mode="date"
@@ -1128,7 +1031,7 @@ export default function TaskModalScreen() {
                 style={styles.timePickerDoneButton}
                 onPress={() => setShowDatePicker(false)}
               >
-                <Text style={[styles.timePickerDoneText, { color: tokens.accent }]}>Done</Text>
+                <Text style={styles.timePickerDoneText}>Done</Text>
               </Pressable>
             </View>
           </View>
@@ -1138,9 +1041,10 @@ export default function TaskModalScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = createThemedStyles((theme) => ({
   container: {
     flex: 1,
+    backgroundColor: theme.colors.background,
   },
   keyboardAvoid: {
     flex: 1,
@@ -1160,14 +1064,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
   },
   headerTitle: {
     fontSize: 16,
     fontWeight: '600',
+    color: theme.colors.textSecondary,
   },
   closeText: {
     fontSize: 15,
     fontWeight: '500',
+    color: theme.colors.textSecondary,
   },
   fieldSection: {
     gap: 12,
@@ -1177,16 +1084,25 @@ const styles = StyleSheet.create({
   fieldLabel: {
     fontSize: 14,
     fontWeight: '400',
+    color: theme.colors.textSecondary,
+  },
+  required: {
+    color: theme.colors.danger,
   },
   inputContainer: {
     borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  inputError: {
+    borderColor: theme.colors.danger,
   },
   textInput: {
     fontSize: 15,
     fontWeight: '400',
+    color: theme.colors.textPrimary,
   },
   dateRow: {
     flexDirection: 'row',
@@ -1194,7 +1110,6 @@ const styles = StyleSheet.create({
   },
   dateButton: {
     flex: 1,
-    borderRadius: 16,
   },
   dateButtonInner: {
     flexDirection: 'row',
@@ -1203,13 +1118,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: theme.colors.border,
+  },
+  dateButtonActive: {
+    borderColor: theme.colors.primary,
+    backgroundColor: `${theme.colors.primary}15`,
   },
   dateButtonText: {
     fontSize: 14,
     fontWeight: '400',
+    color: theme.colors.textSecondary,
   },
-  timeButton: {
-    borderRadius: 16,
+  dateButtonTextActive: {
+    color: theme.colors.primary,
   },
   timeButtonInner: {
     flexDirection: 'row',
@@ -1218,76 +1140,89 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderRadius: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   timeButtonText: {
     fontSize: 14,
     fontWeight: '400',
+    color: theme.colors.textSecondary,
   },
   errorText: {
     marginTop: 6,
     fontSize: 12,
     fontWeight: '600',
+    color: theme.colors.danger,
   },
   descriptionContainer: {
     borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 14,
     minHeight: 80,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   descriptionInput: {
     fontSize: 15,
     fontWeight: '400',
     textAlignVertical: 'top',
+    color: theme.colors.textPrimary,
   },
-  rowField: {
+  energyIconsRow: {
+    flexDirection: 'row',
+    gap: 2,
+  },
+  dropdown: {
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.card,
+  },
+  dropdownContainer: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    overflow: 'hidden',
+  },
+  dropdownItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingHorizontal: 20,
-    marginTop: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
   },
-  rowLabel: {
-    fontSize: 14,
-    fontWeight: '400',
-    width: 70,
+  dropdownItemActive: {
+    backgroundColor: theme.colors.cardItem,
   },
-  rowInput: {
+  dropdownItemLabel: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: 16,
+    fontSize: 15,
+    fontWeight: '500',
+    color: theme.colors.textSecondary,
   },
-  rowInputText: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: '400',
-  },
-  energyIcons: {
-    flexDirection: 'row',
-    gap: 4,
-  },
-  dropdown: {
-    marginTop: 8,
-    marginHorizontal: 20,
-    borderRadius: 14,
-    borderWidth: 1,
-    overflow: 'hidden',
-  },
-  dropdownOption: {
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
-  dropdownOptionRow: {
-    flexDirection: 'row',
-    gap: 6,
-    marginBottom: 6,
-  },
-  dropdownLabel: {
-    fontSize: 14,
+  dropdownItemLabelActive: {
+    color: theme.colors.primary,
     fontWeight: '600',
+  },
+  dropdownItemContext: {
+    fontSize: 13,
+    fontWeight: '400',
+    color: theme.colors.textSecondary,
+  },
+  dropdownSelectedText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: theme.colors.textPrimary,
+  },
+  dropdownPlaceholder: {
+    fontSize: 15,
+    fontWeight: '400',
+    color: theme.colors.textMuted,
+  },
+  dropdownItemContainer: {
+    padding: 0,
   },
   switchRow: {
     flexDirection: 'row',
@@ -1297,6 +1232,8 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 16,
     marginTop: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   switchLeft: {
     flexDirection: 'row',
@@ -1306,6 +1243,7 @@ const styles = StyleSheet.create({
   switchLabel: {
     fontSize: 14,
     fontWeight: '400',
+    color: theme.colors.textSecondary,
   },
   switchRight: {
     flexDirection: 'row',
@@ -1315,6 +1253,7 @@ const styles = StyleSheet.create({
   switchValue: {
     fontSize: 13,
     fontWeight: '400',
+    color: theme.colors.textSecondary,
   },
   subtasksList: {
     marginTop: 8,
@@ -1324,6 +1263,8 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingHorizontal: 14,
     paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   subtaskAddButton: {
     borderRadius: 16,
@@ -1333,6 +1274,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  subtaskAddText: {
+    color: theme.colors.primary,
+    fontSize: 13,
+    fontWeight: '600',
   },
   section: {
     paddingHorizontal: 20,
@@ -1342,6 +1290,7 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 14,
     fontWeight: '600',
+    color: theme.colors.textSecondary,
   },
   goalScroll: {
     gap: 10,
@@ -1353,14 +1302,25 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     minWidth: 120,
     marginRight: 10,
+    borderWidth: 1.5,
+    borderColor: theme.colors.border,
+  },
+  goalChipActive: {
+    borderColor: theme.colors.primary,
+    backgroundColor: `${theme.colors.primary}15`,
   },
   goalChipLabel: {
     fontSize: 13,
     fontWeight: '600',
+    color: theme.colors.textMuted,
+  },
+  goalChipLabelActive: {
+    color: theme.colors.primary,
   },
   goalHelper: {
     marginTop: 6,
     fontSize: 12,
+    color: theme.colors.textMuted,
   },
   actionButtons: {
     flexDirection: 'row',
@@ -1370,37 +1330,46 @@ const styles = StyleSheet.create({
   },
   secondaryButton: {
     flex: 1,
+  },
+  secondaryButtonInner: {
     paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   secondaryButtonText: {
     fontSize: 15,
     fontWeight: '400',
+    color: theme.colors.textSecondary,
   },
   primaryButton: {
     flex: 1,
     borderRadius: 16,
-  },
-  primaryButtonInner: {
     paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 16,
+    backgroundColor: theme.colors.primary,
+  },
+  primaryButtonDisabled: {
+    opacity: 0.5,
   },
   primaryButtonText: {
     fontSize: 15,
     fontWeight: '600',
-  },
-  pressed: {
-    opacity: 0.7,
+    color: '#FFFFFF',
   },
   timePickerModal: {
     flex: 1,
     justifyContent: 'flex-end',
   },
   timePickerBackdrop: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: 'rgba(0,0,0,0.35)',
   },
   timePickerCard: {
@@ -1409,6 +1378,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     padding: 16,
     gap: 12,
+    backgroundColor: theme.colors.card,
   },
   timePickerDoneButton: {
     alignSelf: 'flex-end',
@@ -1419,6 +1389,7 @@ const styles = StyleSheet.create({
   timePickerDoneText: {
     fontSize: 15,
     fontWeight: '600',
+    color: theme.colors.primary,
   },
   financeLinkGrid: {
     flexDirection: 'row',
@@ -1434,9 +1405,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     minWidth: 110,
+    borderWidth: 1.5,
+    borderColor: theme.colors.border,
+  },
+  financeLinkButtonActive: {
+    borderColor: theme.colors.primary,
+    backgroundColor: `${theme.colors.primary}15`,
   },
   financeLinkLabel: {
     fontSize: 13,
     fontWeight: '500',
+    color: theme.colors.textSecondary,
   },
-});
+  financeLinkLabelActive: {
+    color: theme.colors.primary,
+  },
+}));

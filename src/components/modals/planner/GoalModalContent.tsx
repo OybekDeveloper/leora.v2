@@ -38,6 +38,7 @@ import {
 
 import { StepIndicator } from '@/components/modals/StepIndicator';
 import { SmartHint } from '@/components/modals/SmartHint';
+import { FloatList, type FloatListItem } from '@/components/ui/FloatList';
 import { useLocalization } from '@/localization/useLocalization';
 import type { FinanceMode, GoalType, MetricKind } from '@/domain/planner/types';
 import { usePlannerDomainStore } from '@/stores/usePlannerDomainStore';
@@ -235,9 +236,58 @@ export function GoalModalContent({ goalId }: Props) {
     [budgets, formData.linkedBudgetId],
   );
 
+  // FloatList items for goal types
+  const goalTypeItems = useMemo<(FloatListItem & { id: GoalType })[]>(() =>
+    GOAL_TYPES.map((type) => ({
+      id: type.id,
+      label: type.label,
+      icon: renderIcon(type.icon, 16, formData.goalType === type.id ? theme.colors.primary : theme.colors.textSecondary),
+    })),
+    [formData.goalType, theme.colors.primary, theme.colors.textSecondary],
+  );
+
+  // FloatList items for finance modes
+  const financeModeItems = useMemo<(FloatListItem & { id: FinanceMode })[]>(() =>
+    FINANCE_MODES.map((mode) => ({
+      id: mode.id,
+      label: mode.label,
+      icon: renderIcon(mode.icon, 16, formData.financeMode === mode.id ? theme.colors.primary : theme.colors.textSecondary),
+    })),
+    [formData.financeMode, theme.colors.primary, theme.colors.textSecondary],
+  );
+
+  // FloatList items for currencies
+  const currencyItems = useMemo<FloatListItem[]>(() =>
+    AVAILABLE_FINANCE_CURRENCIES.map((curr) => ({
+      id: curr,
+      label: curr,
+    })),
+    [],
+  );
+
+  // FloatList items for metric kinds (non-financial)
+  const metricKindItems = useMemo<(FloatListItem & { id: MetricKind })[]>(() =>
+    METRIC_OPTIONS.filter((m) => m.id !== 'amount').map((metric) => ({
+      id: metric.id,
+      label: metric.label,
+      icon: renderIcon(metric.icon, 16, formData.metricKind === metric.id ? theme.colors.primary : theme.colors.textSecondary),
+    })),
+    [formData.metricKind, theme.colors.primary, theme.colors.textSecondary],
+  );
+
+  // FloatList items for deadline presets
+  const deadlinePresetItems = useMemo<FloatListItem[]>(() => [
+    { id: '1m', label: '1 month' },
+    { id: '3m', label: '3 months' },
+    { id: '6m', label: '6 months' },
+    { id: '1y', label: '1 year' },
+  ], []);
+
   const [datePickerVisible, setDatePickerVisible] = useState(false);
   const [datePickerTarget, setDatePickerTarget] = useState<DatePickerTarget | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [pendingDebtSelection, setPendingDebtSelection] = useState(false);
+  const [debtCountBeforeCreate, setDebtCountBeforeCreate] = useState<number | null>(null);
 
   // Load goal data if editing
   useEffect(() => {
@@ -335,6 +385,40 @@ export function GoalModalContent({ goalId }: Props) {
     });
     setErrors((prev) => ({ ...prev, [field]: '' }));
   }, [budgets]);
+
+  // Handle deadline preset selection
+  const handleDeadlinePresetSelect = useCallback((item: FloatListItem) => {
+    const today = new Date();
+    switch (item.id) {
+      case '1m':
+        updateField('targetDate', addMonths(today, 1));
+        break;
+      case '3m':
+        updateField('targetDate', addMonths(today, 3));
+        break;
+      case '6m':
+        updateField('targetDate', addMonths(today, 6));
+        break;
+      case '1y':
+        updateField('targetDate', addYears(today, 1));
+        break;
+    }
+  }, [updateField]);
+
+  // Auto-select newly created debt
+  useEffect(() => {
+    if (pendingDebtSelection && debtCountBeforeCreate !== null) {
+      if (debts.length > debtCountBeforeCreate) {
+        // A new debt was created, select it
+        const newDebt = debts[debts.length - 1];
+        if (newDebt) {
+          updateField('linkedDebtId', newDebt.id);
+        }
+        setPendingDebtSelection(false);
+        setDebtCountBeforeCreate(null);
+      }
+    }
+  }, [debts, pendingDebtSelection, debtCountBeforeCreate, updateField]);
 
   const validateStep = useCallback(
     (step: number): boolean => {
@@ -582,6 +666,14 @@ export function GoalModalContent({ goalId }: Props) {
     router.push({ pathname: '/(modals)/finance/quick-exp', params: { goalId, tab: tabParam } });
   }, [formData.financeMode, goalId, router]);
 
+  const handleCreateDebt = useCallback(() => {
+    // Mark that we're waiting for a new debt to be created
+    setPendingDebtSelection(true);
+    setDebtCountBeforeCreate(debts.length);
+    // Navigate to debt creation modal with goalId if editing
+    router.push({ pathname: '/(modals)/finance/debt', params: goalId ? { goalId } : undefined });
+  }, [debts.length, goalId, router]);
+
   const renderStepContent = () => {
     switch (currentStep) {
       case 1:
@@ -602,39 +694,30 @@ export function GoalModalContent({ goalId }: Props) {
       <Text style={styles.stepTitle}>What do you want to achieve?</Text>
 
       <View style={styles.fieldContainer}>
-        <TextInput
-          style={[styles.input, errors.title && styles.inputError]}
-          value={formData.title}
-          onChangeText={(text) => updateField('title', text)}
-          placeholder='E.g., "Save for vacation", "Run a marathon", "Learn Spanish"'
-          placeholderTextColor={styles.placeholder.color}
-          maxLength={100}
-          autoFocus
-        />
+        <AdaptiveGlassView style={styles.glassInputContainer}>
+          <TextInput
+            style={[styles.glassInput, errors.title && styles.inputError]}
+            value={formData.title}
+            onChangeText={(text) => updateField('title', text)}
+            placeholder='E.g., "Save for vacation", "Run a marathon", "Learn Spanish"'
+            placeholderTextColor={styles.placeholder.color}
+            maxLength={100}
+            autoFocus
+          />
+        </AdaptiveGlassView>
         {errors.title && <Text style={styles.errorText}>{errors.title}</Text>}
         <Text style={styles.characterCount}>{formData.title.length}/100</Text>
       </View>
 
       <View style={styles.fieldContainer}>
         <Text style={styles.fieldLabel}>Category</Text>
-        <View style={styles.chipRow}>
-          {GOAL_TYPES.map((type) => (
-            <Pressable
-              key={type.id}
-              style={[styles.chip, formData.goalType === type.id && styles.chipSelected]}
-              onPress={() => updateField('goalType', type.id)}
-            >
-              {renderIcon(
-                type.icon,
-                16,
-                formData.goalType === type.id ? '#FFFFFF' : styles.chipLabel.color
-              )}
-              <Text style={[styles.chipLabel, formData.goalType === type.id && styles.chipLabelSelected]}>
-                {type.label}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
+        <FloatList
+          items={goalTypeItems}
+          selectedId={formData.goalType}
+          onSelect={(item) => updateField('goalType', item.id)}
+          horizontal
+          gap={10}
+        />
         {formData.goalType && (
           <SmartHint
             type="tip"
@@ -645,16 +728,18 @@ export function GoalModalContent({ goalId }: Props) {
 
       <View style={styles.fieldContainer}>
         <Text style={styles.fieldLabel}>Why is this important? (optional)</Text>
-        <TextInput
-          style={[styles.textArea]}
-          value={formData.description}
-          onChangeText={(text) => updateField('description', text)}
-          placeholder="Your motivation..."
-          placeholderTextColor={styles.placeholder.color}
-          multiline
-          numberOfLines={3}
-          maxLength={500}
-        />
+        <AdaptiveGlassView style={styles.glassInputContainer}>
+          <TextInput
+            style={[styles.glassTextArea]}
+            value={formData.description}
+            onChangeText={(text) => updateField('description', text)}
+            placeholder="Your motivation..."
+            placeholderTextColor={styles.placeholder.color}
+            multiline
+            numberOfLines={3}
+            maxLength={500}
+          />
+        </AdaptiveGlassView>
         <SmartHint type="info" message="Goals with clear 'why' are 60% more likely to succeed" />
       </View>
     </View>
@@ -671,24 +756,13 @@ export function GoalModalContent({ goalId }: Props) {
           <>
             <View style={styles.fieldContainer}>
               <Text style={styles.fieldLabel}>Goal Type</Text>
-              <View style={styles.chipRow}>
-                {FINANCE_MODES.map((mode) => (
-                  <Pressable
-                    key={mode.id}
-                    style={[styles.chip, formData.financeMode === mode.id && styles.chipSelected]}
-                    onPress={() => updateField('financeMode', mode.id)}
-                  >
-                    {renderIcon(
-                      mode.icon,
-                      16,
-                      formData.financeMode === mode.id ? '#FFFFFF' : styles.chipLabel.color
-                    )}
-                    <Text style={[styles.chipLabel, formData.financeMode === mode.id && styles.chipLabelSelected]}>
-                      {mode.label}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
+              <FloatList
+                items={financeModeItems}
+                selectedId={formData.financeMode}
+                onSelect={(item) => updateField('financeMode', item.id)}
+                horizontal
+                gap={10}
+              />
             </View>
 
             <View style={styles.fieldContainer}>
@@ -698,14 +772,10 @@ export function GoalModalContent({ goalId }: Props) {
                 if (linkedBudget) {
                   return (
                     <View>
-                      <View style={styles.chipRow}>
-                        <View style={[styles.chip, styles.chipSelected]}>
-                          <Text style={[styles.chipLabel, styles.chipLabelSelected]}>
-                            {linkedBudget.currency}
-                          </Text>
-                        </View>
-                      </View>
-                      <Text style={styles.fieldLabel} opacity={0.6}>
+                      <AdaptiveGlassView style={styles.currencyInheritedChip}>
+                        <Text style={styles.currencyInheritedText}>{linkedBudget.currency}</Text>
+                      </AdaptiveGlassView>
+                      <Text style={[styles.fieldLabel, { opacity: 0.6, marginTop: 6 }]}>
                         Currency inherited from linked budget
                       </Text>
                     </View>
@@ -714,19 +784,13 @@ export function GoalModalContent({ goalId }: Props) {
                 return null;
               })()}
               {!formData.linkedBudgetId && (
-                <View style={styles.chipRow}>
-                  {AVAILABLE_FINANCE_CURRENCIES.map((curr) => (
-                    <Pressable
-                      key={curr}
-                      style={[styles.chip, formData.currency === curr && styles.chipSelected]}
-                      onPress={() => updateField('currency', curr)}
-                    >
-                      <Text style={[styles.chipLabel, formData.currency === curr && styles.chipLabelSelected]}>
-                        {curr}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
+                <FloatList
+                  items={currencyItems}
+                  selectedId={formData.currency}
+                  onSelect={(item) => updateField('currency', item.id as FinanceCurrency)}
+                  horizontal
+                  gap={10}
+                />
               )}
             </View>
 
@@ -734,25 +798,29 @@ export function GoalModalContent({ goalId }: Props) {
               <View style={styles.row}>
                 <View style={styles.halfField}>
                   <Text style={styles.fieldLabel}>Current</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={formData.currentValue.toString()}
-                    onChangeText={(text) => updateField('currentValue', parseNumericInput(text))}
-                    keyboardType="numeric"
-                    placeholder="0"
-                    placeholderTextColor={styles.placeholder.color}
-                  />
+                  <AdaptiveGlassView style={styles.glassInputContainer}>
+                    <TextInput
+                      style={styles.glassInput}
+                      value={formData.currentValue.toString()}
+                      onChangeText={(text) => updateField('currentValue', parseNumericInput(text))}
+                      keyboardType="numeric"
+                      placeholder="0"
+                      placeholderTextColor={styles.placeholder.color}
+                    />
+                  </AdaptiveGlassView>
                 </View>
                 <View style={styles.halfField}>
                   <Text style={styles.fieldLabel}>Target *</Text>
-                  <TextInput
-                    style={[styles.input, errors.targetValue && styles.inputError]}
-                    value={formData.targetValue.toString()}
-                    onChangeText={(text) => updateField('targetValue', parseNumericInput(text))}
-                    keyboardType="numeric"
-                    placeholder="5000"
-                    placeholderTextColor={styles.placeholder.color}
-                  />
+                  <AdaptiveGlassView style={[styles.glassInputContainer, errors.targetValue && styles.inputError]}>
+                    <TextInput
+                      style={styles.glassInput}
+                      value={formData.targetValue.toString()}
+                      onChangeText={(text) => updateField('targetValue', parseNumericInput(text))}
+                      keyboardType="numeric"
+                      placeholder="5000"
+                      placeholderTextColor={styles.placeholder.color}
+                    />
+                  </AdaptiveGlassView>
                 </View>
               </View>
               {errors.targetValue && <Text style={styles.errorText}>{errors.targetValue}</Text>}
@@ -764,36 +832,27 @@ export function GoalModalContent({ goalId }: Props) {
           <>
             <View style={styles.fieldContainer}>
               <Text style={styles.fieldLabel}>What will you measure?</Text>
-              <View style={styles.chipRow}>
-                {METRIC_OPTIONS.filter((m) => m.id !== 'amount').map((metric) => (
-                  <Pressable
-                    key={metric.id}
-                    style={[styles.chip, formData.metricKind === metric.id && styles.chipSelected]}
-                    onPress={() => updateField('metricKind', metric.id)}
-                  >
-                    {renderIcon(
-                      metric.icon,
-                      16,
-                      formData.metricKind === metric.id ? '#FFFFFF' : styles.chipLabel.color
-                    )}
-                    <Text style={[styles.chipLabel, formData.metricKind === metric.id && styles.chipLabelSelected]}>
-                      {metric.label}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
+              <FloatList
+                items={metricKindItems}
+                selectedId={formData.metricKind}
+                onSelect={(item) => updateField('metricKind', item.id)}
+                horizontal
+                gap={10}
+              />
             </View>
 
             {(formData.metricKind === 'count' || formData.metricKind === 'duration') && (
               <View style={styles.fieldContainer}>
                 <Text style={styles.fieldLabel}>Unit</Text>
-                <TextInput
-                  style={styles.input}
-                  value={formData.unit ?? ''}
-                  onChangeText={(text) => updateField('unit', text)}
-                  placeholder={formData.metricKind === 'count' ? 'workouts, books, km...' : 'hours, minutes...'}
-                  placeholderTextColor={styles.placeholder.color}
-                />
+                <AdaptiveGlassView style={styles.glassInputContainer}>
+                  <TextInput
+                    style={styles.glassInput}
+                    value={formData.unit ?? ''}
+                    onChangeText={(text) => updateField('unit', text)}
+                    placeholder={formData.metricKind === 'count' ? 'workouts, books, km...' : 'hours, minutes...'}
+                    placeholderTextColor={styles.placeholder.color}
+                  />
+                </AdaptiveGlassView>
               </View>
             )}
 
@@ -801,25 +860,29 @@ export function GoalModalContent({ goalId }: Props) {
               <View style={styles.row}>
                 <View style={styles.halfField}>
                   <Text style={styles.fieldLabel}>Current</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={formData.currentValue.toString()}
-                    onChangeText={(text) => updateField('currentValue', parseNumericInput(text))}
-                    keyboardType="numeric"
-                    placeholder="0"
-                    placeholderTextColor={styles.placeholder.color}
-                  />
+                  <AdaptiveGlassView style={styles.glassInputContainer}>
+                    <TextInput
+                      style={styles.glassInput}
+                      value={formData.currentValue.toString()}
+                      onChangeText={(text) => updateField('currentValue', parseNumericInput(text))}
+                      keyboardType="numeric"
+                      placeholder="0"
+                      placeholderTextColor={styles.placeholder.color}
+                    />
+                  </AdaptiveGlassView>
                 </View>
                 <View style={styles.halfField}>
                   <Text style={styles.fieldLabel}>Target *</Text>
-                  <TextInput
-                    style={[styles.input, errors.targetValue && styles.inputError]}
-                    value={formData.targetValue.toString()}
-                    onChangeText={(text) => updateField('targetValue', parseNumericInput(text))}
-                    keyboardType="numeric"
-                    placeholder="100"
-                    placeholderTextColor={styles.placeholder.color}
-                  />
+                  <AdaptiveGlassView style={[styles.glassInputContainer, errors.targetValue && styles.inputError]}>
+                    <TextInput
+                      style={styles.glassInput}
+                      value={formData.targetValue.toString()}
+                      onChangeText={(text) => updateField('targetValue', parseNumericInput(text))}
+                      keyboardType="numeric"
+                      placeholder="100"
+                      placeholderTextColor={styles.placeholder.color}
+                    />
+                  </AdaptiveGlassView>
                 </View>
               </View>
               {errors.targetValue && <Text style={styles.errorText}>{errors.targetValue}</Text>}
@@ -836,35 +899,29 @@ export function GoalModalContent({ goalId }: Props) {
 
       <View style={styles.fieldContainer}>
         <Text style={styles.fieldLabel}>Deadline (optional)</Text>
-        <Pressable
-          style={styles.dateButton}
-          onPress={() => openDatePicker({ type: 'due' })}
-        >
-          <CalendarIcon size={20} color={styles.dateButtonText.color} />
-          <Text style={styles.dateButtonText}>
-            {formData.targetDate ? formData.targetDate.toLocaleDateString(locale) : 'Select date'}
-          </Text>
-        </Pressable>
+        <AdaptiveGlassView style={styles.glassDateButton}>
+          <Pressable
+            style={styles.dateButtonInner}
+            onPress={() => openDatePicker({ type: 'due' })}
+          >
+            <CalendarIcon size={20} color={theme.colors.textSecondary} />
+            <Text style={styles.dateButtonText}>
+              {formData.targetDate ? formData.targetDate.toLocaleDateString(locale) : 'Select date'}
+            </Text>
+          </Pressable>
+        </AdaptiveGlassView>
         <SmartHint type="tip" message="Goals with deadlines are 42% more successful" />
       </View>
 
       {!formData.targetDate && (
         <View style={styles.fieldContainer}>
           <Text style={styles.fieldLabel}>Quick select</Text>
-          <View style={styles.chipRow}>
-            <Pressable style={styles.chip} onPress={() => updateField('targetDate', addMonths(new Date(), 1))}>
-              <Text style={styles.chipLabel}>1 month</Text>
-            </Pressable>
-            <Pressable style={styles.chip} onPress={() => updateField('targetDate', addMonths(new Date(), 3))}>
-              <Text style={styles.chipLabel}>3 months</Text>
-            </Pressable>
-            <Pressable style={styles.chip} onPress={() => updateField('targetDate', addMonths(new Date(), 6))}>
-              <Text style={styles.chipLabel}>6 months</Text>
-            </Pressable>
-            <Pressable style={styles.chip} onPress={() => updateField('targetDate', addYears(new Date(), 1))}>
-              <Text style={styles.chipLabel}>1 year</Text>
-            </Pressable>
-          </View>
+          <FloatList
+            items={deadlinePresetItems}
+            onSelect={handleDeadlinePresetSelect}
+            horizontal
+            gap={10}
+          />
         </View>
       )}
 
@@ -872,13 +929,15 @@ export function GoalModalContent({ goalId }: Props) {
         <Text style={styles.fieldLabel}>Milestones (optional)</Text>
         {formData.milestones.map((milestone, index) => (
           <View key={milestone.id} style={styles.milestoneItem}>
-            <TextInput
-              style={[styles.input, { flex: 1 }]}
-              value={milestone.title}
-              onChangeText={(text) => updateMilestone(milestone.id, { title: text })}
-              placeholder={`Milestone ${index + 1}`}
-              placeholderTextColor={styles.placeholder.color}
-            />
+            <AdaptiveGlassView style={[styles.glassInputContainer, { flex: 1 }]}>
+              <TextInput
+                style={styles.glassInput}
+                value={milestone.title}
+                onChangeText={(text) => updateMilestone(milestone.id, { title: text })}
+                placeholder={`Milestone ${index + 1}`}
+                placeholderTextColor={styles.placeholder.color}
+              />
+            </AdaptiveGlassView>
             <Pressable onPress={() => removeMilestone(milestone.id)}>
               <Trash2 size={20} color={styles.deleteIcon.color} />
             </Pressable>
@@ -1032,10 +1091,10 @@ export function GoalModalContent({ goalId }: Props) {
                 )}
                 <Pressable
                   style={styles.addButton}
-                  onPress={() => router.push({ pathname: '/(modals)/finance/debt', params: goalId ? { goalId } : undefined })}
+                  onPress={handleCreateDebt}
                 >
                   <PlusCircle size={20} color={styles.addButtonText.color} />
-                  <Text style={styles.addButtonText}>Create Debt</Text>
+                  <Text style={styles.addButtonText}>Create New Debt</Text>
                 </Pressable>
                 {errors.linkedDebtId && <Text style={styles.errorText}>{errors.linkedDebtId}</Text>}
                 <SmartHint type="success" message="Progress updates automatically when you make payments" />
@@ -1256,6 +1315,52 @@ const useStyles = createThemedStyles((theme) => ({
   },
   inputError: {
     borderColor: theme.colors.danger,
+  },
+  glassInputContainer: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    overflow: 'hidden',
+  },
+  glassInput: {
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    color: theme.colors.textPrimary,
+  },
+  glassTextArea: {
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    color: theme.colors.textPrimary,
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
+  glassDateButton: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    overflow: 'hidden',
+  },
+  dateButtonInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+  },
+  currencyInheritedChip: {
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: theme.colors.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    alignSelf: 'flex-start',
+  },
+  currencyInheritedText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.primary,
   },
   textArea: {
     backgroundColor: theme.colors.card,

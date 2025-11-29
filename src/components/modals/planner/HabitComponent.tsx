@@ -3,7 +3,6 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   View,
@@ -26,22 +25,23 @@ import {
   PlusCircle,
 } from 'lucide-react-native';
 
-import { useAppTheme } from '@/constants/theme';
+import { createThemedStyles, useAppTheme } from '@/constants/theme';
 import { usePlannerDomainStore } from '@/stores/usePlannerDomainStore';
 import { useFinanceDomainStore } from '@/stores/useFinanceDomainStore';
+import { AdaptiveGlassView } from '@/components/ui/AdaptiveGlassView';
 import type { HabitType, CompletionMode, HabitFinanceRule, Frequency } from '@/domain/planner/types';
 
 type Props = {
   habitId?: string;
 };
 
-const HABIT_TYPES: { id: HabitType; label: string; icon: typeof HeartPulse; accent: string }[] = [
-  { id: 'health', label: 'Health', icon: HeartPulse, accent: '#10B981' },
-  { id: 'finance', label: 'Finance', icon: PiggyBank, accent: '#F59E0B' },
-  { id: 'productivity', label: 'Productivity', icon: Sparkles, accent: '#6366F1' },
-  { id: 'education', label: 'Education', icon: BookOpen, accent: '#3B82F6' },
-  { id: 'personal', label: 'Personal', icon: Smile, accent: '#EC4899' },
-  { id: 'custom', label: 'Custom', icon: PlusCircle, accent: '#94A3B8' },
+const HABIT_TYPES: { id: HabitType; label: string; icon: typeof HeartPulse }[] = [
+  { id: 'health', label: 'Health', icon: HeartPulse },
+  { id: 'finance', label: 'Finance', icon: PiggyBank },
+  { id: 'productivity', label: 'Productivity', icon: Sparkles },
+  { id: 'education', label: 'Education', icon: BookOpen },
+  { id: 'personal', label: 'Personal', icon: Smile },
+  { id: 'custom', label: 'Custom', icon: PlusCircle },
 ];
 
 const FREQUENCY_TYPES: { id: Frequency; label: string; icon: string }[] = [
@@ -79,6 +79,7 @@ const renderFrequencyIcon = (iconId: string, size: number, color: string) => {
 };
 
 export function HabitComponent({ habitId }: Props) {
+  const styles = useStyles();
   const theme = useAppTheme();
   const router = useRouter();
 
@@ -285,47 +286,51 @@ export function HabitComponent({ habitId }: Props) {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
-        <Text style={[styles.headerTitle, { color: theme.colors.textPrimary }]}>
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>
           {habitId ? 'Edit Habit' : 'New Habit'}
         </Text>
         <Pressable onPress={() => router.back()} hitSlop={12}>
-          <Text style={[styles.closeText, { color: theme.colors.textSecondary }]}>Close</Text>
+          <Text style={styles.closeText}>Close</Text>
         </Pressable>
       </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         {/* Habit Name */}
         <View style={styles.section}>
-          <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Habit Name *</Text>
-          <TextInput
-            style={[styles.input, { backgroundColor: theme.colors.card, color: theme.colors.textPrimary, borderColor: theme.colors.border }]}
-            value={title}
-            onChangeText={setTitle}
-            placeholder="E.g., Morning meditation, Exercise, Read"
-            placeholderTextColor={theme.colors.textMuted}
-            autoFocus
-          />
+          <Text style={styles.label}>Habit Name *</Text>
+          <AdaptiveGlassView style={styles.inputWrapper}>
+            <TextInput
+              style={styles.input}
+              value={title}
+              onChangeText={setTitle}
+              placeholder="E.g., Morning meditation, Exercise, Read"
+              placeholderTextColor={theme.colors.textMuted}
+              autoFocus
+            />
+          </AdaptiveGlassView>
         </View>
 
         {/* Description */}
         <View style={styles.section}>
-          <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Description</Text>
-          <TextInput
-            style={[styles.textArea, { backgroundColor: theme.colors.card, color: theme.colors.textPrimary, borderColor: theme.colors.border }]}
-            value={description}
-            onChangeText={setDescription}
-            placeholder="Why is this habit important to you?"
-            placeholderTextColor={theme.colors.textMuted}
-            multiline
-            numberOfLines={3}
-          />
+          <Text style={styles.label}>Description</Text>
+          <AdaptiveGlassView style={styles.inputWrapper}>
+            <TextInput
+              style={styles.textArea}
+              value={description}
+              onChangeText={setDescription}
+              placeholder="Why is this habit important to you?"
+              placeholderTextColor={theme.colors.textMuted}
+              multiline
+              numberOfLines={3}
+            />
+          </AdaptiveGlassView>
         </View>
 
         {/* Habit Type */}
         <View style={styles.section}>
-          <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Habit Type</Text>
+          <Text style={styles.label}>Habit Type</Text>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -337,27 +342,27 @@ export function HabitComponent({ habitId }: Props) {
               return (
                 <Pressable
                   key={type.id}
-                  style={[
-                    styles.typeCard,
-                    {
-                      backgroundColor: active ? `${type.accent}1A` : theme.colors.card,
-                      borderColor: active ? type.accent : theme.colors.border,
-                    },
-                  ]}
                   onPress={() => setHabitType(type.id)}
                 >
-                  <View style={[
-                    styles.typeIconWrap,
-                    { backgroundColor: active ? `${type.accent}33` : theme.colors.surfaceMuted },
-                  ]}>
-                    <Icon size={18} color={type.accent} />
-                  </View>
-                  <Text style={[
-                    styles.typeLabel,
-                    { color: active ? type.accent : theme.colors.textPrimary },
-                  ]}>
-                    {type.label}
-                  </Text>
+                  <AdaptiveGlassView
+                    style={[
+                      styles.typeCard,
+                      active && styles.typeCardActive,
+                    ]}
+                  >
+                    <View style={[
+                      styles.typeIconWrap,
+                      active && styles.typeIconWrapActive,
+                    ]}>
+                      <Icon size={18} color={active ? theme.colors.primary : theme.colors.textSecondary} />
+                    </View>
+                    <Text style={[
+                      styles.typeLabel,
+                      active && styles.typeLabelActive,
+                    ]}>
+                      {type.label}
+                    </Text>
+                  </AdaptiveGlassView>
                 </Pressable>
               );
             })}
@@ -366,30 +371,31 @@ export function HabitComponent({ habitId }: Props) {
 
         {/* Frequency */}
         <View style={styles.section}>
-          <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Frequency</Text>
+          <Text style={styles.label}>Frequency</Text>
           <View style={styles.chipRow}>
             {FREQUENCY_TYPES.map((type) => (
               <Pressable
                 key={type.id}
-                style={[
-                  styles.chip,
-                  { backgroundColor: theme.colors.card, borderColor: theme.colors.border },
-                  frequency === type.id && { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
-                ]}
                 onPress={() => setFrequency(type.id)}
               >
-                {renderFrequencyIcon(
-                  type.icon,
-                  16,
-                  frequency === type.id ? '#FFFFFF' : theme.colors.textPrimary
-                )}
-                <Text style={[
-                  styles.chipLabel,
-                  { color: theme.colors.textPrimary },
-                  frequency === type.id && { color: '#FFFFFF' },
-                ]}>
-                  {type.label}
-                </Text>
+                <AdaptiveGlassView
+                  style={[
+                    styles.chip,
+                    frequency === type.id && styles.chipActive,
+                  ]}
+                >
+                  {renderFrequencyIcon(
+                    type.icon,
+                    16,
+                    frequency === type.id ? theme.colors.primary : theme.colors.textPrimary
+                  )}
+                  <Text style={[
+                    styles.chipLabel,
+                    frequency === type.id && styles.chipLabelActive,
+                  ]}>
+                    {type.label}
+                  </Text>
+                </AdaptiveGlassView>
               </Pressable>
             ))}
           </View>
@@ -398,27 +404,28 @@ export function HabitComponent({ habitId }: Props) {
         {/* Times per week/day */}
         {(frequency === 'weekly' || frequency === 'custom') && (
           <View style={styles.section}>
-            <Text style={[styles.label, { color: theme.colors.textSecondary }]}>
+            <Text style={styles.label}>
               {frequency === 'weekly' ? 'Times per week' : 'Times per period'}
             </Text>
             <View style={styles.chipRow}>
               {TIMES_OPTIONS.map((opt) => (
                 <Pressable
                   key={opt.value}
-                  style={[
-                    styles.chip,
-                    { backgroundColor: theme.colors.card, borderColor: theme.colors.border },
-                    timesPerWeek === opt.value && { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
-                  ]}
                   onPress={() => setTimesPerWeek(opt.value)}
                 >
-                  <Text style={[
-                    styles.chipLabel,
-                    { color: theme.colors.textPrimary },
-                    timesPerWeek === opt.value && { color: '#FFFFFF' },
-                  ]}>
-                    {opt.label}
-                  </Text>
+                  <AdaptiveGlassView
+                    style={[
+                      styles.chip,
+                      timesPerWeek === opt.value && styles.chipActive,
+                    ]}
+                  >
+                    <Text style={[
+                      styles.chipLabel,
+                      timesPerWeek === opt.value && styles.chipLabelActive,
+                    ]}>
+                      {opt.label}
+                    </Text>
+                  </AdaptiveGlassView>
                 </Pressable>
               ))}
             </View>
@@ -427,97 +434,100 @@ export function HabitComponent({ habitId }: Props) {
 
         {/* Completion Mode */}
         <View style={styles.section}>
-          <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Completion Mode</Text>
-          <View style={styles.switchRow}>
-            <Text style={[styles.switchLabel, { color: theme.colors.textPrimary }]}>Boolean (Done/Miss)</Text>
+          <Text style={styles.label}>Completion Mode</Text>
+          <AdaptiveGlassView style={styles.switchRow}>
+            <Text style={styles.switchLabel}>Boolean (Done/Miss)</Text>
             <Switch
               value={completionMode === 'numeric'}
               onValueChange={(val) => setCompletionMode(val ? 'numeric' : 'boolean')}
               trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
               thumbColor="#FFFFFF"
             />
-            <Text style={[styles.switchLabel, { color: theme.colors.textPrimary }]}>Numeric (Track Value)</Text>
-          </View>
+            <Text style={styles.switchLabel}>Numeric (Track Value)</Text>
+          </AdaptiveGlassView>
         </View>
 
         {/* Target & Unit (if numeric) */}
         {completionMode === 'numeric' && (
           <>
             <View style={styles.section}>
-              <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Target per Day</Text>
-              <TextInput
-                style={[styles.input, { backgroundColor: theme.colors.card, color: theme.colors.textPrimary, borderColor: theme.colors.border }]}
-                value={targetPerDay}
-                onChangeText={setTargetPerDay}
-                placeholder="E.g., 8, 10000, 30"
-                placeholderTextColor={theme.colors.textMuted}
-                keyboardType="numeric"
-              />
+              <Text style={styles.label}>Target per Day</Text>
+              <AdaptiveGlassView style={styles.inputWrapper}>
+                <TextInput
+                  style={styles.input}
+                  value={targetPerDay}
+                  onChangeText={setTargetPerDay}
+                  placeholder="E.g., 8, 10000, 30"
+                  placeholderTextColor={theme.colors.textMuted}
+                  keyboardType="numeric"
+                />
+              </AdaptiveGlassView>
             </View>
             <View style={styles.section}>
-              <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Unit</Text>
-              <TextInput
-                style={[styles.input, { backgroundColor: theme.colors.card, color: theme.colors.textPrimary, borderColor: theme.colors.border }]}
-                value={unit}
-                onChangeText={setUnit}
-                placeholder="E.g., km, glasses, minutes"
-                placeholderTextColor={theme.colors.textMuted}
-              />
+              <Text style={styles.label}>Unit</Text>
+              <AdaptiveGlassView style={styles.inputWrapper}>
+                <TextInput
+                  style={styles.input}
+                  value={unit}
+                  onChangeText={setUnit}
+                  placeholder="E.g., km, glasses, minutes"
+                  placeholderTextColor={theme.colors.textMuted}
+                />
+              </AdaptiveGlassView>
             </View>
           </>
         )}
 
         {/* Time of Day */}
         <View style={styles.section}>
-          <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Time of Day (Optional)</Text>
-          <Pressable
-            style={[styles.dateButton, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}
-            onPress={handleTimePress}
-          >
-            <Clock size={20} color={theme.colors.textSecondary} />
-            <Text style={[styles.dateButtonText, { color: theme.colors.textPrimary }]}>
-              {timeOfDay ? timeOfDay.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Set time'}
-            </Text>
+          <Text style={styles.label}>Time of Day (Optional)</Text>
+          <Pressable onPress={handleTimePress}>
+            <AdaptiveGlassView style={styles.dateButton}>
+              <Clock size={20} color={theme.colors.textSecondary} />
+              <Text style={styles.dateButtonText}>
+                {timeOfDay ? timeOfDay.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Set time'}
+              </Text>
+            </AdaptiveGlassView>
           </Pressable>
         </View>
 
         {/* Link to Goal */}
         <View style={styles.section}>
-          <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Link to Goal (Optional)</Text>
+          <Text style={styles.label}>Link to Goal (Optional)</Text>
           <View style={styles.chipRow}>
-            <Pressable
-              style={[
-                styles.chip,
-                { backgroundColor: theme.colors.card, borderColor: theme.colors.border },
-                !goalId && { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
-              ]}
-              onPress={() => setGoalId(undefined)}
-            >
-              <Text style={[
-                styles.chipLabel,
-                { color: theme.colors.textPrimary },
-                !goalId && { color: '#FFFFFF' },
-              ]}>
-                None
-              </Text>
+            <Pressable onPress={() => setGoalId(undefined)}>
+              <AdaptiveGlassView
+                style={[
+                  styles.chip,
+                  !goalId && styles.chipActive,
+                ]}
+              >
+                <Text style={[
+                  styles.chipLabel,
+                  !goalId && styles.chipLabelActive,
+                ]}>
+                  None
+                </Text>
+              </AdaptiveGlassView>
             </Pressable>
             {goals.filter(g => g.status === 'active').map((goal) => (
               <Pressable
                 key={goal.id}
-                style={[
-                  styles.chip,
-                  { backgroundColor: theme.colors.card, borderColor: theme.colors.border },
-                  goalId === goal.id && { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
-                ]}
                 onPress={() => setGoalId(goal.id)}
               >
-                <Text style={[
-                  styles.chipLabel,
-                  { color: theme.colors.textPrimary },
-                  goalId === goal.id && { color: '#FFFFFF' },
-                ]}>
-                  {goal.title}
-                </Text>
+                <AdaptiveGlassView
+                  style={[
+                    styles.chip,
+                    goalId === goal.id && styles.chipActive,
+                  ]}
+                >
+                  <Text style={[
+                    styles.chipLabel,
+                    goalId === goal.id && styles.chipLabelActive,
+                  ]}>
+                    {goal.title}
+                  </Text>
+                </AdaptiveGlassView>
               </Pressable>
             ))}
           </View>
@@ -525,41 +535,42 @@ export function HabitComponent({ habitId }: Props) {
 
         {/* Finance Rule */}
         <View style={styles.section}>
-          <View style={styles.switchRow}>
+          <AdaptiveGlassView style={styles.switchRow}>
             <DollarSign size={20} color={theme.colors.textSecondary} />
-            <Text style={[styles.label, { color: theme.colors.textSecondary, flex: 1 }]}>Finance Rule (Auto-evaluate)</Text>
+            <Text style={[styles.label, { flex: 1, marginBottom: 0 }]}>Finance Rule (Auto-evaluate)</Text>
             <Switch
               value={enableFinanceRule}
               onValueChange={setEnableFinanceRule}
               trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
               thumbColor="#FFFFFF"
             />
-          </View>
+          </AdaptiveGlassView>
         </View>
 
         {enableFinanceRule && (
           <>
             {/* Finance Rule Type */}
             <View style={styles.section}>
-              <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Rule Type</Text>
+              <Text style={styles.label}>Rule Type</Text>
               <View style={styles.chipRow}>
                 {FINANCE_RULE_TYPES.map((rule) => (
                   <Pressable
                     key={rule.id}
-                    style={[
-                      styles.chip,
-                      { backgroundColor: theme.colors.card, borderColor: theme.colors.border },
-                      financeRuleType === rule.id && { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
-                    ]}
                     onPress={() => setFinanceRuleType(rule.id as any)}
                   >
-                    <Text style={[
-                      styles.chipLabel,
-                      { color: theme.colors.textPrimary },
-                      financeRuleType === rule.id && { color: '#FFFFFF' },
-                    ]}>
-                      {rule.label}
-                    </Text>
+                    <AdaptiveGlassView
+                      style={[
+                        styles.chip,
+                        financeRuleType === rule.id && styles.chipActive,
+                      ]}
+                    >
+                      <Text style={[
+                        styles.chipLabel,
+                        financeRuleType === rule.id && styles.chipLabelActive,
+                      ]}>
+                        {rule.label}
+                      </Text>
+                    </AdaptiveGlassView>
                   </Pressable>
                 ))}
               </View>
@@ -568,25 +579,26 @@ export function HabitComponent({ habitId }: Props) {
             {/* Categories (for no_spend / spend_in) */}
             {(financeRuleType === 'no_spend_in_categories' || financeRuleType === 'spend_in_categories') && (
               <View style={styles.section}>
-                <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Select Categories</Text>
+                <Text style={styles.label}>Select Categories</Text>
                 <View style={styles.chipRow}>
                   {categories.map((cat) => (
                     <Pressable
                       key={cat}
-                      style={[
-                        styles.chip,
-                        { backgroundColor: theme.colors.card, borderColor: theme.colors.border },
-                        selectedCategories.includes(cat) && { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
-                      ]}
                       onPress={() => toggleCategory(cat)}
                     >
-                      <Text style={[
-                        styles.chipLabel,
-                        { color: theme.colors.textPrimary },
-                        selectedCategories.includes(cat) && { color: '#FFFFFF' },
-                      ]}>
-                        {cat}
-                      </Text>
+                      <AdaptiveGlassView
+                        style={[
+                          styles.chip,
+                          selectedCategories.includes(cat) && styles.chipActive,
+                        ]}
+                      >
+                        <Text style={[
+                          styles.chipLabel,
+                          selectedCategories.includes(cat) && styles.chipLabelActive,
+                        ]}>
+                          {cat}
+                        </Text>
+                      </AdaptiveGlassView>
                     </Pressable>
                   ))}
                 </View>
@@ -596,40 +608,43 @@ export function HabitComponent({ habitId }: Props) {
             {/* Min Amount (for spend_in_categories) */}
             {financeRuleType === 'spend_in_categories' && (
               <View style={styles.section}>
-                <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Minimum Amount (Optional)</Text>
-                <TextInput
-                  style={[styles.input, { backgroundColor: theme.colors.card, color: theme.colors.textPrimary, borderColor: theme.colors.border }]}
-                  value={ruleAmount}
-                  onChangeText={setRuleAmount}
-                  placeholder="E.g., 50"
-                  placeholderTextColor={theme.colors.textMuted}
-                  keyboardType="numeric"
-                />
+                <Text style={styles.label}>Minimum Amount (Optional)</Text>
+                <AdaptiveGlassView style={styles.inputWrapper}>
+                  <TextInput
+                    style={styles.input}
+                    value={ruleAmount}
+                    onChangeText={setRuleAmount}
+                    placeholder="E.g., 50"
+                    placeholderTextColor={theme.colors.textMuted}
+                    keyboardType="numeric"
+                  />
+                </AdaptiveGlassView>
               </View>
             )}
 
             {/* Accounts (for has_any_transactions) */}
             {financeRuleType === 'has_any_transactions' && (
               <View style={styles.section}>
-                <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Select Accounts (Optional)</Text>
+                <Text style={styles.label}>Select Accounts (Optional)</Text>
                 <View style={styles.chipRow}>
                   {accounts.map((acc) => (
                     <Pressable
                       key={acc.id}
-                      style={[
-                        styles.chip,
-                        { backgroundColor: theme.colors.card, borderColor: theme.colors.border },
-                        selectedAccounts.includes(acc.id) && { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
-                      ]}
                       onPress={() => toggleAccount(acc.id)}
                     >
-                      <Text style={[
-                        styles.chipLabel,
-                        { color: theme.colors.textPrimary },
-                        selectedAccounts.includes(acc.id) && { color: '#FFFFFF' },
-                      ]}>
-                        {acc.name}
-                      </Text>
+                      <AdaptiveGlassView
+                        style={[
+                          styles.chip,
+                          selectedAccounts.includes(acc.id) && styles.chipActive,
+                        ]}
+                      >
+                        <Text style={[
+                          styles.chipLabel,
+                          selectedAccounts.includes(acc.id) && styles.chipLabelActive,
+                        ]}>
+                          {acc.name}
+                        </Text>
+                      </AdaptiveGlassView>
                     </Pressable>
                   ))}
                 </View>
@@ -640,25 +655,29 @@ export function HabitComponent({ habitId }: Props) {
             {financeRuleType === 'daily_spend_under' && (
               <>
                 <View style={styles.section}>
-                  <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Daily Limit Amount</Text>
-                  <TextInput
-                    style={[styles.input, { backgroundColor: theme.colors.card, color: theme.colors.textPrimary, borderColor: theme.colors.border }]}
-                    value={ruleAmount}
-                    onChangeText={setRuleAmount}
-                    placeholder="E.g., 100"
-                    placeholderTextColor={theme.colors.textMuted}
-                    keyboardType="numeric"
-                  />
+                  <Text style={styles.label}>Daily Limit Amount</Text>
+                  <AdaptiveGlassView style={styles.inputWrapper}>
+                    <TextInput
+                      style={styles.input}
+                      value={ruleAmount}
+                      onChangeText={setRuleAmount}
+                      placeholder="E.g., 100"
+                      placeholderTextColor={theme.colors.textMuted}
+                      keyboardType="numeric"
+                    />
+                  </AdaptiveGlassView>
                 </View>
                 <View style={styles.section}>
-                  <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Currency</Text>
-                  <TextInput
-                    style={[styles.input, { backgroundColor: theme.colors.card, color: theme.colors.textPrimary, borderColor: theme.colors.border }]}
-                    value={ruleCurrency}
-                    onChangeText={setRuleCurrency}
-                    placeholder="USD"
-                    placeholderTextColor={theme.colors.textMuted}
-                  />
+                  <Text style={styles.label}>Currency</Text>
+                  <AdaptiveGlassView style={styles.inputWrapper}>
+                    <TextInput
+                      style={styles.input}
+                      value={ruleCurrency}
+                      onChangeText={setRuleCurrency}
+                      placeholder="USD"
+                      placeholderTextColor={theme.colors.textMuted}
+                    />
+                  </AdaptiveGlassView>
                 </View>
               </>
             )}
@@ -666,15 +685,17 @@ export function HabitComponent({ habitId }: Props) {
         )}
       </ScrollView>
 
-      <View style={[styles.footer, { borderTopColor: theme.colors.border }]}>
+      <View style={styles.footer}>
         <Pressable
-          style={[styles.button, styles.buttonSecondary, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}
+          style={styles.buttonSecondary}
           onPress={() => router.back()}
         >
-          <Text style={[styles.buttonSecondaryText, { color: theme.colors.textPrimary }]}>Cancel</Text>
+          <AdaptiveGlassView style={styles.buttonSecondaryInner}>
+            <Text style={styles.buttonSecondaryText}>Cancel</Text>
+          </AdaptiveGlassView>
         </Pressable>
         <Pressable
-          style={[styles.button, styles.buttonPrimary, { backgroundColor: theme.colors.primary }]}
+          style={[styles.buttonPrimary, !title.trim() && styles.buttonDisabled]}
           onPress={handleSubmit}
           disabled={!title.trim()}
         >
@@ -683,7 +704,7 @@ export function HabitComponent({ habitId }: Props) {
       </View>
 
       {Platform.OS === 'ios' && showTimePicker && (
-        <View style={[styles.pickerContainer, { backgroundColor: theme.colors.card }]}>
+        <View style={styles.pickerContainer}>
           <DateTimePicker
             value={timeOfDay || new Date()}
             mode="time"
@@ -699,7 +720,7 @@ export function HabitComponent({ habitId }: Props) {
             style={styles.pickerDoneButton}
             onPress={() => setShowTimePicker(false)}
           >
-            <Text style={[styles.pickerDoneText, { color: theme.colors.primary }]}>Done</Text>
+            <Text style={styles.pickerDoneText}>Done</Text>
           </Pressable>
         </View>
       )}
@@ -707,9 +728,10 @@ export function HabitComponent({ habitId }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = createThemedStyles((theme) => ({
   container: {
     flex: 1,
+    backgroundColor: theme.colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -717,15 +739,18 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
+    color: theme.colors.textPrimary,
   },
   closeText: {
     fontSize: 17,
     fontWeight: '500',
+    color: theme.colors.textSecondary,
   },
   scrollView: {
     flex: 1,
@@ -740,18 +765,24 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '600',
+    color: theme.colors.textSecondary,
+    marginBottom: 4,
+  },
+  inputWrapper: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    overflow: 'hidden',
   },
   input: {
-    borderRadius: 12,
     padding: 14,
     fontSize: 16,
-    borderWidth: 1,
+    color: theme.colors.textPrimary,
   },
   textArea: {
-    borderRadius: 12,
     padding: 14,
     fontSize: 16,
-    borderWidth: 1,
+    color: theme.colors.textPrimary,
     minHeight: 80,
     textAlignVertical: 'top',
   },
@@ -769,9 +800,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderRadius: 16,
-    borderWidth: 1,
+    borderWidth: 1.5,
+    borderColor: theme.colors.border,
     marginRight: 10,
     justifyContent: 'center',
+  },
+  typeCardActive: {
+    borderColor: theme.colors.primary,
+    backgroundColor: `${theme.colors.primary}15`,
   },
   typeIconWrap: {
     width: 32,
@@ -780,10 +816,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 8,
+    backgroundColor: theme.colors.surfaceMuted,
+  },
+  typeIconWrapActive: {
+    backgroundColor: `${theme.colors.primary}20`,
   },
   typeLabel: {
     fontSize: 14,
     fontWeight: '700',
+    color: theme.colors.textPrimary,
+  },
+  typeLabelActive: {
+    color: theme.colors.primary,
   },
   chip: {
     flexDirection: 'row',
@@ -792,19 +836,34 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 20,
-    borderWidth: 1,
+    borderWidth: 1.5,
+    borderColor: theme.colors.border,
+  },
+  chipActive: {
+    borderColor: theme.colors.primary,
+    backgroundColor: `${theme.colors.primary}15`,
   },
   chipLabel: {
     fontSize: 14,
     fontWeight: '600',
+    color: theme.colors.textPrimary,
+  },
+  chipLabelActive: {
+    color: theme.colors.primary,
   },
   switchRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   switchLabel: {
     fontSize: 14,
+    color: theme.colors.textPrimary,
   },
   dateButton: {
     flexDirection: 'row',
@@ -813,40 +872,55 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 14,
     borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   dateButtonText: {
     fontSize: 16,
+    color: theme.colors.textPrimary,
   },
   footer: {
     flexDirection: 'row',
     gap: 12,
     padding: 20,
-    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
   },
-  button: {
+  buttonSecondary: {
     flex: 1,
+  },
+  buttonSecondaryInner: {
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: 'center',
-  },
-  buttonSecondary: {
     borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   buttonSecondaryText: {
     fontSize: 16,
     fontWeight: '600',
+    color: theme.colors.textPrimary,
   },
-  buttonPrimary: {},
+  buttonPrimary: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    backgroundColor: theme.colors.primary,
+  },
   buttonPrimaryText: {
     fontSize: 16,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  buttonDisabled: {
+    opacity: 0.5,
   },
   pickerContainer: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
+    backgroundColor: theme.colors.card,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingBottom: 20,
@@ -858,5 +932,6 @@ const styles = StyleSheet.create({
   pickerDoneText: {
     fontSize: 17,
     fontWeight: '600',
+    color: theme.colors.primary,
   },
-});
+}));

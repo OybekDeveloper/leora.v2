@@ -1,4 +1,4 @@
-import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import {
   Platform,
   Pressable,
@@ -34,6 +34,8 @@ import {
   Circle,
   CircleDot,
 } from 'lucide-react-native';
+import { AdaptiveGlassView } from '@/components/ui/AdaptiveGlassView';
+import { FloatList, type FloatListItem } from '@/components/ui/FloatList';
 import { useShallow } from 'zustand/react/shallow';
 
 import CustomModal from '@/components/modals/CustomModal';
@@ -230,7 +232,47 @@ const GoalModalComponent: React.ForwardRefRenderFunction<GoalModalHandle> = (_, 
     })),
   );
 
+  // Access modal store for opening debt modal
+  const openDebtModal = useModalStore((state) => state.openDebtModal);
+
   const baseCurrency = useFinancePreferencesStore((state) => state.baseCurrency);
+  const theme = styles; // For accessing theme colors in renderIcon
+
+  // FloatList items for selectors
+  const goalTypeItems = useMemo<FloatListItem[]>(() => [
+    { id: 'financial', label: 'Money', icon: <DollarSign size={18} color={styles.iconColor.color} /> },
+    { id: 'health', label: 'Health', icon: <Heart size={18} color={styles.iconColor.color} /> },
+    { id: 'education', label: 'Learning', icon: <BookOpen size={18} color={styles.iconColor.color} /> },
+    { id: 'productivity', label: 'Career', icon: <Briefcase size={18} color={styles.iconColor.color} /> },
+    { id: 'personal', label: 'Personal', icon: <Target size={18} color={styles.iconColor.color} /> },
+  ], [styles.iconColor.color]);
+
+  const financeModeItems = useMemo<FloatListItem[]>(() => [
+    { id: 'save', label: 'Save money', icon: <Banknote size={18} color={styles.iconColor.color} /> },
+    { id: 'spend', label: 'Budget limit', icon: <ShoppingBag size={18} color={styles.iconColor.color} /> },
+    { id: 'debt_close', label: 'Pay off debt', icon: <CreditCard size={18} color={styles.iconColor.color} /> },
+  ], [styles.iconColor.color]);
+
+  const currencyItems = useMemo<FloatListItem[]>(() =>
+    AVAILABLE_FINANCE_CURRENCIES.map((curr) => ({
+      id: curr,
+      label: curr,
+    })),
+  []);
+
+  const metricKindItems = useMemo<FloatListItem[]>(() => [
+    { id: 'count', label: 'Number', icon: <Hash size={18} color={styles.iconColor.color} /> },
+    { id: 'duration', label: 'Time', icon: <Timer size={18} color={styles.iconColor.color} /> },
+    { id: 'weight', label: 'Weight', icon: <Scale size={18} color={styles.iconColor.color} /> },
+    { id: 'custom', label: 'Custom', icon: <Settings size={18} color={styles.iconColor.color} /> },
+  ], [styles.iconColor.color]);
+
+  const deadlinePresetItems = useMemo<FloatListItem[]>(() => [
+    { id: '1m', label: '1 month', icon: <Calendar size={18} color={styles.iconColor.color} /> },
+    { id: '3m', label: '3 months', icon: <Calendar size={18} color={styles.iconColor.color} /> },
+    { id: '6m', label: '6 months', icon: <Calendar size={18} color={styles.iconColor.color} /> },
+    { id: '1y', label: '1 year', icon: <Calendar size={18} color={styles.iconColor.color} /> },
+  ], [styles.iconColor.color]);
 
   // Wizard state
   const [currentStep, setCurrentStep] = useState(1);
@@ -296,6 +338,21 @@ const GoalModalComponent: React.ForwardRefRenderFunction<GoalModalHandle> = (_, 
     setCurrentStep(1);
     setErrors({});
   }, []);
+
+  // Track previous debt count to detect newly created debts
+  const previousDebtCount = useRef(debts.length);
+
+  // Auto-select newly created debt when in debt_close mode
+  useEffect(() => {
+    if (formData.financeMode === 'debt_close' && debts.length > previousDebtCount.current) {
+      // A new debt was created, auto-select it
+      const newDebt = debts[debts.length - 1];
+      if (newDebt && newDebt.status === 'active') {
+        updateField('linkedDebtId', newDebt.id);
+      }
+    }
+    previousDebtCount.current = debts.length;
+  }, [debts.length, formData.financeMode]);
 
   // Smart defaults when goalType changes
   useEffect(() => {
@@ -564,36 +621,30 @@ const GoalModalComponent: React.ForwardRefRenderFunction<GoalModalHandle> = (_, 
 
       {/* Title */}
       <View style={styles.fieldContainer}>
-        <TextInput
-          style={[styles.input, errors.title && styles.inputError]}
-          value={formData.title}
-          onChangeText={(text) => updateField('title', text)}
-          placeholder='E.g., "Save for vacation", "Run a marathon", "Learn Spanish"'
-          placeholderTextColor={styles.placeholder.color}
-          maxLength={100}
-          autoFocus
-        />
+        <AdaptiveGlassView style={[styles.glassInputContainer, errors.title && styles.glassInputError]}>
+          <TextInput
+            style={styles.glassInput}
+            value={formData.title}
+            onChangeText={(text) => updateField('title', text)}
+            placeholder='E.g., "Save for vacation", "Run a marathon", "Learn Spanish"'
+            placeholderTextColor={styles.placeholder.color}
+            maxLength={100}
+            autoFocus
+          />
+        </AdaptiveGlassView>
         {errors.title && <Text style={styles.errorText}>{errors.title}</Text>}
         <Text style={styles.characterCount}>{formData.title.length}/100</Text>
       </View>
 
-      {/* Goal Type */}
+      {/* Goal Type - FloatList */}
       <View style={styles.fieldContainer}>
         <Text style={styles.fieldLabel}>Category</Text>
-        <View style={styles.chipRow}>
-          {GOAL_TYPES.map((type) => (
-            <Pressable
-              key={type.id}
-              style={[styles.chip, formData.goalType === type.id && styles.chipSelected]}
-              onPress={() => updateField('goalType', type.id)}
-            >
-              {renderIcon(type.icon, 20, formData.goalType === type.id ? styles.chipLabelSelected.color : styles.chipLabel.color)}
-              <Text style={[styles.chipLabel, formData.goalType === type.id && styles.chipLabelSelected]}>
-                {type.label}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
+        <FloatList
+          items={goalTypeItems}
+          selectedId={formData.goalType}
+          onSelect={(item) => updateField('goalType', item.id as GoalType)}
+          gap={10}
+        />
         {formData.goalType && (
           <SmartHint
             type="tip"
@@ -605,16 +656,18 @@ const GoalModalComponent: React.ForwardRefRenderFunction<GoalModalHandle> = (_, 
       {/* Description (optional) */}
       <View style={styles.fieldContainer}>
         <Text style={styles.fieldLabel}>Why is this important? (optional)</Text>
-        <TextInput
-          style={[styles.textArea]}
-          value={formData.description}
-          onChangeText={(text) => updateField('description', text)}
-          placeholder="Your motivation..."
-          placeholderTextColor={styles.placeholder.color}
-          multiline
-          numberOfLines={3}
-          maxLength={500}
-        />
+        <AdaptiveGlassView style={styles.glassTextAreaContainer}>
+          <TextInput
+            style={styles.glassTextArea}
+            value={formData.description}
+            onChangeText={(text) => updateField('description', text)}
+            placeholder="Your motivation..."
+            placeholderTextColor={styles.placeholder.color}
+            multiline
+            numberOfLines={3}
+            maxLength={500}
+          />
+        </AdaptiveGlassView>
         <SmartHint type="info" message="Goals with clear 'why' are 60% more likely to succeed" />
       </View>
     </View>
@@ -630,41 +683,26 @@ const GoalModalComponent: React.ForwardRefRenderFunction<GoalModalHandle> = (_, 
 
         {isFinancial ? (
           <>
-            {/* Finance Mode */}
+            {/* Finance Mode - FloatList */}
             <View style={styles.fieldContainer}>
               <Text style={styles.fieldLabel}>Goal Type</Text>
-              <View style={styles.chipRow}>
-                {FINANCE_MODES.map((mode) => (
-                  <Pressable
-                    key={mode.id}
-                    style={[styles.chip, formData.financeMode === mode.id && styles.chipSelected]}
-                    onPress={() => updateField('financeMode', mode.id)}
-                  >
-                    {renderIcon(mode.icon, 20, formData.financeMode === mode.id ? styles.chipLabelSelected.color : styles.chipLabel.color)}
-                    <Text style={[styles.chipLabel, formData.financeMode === mode.id && styles.chipLabelSelected]}>
-                      {mode.label}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
+              <FloatList
+                items={financeModeItems}
+                selectedId={formData.financeMode}
+                onSelect={(item) => updateField('financeMode', item.id as FinanceMode)}
+                gap={10}
+              />
             </View>
 
-            {/* Currency */}
+            {/* Currency - FloatList */}
             <View style={styles.fieldContainer}>
               <Text style={styles.fieldLabel}>Currency</Text>
-              <View style={styles.chipRow}>
-                {AVAILABLE_FINANCE_CURRENCIES.map((curr) => (
-                  <Pressable
-                    key={curr}
-                    style={[styles.chip, formData.currency === curr && styles.chipSelected]}
-                    onPress={() => updateField('currency', curr)}
-                  >
-                    <Text style={[styles.chipLabel, formData.currency === curr && styles.chipLabelSelected]}>
-                      {curr}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
+              <FloatList
+                items={currencyItems}
+                selectedId={formData.currency}
+                onSelect={(item) => updateField('currency', item.id as FinanceCurrency)}
+                gap={8}
+              />
             </View>
 
             {/* Current & Target Values */}
@@ -672,25 +710,29 @@ const GoalModalComponent: React.ForwardRefRenderFunction<GoalModalHandle> = (_, 
               <View style={styles.row}>
                 <View style={styles.halfField}>
                   <Text style={styles.fieldLabel}>Current</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={formData.currentValue.toString()}
-                    onChangeText={(text) => updateField('currentValue', parseNumericInput(text))}
-                    keyboardType="numeric"
-                    placeholder="0"
-                    placeholderTextColor={styles.placeholder.color}
-                  />
+                  <AdaptiveGlassView style={styles.glassInputContainer}>
+                    <TextInput
+                      style={styles.glassInput}
+                      value={formData.currentValue.toString()}
+                      onChangeText={(text) => updateField('currentValue', parseNumericInput(text))}
+                      keyboardType="numeric"
+                      placeholder="0"
+                      placeholderTextColor={styles.placeholder.color}
+                    />
+                  </AdaptiveGlassView>
                 </View>
                 <View style={styles.halfField}>
                   <Text style={styles.fieldLabel}>Target *</Text>
-                  <TextInput
-                    style={[styles.input, errors.targetValue && styles.inputError]}
-                    value={formData.targetValue.toString()}
-                    onChangeText={(text) => updateField('targetValue', parseNumericInput(text))}
-                    keyboardType="numeric"
-                    placeholder="5000"
-                    placeholderTextColor={styles.placeholder.color}
-                  />
+                  <AdaptiveGlassView style={[styles.glassInputContainer, errors.targetValue && styles.glassInputError]}>
+                    <TextInput
+                      style={styles.glassInput}
+                      value={formData.targetValue.toString()}
+                      onChangeText={(text) => updateField('targetValue', parseNumericInput(text))}
+                      keyboardType="numeric"
+                      placeholder="5000"
+                      placeholderTextColor={styles.placeholder.color}
+                    />
+                  </AdaptiveGlassView>
                 </View>
               </View>
               {errors.targetValue && <Text style={styles.errorText}>{errors.targetValue}</Text>}
@@ -700,36 +742,30 @@ const GoalModalComponent: React.ForwardRefRenderFunction<GoalModalHandle> = (_, 
           </>
         ) : (
           <>
-            {/* Metric Kind */}
+            {/* Metric Kind - FloatList */}
             <View style={styles.fieldContainer}>
               <Text style={styles.fieldLabel}>What will you measure?</Text>
-              <View style={styles.chipRow}>
-                {METRIC_OPTIONS.filter((m) => m.id !== 'amount').map((metric) => (
-                  <Pressable
-                    key={metric.id}
-                    style={[styles.chip, formData.metricKind === metric.id && styles.chipSelected]}
-                    onPress={() => updateField('metricKind', metric.id)}
-                  >
-                    {renderIcon(metric.icon, 20, formData.metricKind === metric.id ? styles.chipLabelSelected.color : styles.chipLabel.color)}
-                    <Text style={[styles.chipLabel, formData.metricKind === metric.id && styles.chipLabelSelected]}>
-                      {metric.label}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
+              <FloatList
+                items={metricKindItems}
+                selectedId={formData.metricKind}
+                onSelect={(item) => updateField('metricKind', item.id as MetricKind)}
+                gap={10}
+              />
             </View>
 
             {/* Unit (for count/duration) */}
             {(formData.metricKind === 'count' || formData.metricKind === 'duration') && (
               <View style={styles.fieldContainer}>
                 <Text style={styles.fieldLabel}>Unit</Text>
-                <TextInput
-                  style={styles.input}
-                  value={formData.unit ?? ''}
-                  onChangeText={(text) => updateField('unit', text)}
-                  placeholder={formData.metricKind === 'count' ? 'workouts, books, km...' : 'hours, minutes...'}
-                  placeholderTextColor={styles.placeholder.color}
-                />
+                <AdaptiveGlassView style={styles.glassInputContainer}>
+                  <TextInput
+                    style={styles.glassInput}
+                    value={formData.unit ?? ''}
+                    onChangeText={(text) => updateField('unit', text)}
+                    placeholder={formData.metricKind === 'count' ? 'workouts, books, km...' : 'hours, minutes...'}
+                    placeholderTextColor={styles.placeholder.color}
+                  />
+                </AdaptiveGlassView>
               </View>
             )}
 
@@ -738,25 +774,29 @@ const GoalModalComponent: React.ForwardRefRenderFunction<GoalModalHandle> = (_, 
               <View style={styles.row}>
                 <View style={styles.halfField}>
                   <Text style={styles.fieldLabel}>Current</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={formData.currentValue.toString()}
-                    onChangeText={(text) => updateField('currentValue', parseNumericInput(text))}
-                    keyboardType="numeric"
-                    placeholder="0"
-                    placeholderTextColor={styles.placeholder.color}
-                  />
+                  <AdaptiveGlassView style={styles.glassInputContainer}>
+                    <TextInput
+                      style={styles.glassInput}
+                      value={formData.currentValue.toString()}
+                      onChangeText={(text) => updateField('currentValue', parseNumericInput(text))}
+                      keyboardType="numeric"
+                      placeholder="0"
+                      placeholderTextColor={styles.placeholder.color}
+                    />
+                  </AdaptiveGlassView>
                 </View>
                 <View style={styles.halfField}>
                   <Text style={styles.fieldLabel}>Target *</Text>
-                  <TextInput
-                    style={[styles.input, errors.targetValue && styles.inputError]}
-                    value={formData.targetValue.toString()}
-                    onChangeText={(text) => updateField('targetValue', parseNumericInput(text))}
-                    keyboardType="numeric"
-                    placeholder="100"
-                    placeholderTextColor={styles.placeholder.color}
-                  />
+                  <AdaptiveGlassView style={[styles.glassInputContainer, errors.targetValue && styles.glassInputError]}>
+                    <TextInput
+                      style={styles.glassInput}
+                      value={formData.targetValue.toString()}
+                      onChangeText={(text) => updateField('targetValue', parseNumericInput(text))}
+                      keyboardType="numeric"
+                      placeholder="100"
+                      placeholderTextColor={styles.placeholder.color}
+                    />
+                  </AdaptiveGlassView>
                 </View>
               </View>
               {errors.targetValue && <Text style={styles.errorText}>{errors.targetValue}</Text>}
@@ -767,6 +807,25 @@ const GoalModalComponent: React.ForwardRefRenderFunction<GoalModalHandle> = (_, 
     );
   };
 
+  // Handler for deadline preset selection
+  const handleDeadlinePresetSelect = useCallback((item: FloatListItem) => {
+    const now = new Date();
+    switch (item.id) {
+      case '1m':
+        updateField('targetDate', addMonths(now, 1));
+        break;
+      case '3m':
+        updateField('targetDate', addMonths(now, 3));
+        break;
+      case '6m':
+        updateField('targetDate', addMonths(now, 6));
+        break;
+      case '1y':
+        updateField('targetDate', addYears(now, 1));
+        break;
+    }
+  }, [updateField]);
+
   // Step 3: When
   const renderStep3 = () => (
     <View style={styles.stepContainer}>
@@ -775,36 +834,30 @@ const GoalModalComponent: React.ForwardRefRenderFunction<GoalModalHandle> = (_, 
       {/* Deadline */}
       <View style={styles.fieldContainer}>
         <Text style={styles.fieldLabel}>Deadline (optional)</Text>
-        <Pressable
-          style={styles.dateButton}
-          onPress={() => openDatePicker({ type: 'due' })}
-        >
-          <Calendar size={20} color={styles.dateButtonText.color} />
-          <Text style={styles.dateButtonText}>
-            {formData.targetDate ? formData.targetDate.toLocaleDateString(locale) : 'Select date'}
-          </Text>
-        </Pressable>
+        <AdaptiveGlassView style={styles.glassDateButton}>
+          <Pressable
+            style={styles.dateButtonInner}
+            onPress={() => openDatePicker({ type: 'due' })}
+          >
+            <Calendar size={20} color={styles.dateButtonText.color} />
+            <Text style={styles.dateButtonText}>
+              {formData.targetDate ? formData.targetDate.toLocaleDateString(locale) : 'Select date'}
+            </Text>
+          </Pressable>
+        </AdaptiveGlassView>
         <SmartHint type="tip" message="Goals with deadlines are 42% more successful" />
       </View>
 
-      {/* Quick presets */}
+      {/* Quick presets - FloatList */}
       {!formData.targetDate && (
         <View style={styles.fieldContainer}>
           <Text style={styles.fieldLabel}>Quick select</Text>
-          <View style={styles.chipRow}>
-            <Pressable style={styles.chip} onPress={() => updateField('targetDate', addMonths(new Date(), 1))}>
-              <Text style={styles.chipLabel}>1 month</Text>
-            </Pressable>
-            <Pressable style={styles.chip} onPress={() => updateField('targetDate', addMonths(new Date(), 3))}>
-              <Text style={styles.chipLabel}>3 months</Text>
-            </Pressable>
-            <Pressable style={styles.chip} onPress={() => updateField('targetDate', addMonths(new Date(), 6))}>
-              <Text style={styles.chipLabel}>6 months</Text>
-            </Pressable>
-            <Pressable style={styles.chip} onPress={() => updateField('targetDate', addYears(new Date(), 1))}>
-              <Text style={styles.chipLabel}>1 year</Text>
-            </Pressable>
-          </View>
+          <FloatList
+            items={deadlinePresetItems}
+            selectedId=""
+            onSelect={handleDeadlinePresetSelect}
+            gap={10}
+          />
         </View>
       )}
 
@@ -813,13 +866,15 @@ const GoalModalComponent: React.ForwardRefRenderFunction<GoalModalHandle> = (_, 
         <Text style={styles.fieldLabel}>Milestones (optional)</Text>
         {formData.milestones.map((milestone, index) => (
           <View key={milestone.id} style={styles.milestoneItem}>
-            <TextInput
-              style={[styles.input, { flex: 1 }]}
-              value={milestone.title}
-              onChangeText={(text) => updateMilestone(milestone.id, { title: text })}
-              placeholder={`Milestone ${index + 1}`}
-              placeholderTextColor={styles.placeholder.color}
-            />
+            <AdaptiveGlassView style={[styles.glassInputContainer, { flex: 1 }]}>
+              <TextInput
+                style={styles.glassInput}
+                value={milestone.title}
+                onChangeText={(text) => updateMilestone(milestone.id, { title: text })}
+                placeholder={`Milestone ${index + 1}`}
+                placeholderTextColor={styles.placeholder.color}
+              />
+            </AdaptiveGlassView>
             <Pressable onPress={() => removeMilestone(milestone.id)}>
               <Trash2 size={20} color={styles.deleteIcon.color} />
             </Pressable>
@@ -898,42 +953,46 @@ const GoalModalComponent: React.ForwardRefRenderFunction<GoalModalHandle> = (_, 
             {isDebtMode && (
               <View style={styles.fieldContainer}>
                 <Text style={styles.fieldLabel}>Which debt are you paying off?</Text>
-                {activeDebts.length > 0 ? (
-                  <View style={styles.listContainer}>
+                <View style={styles.listContainer}>
+                  <Pressable
+                    style={[styles.listItem, !formData.linkedDebtId && styles.listItemSelected]}
+                    onPress={() => updateField('linkedDebtId', undefined)}
+                  >
+                    {!formData.linkedDebtId ? (
+                      <CircleDot size={20} color={styles.primaryColor.color} />
+                    ) : (
+                      <Circle size={20} color={styles.textSecondary.color} />
+                    )}
+                    <Text style={styles.listItemText}>No debt</Text>
+                  </Pressable>
+                  {activeDebts.map((debt) => (
                     <Pressable
-                      style={[styles.listItem, !formData.linkedDebtId && styles.listItemSelected]}
-                      onPress={() => updateField('linkedDebtId', undefined)}
+                      key={debt.id}
+                      style={[styles.listItem, formData.linkedDebtId === debt.id && styles.listItemSelected]}
+                      onPress={() => updateField('linkedDebtId', debt.id)}
                     >
-                      {!formData.linkedDebtId ? (
+                      {formData.linkedDebtId === debt.id ? (
                         <CircleDot size={20} color={styles.primaryColor.color} />
                       ) : (
                         <Circle size={20} color={styles.textSecondary.color} />
                       )}
-                      <Text style={styles.listItemText}>No debt</Text>
+                      <View style={styles.listItemContent}>
+                        <Text style={styles.listItemText}>{debt.counterpartyName}</Text>
+                        <Text style={styles.listItemSubtext}>
+                          {debt.principalCurrency} {debt.principalAmount.toFixed(2)}
+                        </Text>
+                      </View>
                     </Pressable>
-                    {activeDebts.map((debt) => (
-                      <Pressable
-                        key={debt.id}
-                        style={[styles.listItem, formData.linkedDebtId === debt.id && styles.listItemSelected]}
-                        onPress={() => updateField('linkedDebtId', debt.id)}
-                      >
-                        {formData.linkedDebtId === debt.id ? (
-                          <CircleDot size={20} color={styles.primaryColor.color} />
-                        ) : (
-                          <Circle size={20} color={styles.textSecondary.color} />
-                        )}
-                        <View style={styles.listItemContent}>
-                          <Text style={styles.listItemText}>{debt.counterpartyName}</Text>
-                          <Text style={styles.listItemSubtext}>
-                            {debt.principalCurrency} {debt.principalAmount.toFixed(2)}
-                          </Text>
-                        </View>
-                      </Pressable>
-                    ))}
-                  </View>
-                ) : (
-                  <SmartHint type="info" message="No active debts. Create one in Finance tab." />
-                )}
+                  ))}
+                </View>
+                {/* Create New Debt button */}
+                <Pressable
+                  style={styles.createDebtButton}
+                  onPress={() => openDebtModal({ mode: 'create' })}
+                >
+                  <Plus size={18} color={styles.primaryColor.color} />
+                  <Text style={styles.createDebtButtonText}>Create New Debt</Text>
+                </Pressable>
                 <SmartHint type="success" message="Progress updates automatically when you make payments" />
               </View>
             )}
@@ -1128,6 +1187,50 @@ const useStyles = createThemedStyles((theme) => ({
     minHeight: 80,
     textAlignVertical: 'top',
   },
+  // Glass input styles
+  glassInputContainer: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    overflow: 'hidden',
+  },
+  glassInputError: {
+    borderColor: theme.colors.danger,
+  },
+  glassInput: {
+    padding: 14,
+    fontSize: 16,
+    color: theme.colors.textPrimary,
+  },
+  glassTextAreaContainer: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    overflow: 'hidden',
+  },
+  glassTextArea: {
+    padding: 14,
+    fontSize: 16,
+    color: theme.colors.textPrimary,
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
+  glassDateButton: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    overflow: 'hidden',
+  },
+  dateButtonInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 14,
+  },
+  // Icon color for FloatList items
+  iconColor: {
+    color: theme.colors.textSecondary,
+  },
   placeholder: {
     color: theme.colors.textMuted,
   },
@@ -1219,6 +1322,25 @@ const useStyles = createThemedStyles((theme) => ({
   },
   listContainer: {
     gap: 8,
+  },
+  createDebtButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: theme.colors.primary,
+    borderStyle: 'dashed',
+    backgroundColor: `${theme.colors.primary}08`,
+    marginTop: 4,
+  },
+  createDebtButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: theme.colors.primary,
   },
   listItem: {
     flexDirection: 'row',
