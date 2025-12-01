@@ -27,7 +27,6 @@ export interface Transaction {
   currency?: string;
   createdAt: Date;
   updatedAt?: Date;
-  relatedDebtId?: string;
   sourceTransactionId?: string;
   transferDirection?: 'incoming' | 'outgoing';
   goalId?: string;

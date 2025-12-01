@@ -5,12 +5,10 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  StyleProp,
   StyleSheet,
   Text,
   UIManager,
   View,
-  ViewStyle,
 } from 'react-native';
 import { AlarmClock, Check, MoreHorizontal, Sparkles, X } from 'lucide-react-native';
 import { FireIcon } from '../../../../assets/icons';
@@ -25,13 +23,13 @@ import type { AppTranslations } from '@/localization/strings';
 import { useSelectedDayStore } from '@/stores/selectedDayStore';
 import {
   buildHabits,
-  summarizeHabitLegendFromWeeks,
   type HabitCardModel,
   type HabitDayStatus,
 } from '@/features/planner/habits/data';
 import { usePlannerDomainStore } from '@/stores/usePlannerDomainStore';
 import { useSelectionStore } from '@/stores/useSelectionStore';
 import { useShallow } from 'zustand/react/shallow';
+import { startOfDay } from '@/utils/calendar';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -79,10 +77,21 @@ export default function PlannerHabitsTab() {
   } = useSelectionStore();
 
   const isHabitSelectionMode = isSelectionMode && entityType === 'habit';
-  const storedSelectedDate = useSelectedDayStore((state) => state.selectedDate);
-  const selectedDate = storedSelectedDate;
-  const activeDomainHabits = useMemo(() => domainHabits.filter((habit) => habit.status !== 'archived'), [domainHabits]);
-  const archivedDomainHabits = useMemo(() => domainHabits.filter((habit) => habit.status === 'archived'), [domainHabits]);
+  const selectedDate = useSelectedDayStore((state) => state.selectedDate);
+  const selectedDayStart = useMemo(() => startOfDay(selectedDate).getTime(), [selectedDate]);
+
+  const activeDomainHabits = useMemo(() =>
+    domainHabits.filter((habit) => {
+      if (habit.showStatus === 'archived' || habit.showStatus === 'deleted') return false;
+      const createdAtDay = startOfDay(new Date(habit.createdAt)).getTime();
+      return createdAtDay <= selectedDayStart;
+    }),
+    [domainHabits, selectedDayStart]
+  );
+  const archivedDomainHabits = useMemo(() =>
+    domainHabits.filter((habit) => habit.showStatus === 'archived' || habit.showStatus === 'deleted'),
+    [domainHabits]
+  );
   const goalTitleMap = useMemo(() => {
     const map: Record<string, string> = {};
     domainGoals.forEach((goal) => {
@@ -301,16 +310,6 @@ function HabitCard({
     .replace('{completed}', String(data.weeklyCompleted))
     .replace('{target}', String(data.weeklyTarget));
   const badgeText = `${data.badgeDays ?? data.streak} ${strings.badgeSuffix}`;
-  const legendSummary = useMemo(() => summarizeHabitLegendFromWeeks(data.calendarWeeks), [data.calendarWeeks]);
-  const legendDescriptions = useMemo(() => {
-    const formatHint = (template: string, slice: { count: number; percent: number }) =>
-      template.replace('{count}', String(slice.count)).replace('{percent}', String(slice.percent));
-    return {
-      done: formatHint(strings.calendarLegendHint.done, legendSummary.done),
-      miss: formatHint(strings.calendarLegendHint.miss, legendSummary.miss),
-      none: formatHint(strings.calendarLegendHint.none, legendSummary.none),
-    };
-  }, [legendSummary, strings.calendarLegendHint]);
   const goalLabels =
     data.linkedGoalIds?.map((goalId) => goalTitles[goalId] ?? goalId) ?? [];
   const isCompletedToday = data.todayStatus === 'done';
@@ -326,7 +325,6 @@ function HabitCard({
     }
   }, [data.id, disablePrimary, isCompletedToday, onLog]);
   const handleFail = useCallback(() => onLog(data.id, false), [data.id, onLog]);
-  const [legendHint, setLegendHint] = useState<string | null>(null);
 
   return (
     <AdaptiveGlassView style={styles.card}>
@@ -535,8 +533,8 @@ function DayBubble({ status }: { status: HabitDayStatus }) {
     borderRadius: 9,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.border,
+    borderWidth: 1.2,
+    borderColor: theme.mode === 'dark' ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.2)',
     backgroundColor: 'transparent',
   };
 
@@ -594,7 +592,7 @@ function GlassButton({
     <Pressable
       onPress={onPress}
       disabled={!onPress || disabled}
-      style={({ pressed }) => [pressed && onPress && !disabled && styles.pressed]}
+      style={({ pressed }) => [pressed && onPress && !disabled && { opacity: 0.85 }]}
     >
       <AdaptiveGlassView
         style={[
@@ -618,7 +616,7 @@ function GlassChip({ label, onPress, disabled }: { label: string; onPress?: () =
     <Pressable
       onPress={onPress}
       disabled={!onPress || disabled}
-      style={({ pressed }) => [pressed && onPress && !disabled && styles.pressed]}
+      style={({ pressed }) => [pressed && onPress && !disabled && { opacity: 0.85 }]}
     >
       <AdaptiveGlassView style={[styles.chip, disabled && { opacity: 0.4 }]}>
         <Text style={styles.chipText}>{label}</Text>
@@ -626,17 +624,6 @@ function GlassChip({ label, onPress, disabled }: { label: string; onPress?: () =
     </Pressable>
   );
 }
-
-function BlockBadge({ icon, text }: { icon: React.ReactNode; text: string }) {
-  const styles = useStyles();
-  return (
-    <View style={styles.blockBadgeRow}>
-      {icon}
-      <Text style={styles.blockBadgeText}>{text}</Text>
-    </View>
-  );
-}
-
 
 // -------------------------------------
 // Styles
@@ -861,28 +848,3 @@ const useStyles = createThemedStyles((theme) => ({
   historyLabel: { fontSize: 14, fontWeight: '700', letterSpacing: 0.3, color: theme.colors.textSecondary },
   historyHint: { fontSize: 12, fontWeight: '500', color: theme.colors.textTertiary },
 }));
-function LegendButton({
-  label,
-  dotStyle,
-  description,
-  onHint,
-}: {
-  label: string;
-  dotStyle: StyleProp<ViewStyle>;
-  description: string;
-  onHint: (text: string | null) => void;
-}) {
-  const styles = useStyles();
-  return (
-    <Pressable
-      onPressIn={() => onHint(description)}
-      onPressOut={() => onHint(null)}
-      style={({ pressed }) => [pressed && styles.pressed]}
-    >
-      <View style={styles.calendarLegendItem}>
-        <View style={dotStyle} />
-        <Text style={styles.calendarLegendText}>{label}</Text>
-      </View>
-    </Pressable>
-  );
-}

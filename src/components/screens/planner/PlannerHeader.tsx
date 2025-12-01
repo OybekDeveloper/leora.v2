@@ -10,9 +10,10 @@ import DateChangeModal from '@/components/modals/DateChangeModal';
 import { BottomSheetHandle } from '@/components/modals/BottomSheet';
 import { useSelectedDayStore } from '@/stores/selectedDayStore';
 import { HeartPulse } from 'lucide-react-native';
-import { startOfDay, toISODateKey } from '@/utils/calendar';
+import { addDays, startOfDay, startOfMonth, startOfWeek, toISODateKey } from '@/utils/calendar';
 import { usePlannerDomainStore } from '@/stores/usePlannerDomainStore';
-import type { CalendarEventMap, CalendarEventType } from '@/types/home';
+import { calculateHabitProgress, calculateTaskProgressByDueDate } from '@/utils/progressCalculator';
+import type { CalendarEventMap, CalendarEventType, CalendarIndicatorsMap, CalendarProgressMap, HomeDataStatus, ProgressData } from '@/types/home';
 
 interface PlannerHeaderProps {
   title?: string;
@@ -60,13 +61,23 @@ export default function PlannerHeader({ title }: PlannerHeaderProps) {
     [setSelectedDate],
   );
 
-  const calendarEvents = useMemo<CalendarEventMap>(() => {
+  const { calendarEvents, calendarProgress, calendarIndicators } = useMemo(() => {
     const events: CalendarEventMap = {};
+    const dateKeys = new Set<string>();
+
+    // Generate all 42 days for calendar view
+    const monthStart = startOfMonth(selectedDate);
+    const calendarStart = startOfWeek(monthStart);
+    for (let i = 0; i < 42; i++) {
+      dateKeys.add(toISODateKey(addDays(calendarStart, i)));
+    }
+
     const register = (value: string | Date | undefined | null, type: CalendarEventType) => {
       if (!value) return;
       const date = typeof value === 'string' ? new Date(value) : value;
       if (Number.isNaN(date.getTime())) return;
       const iso = toISODateKey(date);
+      dateKeys.add(iso);
       if (!events[iso]) {
         events[iso] = {};
       }
@@ -83,8 +94,38 @@ export default function PlannerHeader({ title }: PlannerHeaderProps) {
       goal.milestones?.forEach((milestone) => register(milestone.completedAt ?? milestone.dueDate, 'goals'));
     });
 
-    return events;
-  }, [plannerData.goals, plannerData.habits, plannerData.tasks]);
+    // Compute progress and indicators for each date
+    const progressMap: CalendarProgressMap = {};
+    const indicators: CalendarIndicatorsMap = {};
+
+    const mapValueToStatus = (value: number): HomeDataStatus => {
+      if (value >= 70) return 'success';
+      if (value >= 40) return 'warning';
+      if (value > 0) return 'danger';
+      return 'muted';
+    };
+
+    dateKeys.forEach((key) => {
+      const date = startOfDay(new Date(key));
+      const tasksProgress = calculateTaskProgressByDueDate(plannerData.tasks, date);
+      const habitsProgress = calculateHabitProgress(plannerData.habits, date);
+
+      const dayProgress: ProgressData = {
+        tasks: tasksProgress,
+        budget: 0, // Planner doesn't have budget context
+        focus: habitsProgress,
+      };
+
+      progressMap[key] = dayProgress;
+      indicators[key] = [
+        mapValueToStatus(tasksProgress),
+        'muted', // budget
+        mapValueToStatus(habitsProgress),
+      ];
+    });
+
+    return { calendarEvents: events, calendarProgress: progressMap, calendarIndicators: indicators };
+  }, [plannerData.goals, plannerData.habits, plannerData.tasks, selectedDate]);
 
   return (
     <>
@@ -125,6 +166,8 @@ export default function PlannerHeader({ title }: PlannerHeaderProps) {
         ref={calendarSheetRef}
         selectedDate={selectedDate}
         events={calendarEvents}
+        progress={calendarProgress}
+        indicators={calendarIndicators}
         onSelectDate={handleSelectDate}
       />
     </>

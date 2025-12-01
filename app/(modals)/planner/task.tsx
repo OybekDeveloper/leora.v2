@@ -91,9 +91,14 @@ const combineDateAndTime = (mode: AddTaskDateMode, dateValue?: Date, timeValue?:
   return base;
 };
 
-const validateSchedule = (mode: AddTaskDateMode, dateValue?: Date, timeValue?: string): ScheduleValidation => {
+const validateSchedule = (
+  mode: AddTaskDateMode,
+  dateValue: Date | undefined,
+  timeValue: string | undefined,
+  validationStrings: { selectDate: string; pastDate: string; futureTime: string },
+): ScheduleValidation => {
   if (mode === 'pick' && !dateValue) {
-    return { valid: false, message: 'Please select a date' };
+    return { valid: false, message: validationStrings.selectDate };
   }
   const now = new Date();
   const selected = combineDateAndTime(mode, dateValue, timeValue);
@@ -101,11 +106,11 @@ const validateSchedule = (mode: AddTaskDateMode, dateValue?: Date, timeValue?: s
   const today = toStartOfDay(now);
 
   if (selectedDay.getTime() < today.getTime()) {
-    return { valid: false, message: 'Cannot pick a past date' };
+    return { valid: false, message: validationStrings.pastDate };
   }
 
   if (selectedDay.getTime() === today.getTime() && selected.getTime() < now.getTime()) {
-    return { valid: false, message: 'Time must be in the future' };
+    return { valid: false, message: validationStrings.futureTime };
   }
 
   return { valid: true };
@@ -216,7 +221,7 @@ export default function TaskModalScreen() {
     setSubmitted(true);
     if (!title.trim()) return;
 
-    const validation = validateSchedule(dateMode, date, time);
+    const validation = validateSchedule(dateMode, date, time, addTaskStrings.validation);
     if (!validation.valid) {
       setScheduleError(validation.message);
       return;
@@ -291,7 +296,7 @@ export default function TaskModalScreen() {
             display: 'calendar',
             onChange: (event, selected) => {
               if (event.type === 'set' && selected) {
-                const validation = validateSchedule('pick', selected, time);
+                const validation = validateSchedule('pick', selected, time, addTaskStrings.validation);
                 if (!validation.valid) {
                   setScheduleError(validation.message);
                   return;
@@ -318,7 +323,7 @@ export default function TaskModalScreen() {
       return;
     }
     if (selectedDate) {
-      const validation = validateSchedule('pick', selectedDate, time);
+      const validation = validateSchedule('pick', selectedDate, time, addTaskStrings.validation);
       if (!validation.valid) {
         setScheduleError(validation.message);
         return;
@@ -328,7 +333,7 @@ export default function TaskModalScreen() {
       setScheduleError(undefined);
     }
     setShowDatePicker(false);
-  }, [time]);
+  }, [addTaskStrings.validation, time]);
 
   const timePickerValue = useMemo(() => {
     const base = new Date();
@@ -356,7 +361,7 @@ export default function TaskModalScreen() {
         return;
       }
       if (selectedTime) {
-        const validation = validateSchedule(dateMode, date, `${selectedTime.getHours().toString().padStart(2, '0')}:${selectedTime.getMinutes().toString().padStart(2, '0')}`);
+        const validation = validateSchedule(dateMode, date, `${selectedTime.getHours().toString().padStart(2, '0')}:${selectedTime.getMinutes().toString().padStart(2, '0')}`, addTaskStrings.validation);
         if (!validation.valid) {
           setScheduleError(validation.message);
           return;
@@ -366,7 +371,7 @@ export default function TaskModalScreen() {
       }
       setShowTimePicker(false);
     },
-    [applyTimeSelection, date, dateMode],
+    [addTaskStrings.validation, applyTimeSelection, date, dateMode],
   );
 
   const handleOpenTimeSheet = useCallback(() => {
@@ -379,7 +384,7 @@ export default function TaskModalScreen() {
         onChange: (event, selected) => {
           if (event.type === 'set' && selected) {
             const nextTime = `${selected.getHours().toString().padStart(2, '0')}:${selected.getMinutes().toString().padStart(2, '0')}`;
-            const validation = validateSchedule(dateMode, date, nextTime);
+            const validation = validateSchedule(dateMode, date, nextTime, addTaskStrings.validation);
             if (!validation.valid) {
               setScheduleError(validation.message);
               return;
@@ -392,13 +397,13 @@ export default function TaskModalScreen() {
       return;
     }
     setShowTimePicker(true);
-  }, [applyTimeSelection, date, dateMode, timePickerValue]);
+  }, [addTaskStrings.validation, applyTimeSelection, date, dateMode, timePickerValue]);
 
   const timeLabel = time ?? addTaskStrings.timePlaceholder;
   useEffect(() => {
-    const validation = validateSchedule(dateMode, date, time);
+    const validation = validateSchedule(dateMode, date, time, addTaskStrings.validation);
     setScheduleError(validation.valid ? undefined : validation.message);
-  }, [date, dateMode, time]);
+  }, [addTaskStrings.validation, date, dateMode, time]);
 
   const disablePrimary = !title.trim() || Boolean(scheduleError);
 
@@ -408,10 +413,10 @@ export default function TaskModalScreen() {
         {/* Header outside KeyboardAvoidingView */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>
-            {taskId ? 'Edit Task' : 'Create Task'}
+            {taskId ? addTaskStrings.editTitle : addTaskStrings.createTitle}
           </Text>
           <Pressable onPress={() => router.back()} hitSlop={12}>
-            <Text style={styles.closeText}>Close</Text>
+            <Text style={styles.closeText}>{addTaskStrings.close}</Text>
           </Pressable>
         </View>
 
@@ -428,7 +433,7 @@ export default function TaskModalScreen() {
             {/* Task title */}
             <View style={styles.fieldSection}>
               <Text style={styles.fieldLabel}>
-                Task title <Text style={styles.required}>*</Text>
+                {addTaskStrings.nameLabel} <Text style={styles.required}>{addTaskStrings.titleRequired}</Text>
               </Text>
               <AdaptiveGlassView
                 style={[
@@ -440,7 +445,7 @@ export default function TaskModalScreen() {
                   value={title}
                   onChangeText={setTitle}
                   onBlur={() => setTitleTouched(true)}
-                  placeholder="Title"
+                  placeholder={addTaskStrings.namePlaceholder}
                   placeholderTextColor={theme.colors.textMuted}
                   style={styles.textInput}
                   autoFocus
@@ -508,14 +513,14 @@ export default function TaskModalScreen() {
 
             {/* When */}
             <View style={styles.fieldSection}>
-              <Text style={styles.fieldLabel}>When</Text>
+              <Text style={styles.fieldLabel}>{addTaskStrings.whenLabel}</Text>
               <View style={styles.dateRow}>
                 {DATE_OPTIONS.map((option) => {
                   const isActive = dateMode === option;
                   const Icon =
                     option === 'today' ? Square : option === 'tomorrow' ? SquareCheck : CalendarDays;
                   const label =
-                    option === 'today' ? 'Today' : option === 'tomorrow' ? 'Tomorrow' : 'Pick a date';
+                    option === 'today' ? addTaskStrings.whenOptions.today : option === 'tomorrow' ? addTaskStrings.whenOptions.tomorrow : addTaskStrings.whenOptions.pick;
 
                   return (
                     <Pressable
@@ -561,12 +566,12 @@ export default function TaskModalScreen() {
 
             {/* Description/Notes */}
             <View style={styles.fieldSection}>
-              <Text style={styles.fieldLabel}>Description</Text>
+              <Text style={styles.fieldLabel}>{addTaskStrings.descriptionLabel}</Text>
               <AdaptiveGlassView style={styles.descriptionContainer}>
                 <TextInput
                   value={notes}
                   onChangeText={setNotes}
-                  placeholder="Description (not necessary)"
+                  placeholder={addTaskStrings.descriptionPlaceholder}
                   placeholderTextColor={theme.colors.textMuted}
                   multiline
                   style={styles.descriptionInput}
@@ -576,7 +581,7 @@ export default function TaskModalScreen() {
 
             {/* Context */}
             <View style={styles.fieldSection}>
-              <Text style={styles.fieldLabel}>Context</Text>
+              <Text style={styles.fieldLabel}>{addTaskStrings.context}</Text>
               <Dropdown
                 mode="default"
                 data={categoryOptions}
@@ -619,13 +624,13 @@ export default function TaskModalScreen() {
 
             {/* Energy */}
             <View style={styles.fieldSection}>
-              <Text style={styles.fieldLabel}>Energy Level</Text>
+              <Text style={styles.fieldLabel}>{addTaskStrings.energy}</Text>
               <Dropdown
                 mode="default"
                 data={[
-                  { value: 1, label: 'Low' },
-                  { value: 2, label: 'Medium' },
-                  { value: 3, label: 'High' },
+                  { value: 1, label: addTaskStrings.energyOptions.low },
+                  { value: 2, label: addTaskStrings.energyOptions.medium },
+                  { value: 3, label: addTaskStrings.energyOptions.high },
                 ]}
                 labelField="label"
                 valueField="value"
@@ -678,13 +683,13 @@ export default function TaskModalScreen() {
 
             {/* Priority */}
             <View style={styles.fieldSection}>
-              <Text style={styles.fieldLabel}>Priority</Text>
+              <Text style={styles.fieldLabel}>{addTaskStrings.priority}</Text>
               <Dropdown
                 mode="default"
                 data={[
-                  { value: 'low' as TaskPriorityLevel, label: 'Low' },
-                  { value: 'medium' as TaskPriorityLevel, label: 'Medium' },
-                  { value: 'high' as TaskPriorityLevel, label: 'High' },
+                  { value: 'low' as TaskPriorityLevel, label: addTaskStrings.priorityOptions.low },
+                  { value: 'medium' as TaskPriorityLevel, label: addTaskStrings.priorityOptions.medium },
+                  { value: 'high' as TaskPriorityLevel, label: addTaskStrings.priorityOptions.high },
                 ]}
                 labelField="label"
                 valueField="value"
@@ -731,7 +736,7 @@ export default function TaskModalScreen() {
             {/* Finance Link */}
             <View style={styles.fieldSection}>
               <Text style={styles.fieldLabel}>
-                Finance Action
+                {addTaskStrings.financeAction}
               </Text>
               <View style={styles.financeLinkGrid}>
                 <Pressable onPress={() => setFinanceLink('record_expenses')}>
@@ -751,7 +756,7 @@ export default function TaskModalScreen() {
                         financeLink === 'record_expenses' && styles.financeLinkLabelActive,
                       ]}
                     >
-                      Record expenses
+                      {addTaskStrings.financeOptions.recordExpenses}
                     </Text>
                   </AdaptiveGlassView>
                 </Pressable>
@@ -773,7 +778,7 @@ export default function TaskModalScreen() {
                         financeLink === 'pay_debt' && styles.financeLinkLabelActive,
                       ]}
                     >
-                      Pay debt
+                      {addTaskStrings.financeOptions.payDebt}
                     </Text>
                   </AdaptiveGlassView>
                 </Pressable>
@@ -795,7 +800,7 @@ export default function TaskModalScreen() {
                         financeLink === 'review_budget' && styles.financeLinkLabelActive,
                       ]}
                     >
-                      Review budget
+                      {addTaskStrings.financeOptions.reviewBudget}
                     </Text>
                   </AdaptiveGlassView>
                 </Pressable>
@@ -817,7 +822,7 @@ export default function TaskModalScreen() {
                         financeLink === 'transfer_money' && styles.financeLinkLabelActive,
                       ]}
                     >
-                      Transfer money
+                      {addTaskStrings.financeOptions.transferMoney}
                     </Text>
                   </AdaptiveGlassView>
                 </Pressable>
@@ -836,7 +841,7 @@ export default function TaskModalScreen() {
                         financeLink === 'none' && styles.financeLinkLabelActive,
                       ]}
                     >
-                      None
+                      {addTaskStrings.financeOptions.none}
                     </Text>
                   </AdaptiveGlassView>
                 </Pressable>
@@ -845,14 +850,14 @@ export default function TaskModalScreen() {
 
             {/* Additional */}
             <View style={styles.fieldSection}>
-              <Text style={styles.fieldLabel}>Additional</Text>
+              <Text style={styles.fieldLabel}>{addTaskStrings.additional}</Text>
 
               {/* Reminder */}
               <AdaptiveGlassView style={styles.switchRow}>
                 <View style={styles.switchLeft}>
                   <Bell size={18} color={theme.colors.textSecondary} />
                   <Text style={styles.switchLabel}>
-                    Reminder before
+                    {addTaskStrings.reminderBefore}
                   </Text>
                 </View>
                 <View style={styles.switchRight}>
@@ -873,7 +878,7 @@ export default function TaskModalScreen() {
                 <View style={styles.switchLeft}>
                   <Repeat size={18} color={theme.colors.textSecondary} />
                   <Text style={styles.switchLabel}>
-                    Repeat
+                    {addTaskStrings.repeat}
                   </Text>
                 </View>
                 <View style={styles.switchRight}>
@@ -894,7 +899,7 @@ export default function TaskModalScreen() {
                 <View style={styles.switchLeft}>
                   <Heart size={18} color={theme.colors.textSecondary} />
                   <Text style={styles.switchLabel}>
-                    Need FOCUS
+                    {addTaskStrings.needFocus}
                   </Text>
                 </View>
                 <Switch
@@ -911,7 +916,7 @@ export default function TaskModalScreen() {
                   <View style={styles.switchLeft}>
                     <List size={18} color={theme.colors.textSecondary} />
                     <Text style={styles.switchLabel}>
-                      Subtasks:
+                      {addTaskStrings.subtasks}
                     </Text>
                   </View>
                   <ChevronDown size={18} color={theme.colors.textSecondary} />
@@ -954,7 +959,7 @@ export default function TaskModalScreen() {
               >
                 <AdaptiveGlassView style={styles.secondaryButtonInner}>
                   <Text style={styles.secondaryButtonText}>
-                    Cancel
+                    {addTaskStrings.cancel}
                   </Text>
                 </AdaptiveGlassView>
               </Pressable>
@@ -967,7 +972,7 @@ export default function TaskModalScreen() {
                 ]}
               >
                 <Text style={styles.primaryButtonText}>
-                  {taskId ? 'Update' : 'Create'} task
+                  {taskId ? addTaskStrings.update : addTaskStrings.submit}
                 </Text>
               </Pressable>
             </View>
@@ -1000,7 +1005,7 @@ export default function TaskModalScreen() {
                 style={styles.timePickerDoneButton}
                 onPress={() => setShowTimePicker(false)}
               >
-                <Text style={styles.timePickerDoneText}>Done</Text>
+                <Text style={styles.timePickerDoneText}>{addTaskStrings.done}</Text>
               </Pressable>
             </View>
           </View>
@@ -1031,7 +1036,7 @@ export default function TaskModalScreen() {
                 style={styles.timePickerDoneButton}
                 onPress={() => setShowDatePicker(false)}
               >
-                <Text style={styles.timePickerDoneText}>Done</Text>
+                <Text style={styles.timePickerDoneText}>{addTaskStrings.done}</Text>
               </Pressable>
             </View>
           </View>

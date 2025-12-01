@@ -46,6 +46,7 @@ import {
 
 import { AdaptiveGlassView } from '@/components/ui/AdaptiveGlassView';
 import { Theme, useAppTheme } from '@/constants/theme';
+import { useSecuritySettingsLocalization } from '@/localization/more/security';
 import {
   DEFAULT_AUTO_LOCK_MS,
   DEFAULT_UNLOCK_GRACE_MS,
@@ -73,20 +74,8 @@ const SECTION_KEYS: SectionKey[] = [
 
 const SCROLL_OFFSET = 96;
 
-const AUTO_LOCK_OPTIONS = [
-  { label: '30 sec', value: 30 * 1000 },
-  { label: '1 min', value: 60 * 1000 },
-  { label: '5 min', value: 5 * 60 * 1000 },
-  { label: '10 min', value: 10 * 60 * 1000 },
-  { label: 'Never', value: 0 },
-] as const;
-
-const UNLOCK_GRACE_OPTIONS = [
-  { label: 'Immediately', value: 0 },
-  { label: '15 sec', value: 15 * 1000 },
-  { label: '30 sec', value: 30 * 1000 },
-  { label: '1 min', value: 60 * 1000 },
-] as const;
+const AUTO_LOCK_VALUES = [30 * 1000, 60 * 1000, 5 * 60 * 1000, 10 * 60 * 1000, 0] as const;
+const UNLOCK_GRACE_VALUES = [0, 15 * 1000, 30 * 1000, 60 * 1000] as const;
 
 const createStyles = (theme: Theme) =>
   StyleSheet.create({
@@ -373,6 +362,7 @@ const useSectionRegistry = (
 const SecuritySettingsScreen: React.FC = () => {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const t = useSecuritySettingsLocalization();
 
   const router = useRouter();
   const scrollRef = useRef<ScrollView>(null);
@@ -508,36 +498,57 @@ const SecuritySettingsScreen: React.FC = () => {
   const fingerprintRowDisabled =
     !supportsFingerprint || biometricUnavailable || securityControlsDisabled;
   const faceIdDescription = supportsFaceId
-    ? 'Require Face ID whenever launching the app.'
-    : 'Face ID is not available on this device.';
+    ? t.securityType.faceId.descriptionAvailable
+    : t.securityType.faceId.descriptionUnavailable;
   const fingerprintDescription = supportsFingerprint
-    ? 'Unlock with your saved fingerprint on this device.'
-    : 'Fingerprint unlock is not supported on this device.';
+    ? t.securityType.fingerprint.descriptionAvailable
+    : t.securityType.fingerprint.descriptionUnavailable;
+
+  const autoLockOptions = useMemo(
+    () => [
+      { label: t.timeOptions.sec30, value: 30 * 1000 },
+      { label: t.timeOptions.min1, value: 60 * 1000 },
+      { label: t.timeOptions.min5, value: 5 * 60 * 1000 },
+      { label: t.timeOptions.min10, value: 10 * 60 * 1000 },
+      { label: t.timeOptions.never, value: 0 },
+    ],
+    [t],
+  );
+
+  const unlockGraceOptions = useMemo(
+    () => [
+      { label: t.timeOptions.immediately, value: 0 },
+      { label: t.timeOptions.sec15, value: 15 * 1000 },
+      { label: t.timeOptions.sec30, value: 30 * 1000 },
+      { label: t.timeOptions.min1, value: 60 * 1000 },
+    ],
+    [t],
+  );
 
   const autoLockLabel = useMemo(() => {
     if (autoLockTimeoutMs <= 0) {
-      return 'Never';
+      return t.timeOptions.never;
     }
-    const preset = AUTO_LOCK_OPTIONS.find(
+    const preset = autoLockOptions.find(
       (option) => option.value === autoLockTimeoutMs,
     );
     if (preset) return preset.label;
     if (autoLockTimeoutMs % (60 * 1000) === 0) {
-      return `${Math.round(autoLockTimeoutMs / (60 * 1000))} min`;
+      return `${Math.round(autoLockTimeoutMs / (60 * 1000))} ${t.timeOptions.min1.replace('1 ', '')}`;
     }
-    return `${Math.round(autoLockTimeoutMs / 1000)} sec`;
-  }, [autoLockTimeoutMs]);
+    return `${Math.round(autoLockTimeoutMs / 1000)} ${t.timeOptions.sec30.replace('30 ', '')}`;
+  }, [autoLockTimeoutMs, autoLockOptions, t]);
 
   const unlockGraceLabel = useMemo(() => {
-    const preset = UNLOCK_GRACE_OPTIONS.find(
+    const preset = unlockGraceOptions.find(
       (option) => option.value === unlockGraceMs,
     );
     if (preset) return preset.label;
     if (unlockGraceMs % (60 * 1000) === 0) {
-      return `${Math.round(unlockGraceMs / (60 * 1000))} min`;
+      return `${Math.round(unlockGraceMs / (60 * 1000))} ${t.timeOptions.min1.replace('1 ', '')}`;
     }
-    return `${Math.round(unlockGraceMs / 1000)} sec`;
-  }, [unlockGraceMs]);
+    return `${Math.round(unlockGraceMs / 1000)} ${t.timeOptions.sec30.replace('30 ', '')}`;
+  }, [unlockGraceMs, unlockGraceOptions, t]);
 
   const handleOpenPasswordModal = useCallback(
     (mode: 'create' | 'update') => {
@@ -712,22 +723,16 @@ const SecuritySettingsScreen: React.FC = () => {
           <AdaptiveGlassView style={styles.heroCard}>
             <View style={styles.heroBadge}>
               <CheckCircle size={18} color={theme.colors.success} />
-              <Text style={styles.heroBadgeText}>Security posture good</Text>
+              <Text style={styles.heroBadgeText}>{t.hero.badge}</Text>
             </View>
-            <Text style={styles.heroTitle}>Protect your LEORA workspace</Text>
-            <Text style={styles.heroDescription}>
-              Enable the controls below to keep personal data safe across
-              devices. Manage biometrics, two-factor verification, and backup
-              routines from one place.
-            </Text>
+            <Text style={styles.heroTitle}>{t.hero.title}</Text>
+            <Text style={styles.heroDescription}>{t.hero.description}</Text>
           </AdaptiveGlassView>
 
           <View style={styles.section} onLayout={register('security-type')}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Security type</Text>
-              <Text style={styles.sectionSubtitle}>
-                Configure how the app unlocks and how quickly it locks again.
-              </Text>
+              <Text style={styles.sectionTitle}>{t.sections.securityType.title}</Text>
+              <Text style={styles.sectionSubtitle}>{t.sections.securityType.subtitle}</Text>
             </View>
             <AdaptiveGlassView style={styles.card}>
               <View style={styles.row}>
@@ -736,10 +741,8 @@ const SecuritySettingsScreen: React.FC = () => {
                     <ShieldCheck size={18} color={theme.colors.iconText} />
                   </View>
                   <View style={styles.rowLabels}>
-                    <Text style={styles.rowLabel}>Biometrics</Text>
-                    <Text style={styles.rowDescription}>
-                      Use Face ID or fingerprint to unlock instantly.
-                    </Text>
+                    <Text style={styles.rowLabel}>{t.securityType.biometrics.label}</Text>
+                    <Text style={styles.rowDescription}>{t.securityType.biometrics.description}</Text>
                   </View>
                 </View>
                 <Switch
@@ -761,10 +764,8 @@ const SecuritySettingsScreen: React.FC = () => {
                       <Lock size={18} color={theme.colors.iconText} />
                     </View>
                     <View style={styles.rowLabels}>
-                      <Text style={styles.rowLabel}>Face ID</Text>
-                      <Text style={styles.rowDescription}>
-                        {faceIdDescription}
-                      </Text>
+                      <Text style={styles.rowLabel}>{t.securityType.faceId.label}</Text>
+                      <Text style={styles.rowDescription}>{faceIdDescription}</Text>
                     </View>
                   </View>
                   <Switch
@@ -787,10 +788,8 @@ const SecuritySettingsScreen: React.FC = () => {
                       <Fingerprint size={18} color={theme.colors.iconText} />
                     </View>
                     <View style={styles.rowLabels}>
-                      <Text style={styles.rowLabel}>Fingerprint</Text>
-                      <Text style={styles.rowDescription}>
-                        {fingerprintDescription}
-                      </Text>
+                      <Text style={styles.rowLabel}>{t.securityType.fingerprint.label}</Text>
+                      <Text style={styles.rowDescription}>{fingerprintDescription}</Text>
                     </View>
                   </View>
                   <Switch
@@ -812,10 +811,8 @@ const SecuritySettingsScreen: React.FC = () => {
                     <KeyRound size={18} color={theme.colors.iconText} />
                   </View>
                   <View style={styles.rowLabels}>
-                    <Text style={styles.rowLabel}>PIN code</Text>
-                    <Text style={styles.rowDescription}>
-                      Set a 4-digit fallback when biometrics are unavailable.
-                    </Text>
+                    <Text style={styles.rowLabel}>{t.securityType.pinCode.label}</Text>
+                    <Text style={styles.rowDescription}>{t.securityType.pinCode.description}</Text>
                   </View>
                 </View>
                 <Switch
@@ -841,16 +838,16 @@ const SecuritySettingsScreen: React.FC = () => {
                       <Lock size={18} color={theme.colors.iconText} />
                     </View>
                     <View style={styles.rowLabels}>
-                      <Text style={styles.rowLabel}>Password</Text>
+                      <Text style={styles.rowLabel}>{t.securityType.password.label}</Text>
                       <Text style={styles.rowDescription}>
                         {hasPassword
-                          ? 'Change the main account password.'
-                          : 'Create a password to secure your data.'}
+                          ? t.securityType.password.descriptionChange
+                          : t.securityType.password.descriptionCreate}
                       </Text>
                     </View>
                   </View>
                   <Text style={styles.rowMeta}>
-                    {hasPassword ? 'Change' : 'Create'}
+                    {hasPassword ? t.securityType.password.change : t.securityType.password.create}
                   </Text>
                 </View>
               </Pressable>
@@ -861,10 +858,8 @@ const SecuritySettingsScreen: React.FC = () => {
                     <WifiOff size={18} color={theme.colors.iconText} />
                   </View>
                   <View style={styles.rowLabels}>
-                    <Text style={styles.rowLabel}>Turn security off</Text>
-                    <Text style={styles.rowDescription}>
-                      Disable all security checks on launch.
-                    </Text>
+                    <Text style={styles.rowLabel}>{t.securityType.turnSecurityOff.label}</Text>
+                    <Text style={styles.rowDescription}>{t.securityType.turnSecurityOff.description}</Text>
                   </View>
                 </View>
                 <Switch
@@ -884,10 +879,8 @@ const SecuritySettingsScreen: React.FC = () => {
                     <Timer size={18} color={theme.colors.iconText} />
                   </View>
                   <View style={styles.rowLabels}>
-                    <Text style={styles.rowLabel}>Ask when launch</Text>
-                    <Text style={styles.rowDescription}>
-                      Prompt for security credentials on every start.
-                    </Text>
+                    <Text style={styles.rowLabel}>{t.securityType.askOnLaunch.label}</Text>
+                    <Text style={styles.rowDescription}>{t.securityType.askOnLaunch.description}</Text>
                   </View>
                 </View>
                 <Switch
@@ -908,16 +901,14 @@ const SecuritySettingsScreen: React.FC = () => {
                     <Smartphone size={18} color={theme.colors.iconText} />
                   </View>
                   <View style={styles.rowLabels}>
-                    <Text style={styles.rowLabel}>Autoblock after</Text>
-                    <Text style={styles.rowDescription}>
-                      Choose how long the app stays unlocked when inactive.
-                    </Text>
+                    <Text style={styles.rowLabel}>{t.securityType.autoblockAfter.label}</Text>
+                    <Text style={styles.rowDescription}>{t.securityType.autoblockAfter.description}</Text>
                   </View>
                 </View>
                 <Text style={styles.rowMeta}>{autoLockLabel}</Text>
               </View>
               <View style={styles.chipRow}>
-                {AUTO_LOCK_OPTIONS.map((option) => {
+                {autoLockOptions.map((option) => {
                   const active = option.value === autoLockTimeoutMs;
                   return (
                     <Pressable
@@ -950,16 +941,14 @@ const SecuritySettingsScreen: React.FC = () => {
                     <Timer size={18} color={theme.colors.iconText} />
                   </View>
                   <View style={styles.rowLabels}>
-                    <Text style={styles.rowLabel}>Unlock grace period</Text>
-                    <Text style={styles.rowDescription}>
-                      Decide how soon the lock appears after leaving the app.
-                    </Text>
+                    <Text style={styles.rowLabel}>{t.securityType.unlockGracePeriod.label}</Text>
+                    <Text style={styles.rowDescription}>{t.securityType.unlockGracePeriod.description}</Text>
                   </View>
                 </View>
                 <Text style={styles.rowMeta}>{unlockGraceLabel}</Text>
               </View>
               <View style={styles.chipRow}>
-                {UNLOCK_GRACE_OPTIONS.map((option) => {
+                {unlockGraceOptions.map((option) => {
                   const active = option.value === unlockGraceMs;
                   return (
                     <Pressable
@@ -990,10 +979,8 @@ const SecuritySettingsScreen: React.FC = () => {
 
           <View style={styles.section} onLayout={register('data-security')}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Data security</Text>
-              <Text style={styles.sectionSubtitle}>
-                Protect stored data and sensitive information in the UI.
-              </Text>
+              <Text style={styles.sectionTitle}>{t.sections.dataSecurity.title}</Text>
+              <Text style={styles.sectionSubtitle}>{t.sections.dataSecurity.subtitle}</Text>
             </View>
             <AdaptiveGlassView style={styles.card}>
               <View style={styles.row}>
@@ -1002,10 +989,8 @@ const SecuritySettingsScreen: React.FC = () => {
                     <Database size={18} color={theme.colors.iconText} />
                   </View>
                   <View style={styles.rowLabels}>
-                    <Text style={styles.rowLabel}>Database encryption</Text>
-                    <Text style={styles.rowDescription}>
-                      Encrypt data at rest with AES-256.
-                    </Text>
+                    <Text style={styles.rowLabel}>{t.dataSecurity.databaseEncryption.label}</Text>
+                    <Text style={styles.rowDescription}>{t.dataSecurity.databaseEncryption.description}</Text>
                   </View>
                 </View>
                 <Switch
@@ -1025,10 +1010,8 @@ const SecuritySettingsScreen: React.FC = () => {
                     <EyeOff size={18} color={theme.colors.iconText} />
                   </View>
                   <View style={styles.rowLabels}>
-                    <Text style={styles.rowLabel}>Hide balances on preview</Text>
-                    <Text style={styles.rowDescription}>
-                      Blur financial numbers until the app is unlocked.
-                    </Text>
+                    <Text style={styles.rowLabel}>{t.dataSecurity.hideBalances.label}</Text>
+                    <Text style={styles.rowDescription}>{t.dataSecurity.hideBalances.description}</Text>
                   </View>
                 </View>
                 <Switch
@@ -1048,10 +1031,8 @@ const SecuritySettingsScreen: React.FC = () => {
                     <CameraOff size={18} color={theme.colors.iconText} />
                   </View>
                   <View style={styles.rowLabels}>
-                    <Text style={styles.rowLabel}>Screenshot block</Text>
-                    <Text style={styles.rowDescription}>
-                      Prevent screenshots on sensitive screens.
-                    </Text>
+                    <Text style={styles.rowLabel}>{t.dataSecurity.screenshotBlock.label}</Text>
+                    <Text style={styles.rowDescription}>{t.dataSecurity.screenshotBlock.description}</Text>
                   </View>
                 </View>
                 <Switch
@@ -1071,10 +1052,8 @@ const SecuritySettingsScreen: React.FC = () => {
                     <AlertCircle size={18} color={theme.colors.iconText} />
                   </View>
                   <View style={styles.rowLabels}>
-                    <Text style={styles.rowLabel}>Fake account</Text>
-                    <Text style={styles.rowDescription}>
-                      Display a decoy workspace when under pressure.
-                    </Text>
+                    <Text style={styles.rowLabel}>{t.dataSecurity.fakeAccount.label}</Text>
+                    <Text style={styles.rowDescription}>{t.dataSecurity.fakeAccount.description}</Text>
                   </View>
                 </View>
                 <Switch
@@ -1092,10 +1071,8 @@ const SecuritySettingsScreen: React.FC = () => {
 
           <View style={styles.section} onLayout={register('data-backup')}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Data backup</Text>
-              <Text style={styles.sectionSubtitle}>
-                Control how often LEORA syncs and stores encrypted backups.
-              </Text>
+              <Text style={styles.sectionTitle}>{t.sections.dataBackup.title}</Text>
+              <Text style={styles.sectionSubtitle}>{t.sections.dataBackup.subtitle}</Text>
             </View>
             <AdaptiveGlassView style={styles.card}>
               <View style={styles.row}>
@@ -1104,10 +1081,8 @@ const SecuritySettingsScreen: React.FC = () => {
                     <Cloud size={18} color={theme.colors.iconText} />
                   </View>
                   <View style={styles.rowLabels}>
-                    <Text style={styles.rowLabel}>Automatic backup</Text>
-                    <Text style={styles.rowDescription}>
-                      Securely save your data in the cloud.
-                    </Text>
+                    <Text style={styles.rowLabel}>{t.dataBackup.automaticBackup.label}</Text>
+                    <Text style={styles.rowDescription}>{t.dataBackup.automaticBackup.description}</Text>
                   </View>
                 </View>
                 <Switch
@@ -1127,13 +1102,11 @@ const SecuritySettingsScreen: React.FC = () => {
                     <Timer size={18} color={theme.colors.iconText} />
                   </View>
                   <View style={styles.rowLabels}>
-                    <Text style={styles.rowLabel}>Frequency</Text>
-                    <Text style={styles.rowDescription}>
-                      Automatically backs up every day.
-                    </Text>
+                    <Text style={styles.rowLabel}>{t.dataBackup.frequency.label}</Text>
+                    <Text style={styles.rowDescription}>{t.dataBackup.frequency.description}</Text>
                   </View>
                 </View>
-                <Text style={styles.rowMeta}>Every day</Text>
+                <Text style={styles.rowMeta}>{t.dataBackup.frequency.value}</Text>
               </View>
 
               <View style={styles.row}>
@@ -1142,13 +1115,11 @@ const SecuritySettingsScreen: React.FC = () => {
                     <HardDrive size={18} color={theme.colors.iconText} />
                   </View>
                   <View style={styles.rowLabels}>
-                    <Text style={styles.rowLabel}>Storage</Text>
-                    <Text style={styles.rowDescription}>
-                      Selected storage location for secure backups.
-                    </Text>
+                    <Text style={styles.rowLabel}>{t.dataBackup.storage.label}</Text>
+                    <Text style={styles.rowDescription}>{t.dataBackup.storage.description}</Text>
                   </View>
                 </View>
-                <Text style={styles.rowMeta}>iCloud</Text>
+                <Text style={styles.rowMeta}>{t.dataBackup.storage.value}</Text>
               </View>
 
               <View style={styles.row}>
@@ -1157,18 +1128,16 @@ const SecuritySettingsScreen: React.FC = () => {
                     <CloudUpload size={18} color={theme.colors.iconText} />
                   </View>
                   <View style={styles.rowLabels}>
-                    <Text style={styles.rowLabel}>Last sync</Text>
-                    <Text style={styles.rowDescription}>
-                      Timestamp for the most recent backup.
-                    </Text>
+                    <Text style={styles.rowLabel}>{t.dataBackup.lastSync.label}</Text>
+                    <Text style={styles.rowDescription}>{t.dataBackup.lastSync.description}</Text>
                   </View>
                 </View>
-                <Text style={styles.rowMeta}>3 days ago</Text>
+                <Text style={styles.rowMeta}>3 {t.timeUnits.daysAgo}</Text>
               </View>
 
               <Pressable onPress={() => console.log('Create backup now')}>
                 <AdaptiveGlassView style={styles.buttonGhost}>
-                  <Text style={styles.buttonGhostText}>Create backup now</Text>
+                  <Text style={styles.buttonGhostText}>{t.dataBackup.createBackupNow}</Text>
                 </AdaptiveGlassView>
               </Pressable>
             </AdaptiveGlassView>
@@ -1179,10 +1148,8 @@ const SecuritySettingsScreen: React.FC = () => {
             onLayout={register('tasks-goals')}
           >
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Task & goals</Text>
-              <Text style={styles.sectionSubtitle}>
-                Decide when security reminders apply to planning tools.
-              </Text>
+              <Text style={styles.sectionTitle}>{t.sections.tasksGoals.title}</Text>
+              <Text style={styles.sectionSubtitle}>{t.sections.tasksGoals.subtitle}</Text>
             </View>
             <AdaptiveGlassView style={styles.card}>
               <View style={styles.row}>
@@ -1191,10 +1158,8 @@ const SecuritySettingsScreen: React.FC = () => {
                     <Bell size={18} color={theme.colors.iconText} />
                   </View>
                   <View style={styles.rowLabels}>
-                    <Text style={styles.rowLabel}>Task reminder</Text>
-                    <Text style={styles.rowDescription}>
-                      Notify 15 minutes before a secure task.
-                    </Text>
+                    <Text style={styles.rowLabel}>{t.tasksGoals.taskReminder.label}</Text>
+                    <Text style={styles.rowDescription}>{t.tasksGoals.taskReminder.description}</Text>
                   </View>
                 </View>
                 <Switch
@@ -1214,10 +1179,8 @@ const SecuritySettingsScreen: React.FC = () => {
                     <CalendarClock size={18} color={theme.colors.iconText} />
                   </View>
                   <View style={styles.rowLabels}>
-                    <Text style={styles.rowLabel}>Deadline</Text>
-                    <Text style={styles.rowDescription}>
-                      Remind you one day before due dates.
-                    </Text>
+                    <Text style={styles.rowLabel}>{t.tasksGoals.deadline.label}</Text>
+                    <Text style={styles.rowDescription}>{t.tasksGoals.deadline.description}</Text>
                   </View>
                 </View>
                 <Switch
@@ -1237,10 +1200,8 @@ const SecuritySettingsScreen: React.FC = () => {
                     <Target size={18} color={theme.colors.iconText} />
                   </View>
                   <View style={styles.rowLabels}>
-                    <Text style={styles.rowLabel}>Goal progress</Text>
-                    <Text style={styles.rowDescription}>
-                      Record secure progress updates daily.
-                    </Text>
+                    <Text style={styles.rowLabel}>{t.tasksGoals.goalProgress.label}</Text>
+                    <Text style={styles.rowDescription}>{t.tasksGoals.goalProgress.description}</Text>
                   </View>
                 </View>
                 <Switch
@@ -1260,10 +1221,8 @@ const SecuritySettingsScreen: React.FC = () => {
                     <RefreshCcw size={18} color={theme.colors.iconText} />
                   </View>
                   <View style={styles.rowLabels}>
-                    <Text style={styles.rowLabel}>Task reschedule suggestion</Text>
-                    <Text style={styles.rowDescription}>
-                      Suggest rescheduling if a secure task is missed.
-                    </Text>
+                    <Text style={styles.rowLabel}>{t.tasksGoals.taskReschedule.label}</Text>
+                    <Text style={styles.rowDescription}>{t.tasksGoals.taskReschedule.description}</Text>
                   </View>
                 </View>
                 <Switch
@@ -1281,10 +1240,8 @@ const SecuritySettingsScreen: React.FC = () => {
 
           <View style={styles.section} onLayout={register('privacy')}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Privacy</Text>
-              <Text style={styles.sectionSubtitle}>
-                Control the analytics and data sharing options in LEORA.
-              </Text>
+              <Text style={styles.sectionTitle}>{t.sections.privacy.title}</Text>
+              <Text style={styles.sectionSubtitle}>{t.sections.privacy.subtitle}</Text>
             </View>
             <AdaptiveGlassView style={styles.card}>
               <View style={styles.row}>
@@ -1293,9 +1250,9 @@ const SecuritySettingsScreen: React.FC = () => {
                     <ShieldHalf size={18} color={theme.colors.iconText} />
                   </View>
                   <View style={styles.rowLabels}>
-                    <Text style={styles.rowLabel}>Anonymous analytics</Text>
+                    <Text style={styles.rowLabel}>{t.privacy.anonymousAnalytics.label}</Text>
                     <Text style={styles.rowDescription}>
-                      Share usage metrics without personal data.
+                      {t.privacy.anonymousAnalytics.description}
                     </Text>
                   </View>
                 </View>
@@ -1316,9 +1273,9 @@ const SecuritySettingsScreen: React.FC = () => {
                     <Sparkles size={18} color={theme.colors.iconText} />
                   </View>
                   <View style={styles.rowLabels}>
-                    <Text style={styles.rowLabel}>Personalized advertising</Text>
+                    <Text style={styles.rowLabel}>{t.privacy.personalizedAds.label}</Text>
                     <Text style={styles.rowDescription}>
-                      Allow relevant suggestions based on activity.
+                      {t.privacy.personalizedAds.description}
                     </Text>
                   </View>
                 </View>
@@ -1339,9 +1296,9 @@ const SecuritySettingsScreen: React.FC = () => {
                     <Lock size={18} color={theme.colors.iconText} />
                   </View>
                   <View style={styles.rowLabels}>
-                    <Text style={styles.rowLabel}>Data delete access</Text>
+                    <Text style={styles.rowLabel}>{t.privacy.dataDeleteAccess.label}</Text>
                     <Text style={styles.rowDescription}>
-                      Allow deleting data from connected widgets.
+                      {t.privacy.dataDeleteAccess.description}
                     </Text>
                   </View>
                 </View>
@@ -1362,9 +1319,9 @@ const SecuritySettingsScreen: React.FC = () => {
                     <Users size={18} color={theme.colors.iconText} />
                   </View>
                   <View style={styles.rowLabels}>
-                    <Text style={styles.rowLabel}>Share data with partners</Text>
+                    <Text style={styles.rowLabel}>{t.privacy.shareWithPartners.label}</Text>
                     <Text style={styles.rowDescription}>
-                      Allow aggregated insights with selected partners.
+                      {t.privacy.shareWithPartners.description}
                     </Text>
                   </View>
                 </View>
@@ -1383,31 +1340,30 @@ const SecuritySettingsScreen: React.FC = () => {
 
           <View style={styles.section} onLayout={register('sessions')}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Active sessions</Text>
+              <Text style={styles.sectionTitle}>{t.sections.activeSessions.title}</Text>
               <Text style={styles.sectionSubtitle}>
-                Review signed-in devices and revoke access if something looks
-                suspicious.
+                {t.sections.activeSessions.subtitle}
               </Text>
             </View>
             <AdaptiveGlassView style={styles.card}>
               <View style={styles.sessionList}>
                 <View style={styles.sessionRow}>
                   <Text style={styles.sessionDevice}>iPhone 14 Pro</Text>
-                  <Text style={styles.sessionMeta}>Current device</Text>
+                  <Text style={styles.sessionMeta}>{t.sessions.currentDevice}</Text>
                 </View>
                 <View style={styles.sessionRow}>
                   <Text style={styles.sessionDevice}>iPad Air</Text>
-                  <Text style={styles.sessionMeta}>Yesterday, 19:30</Text>
+                  <Text style={styles.sessionMeta}>{t.sessions.yesterday}, 19:30</Text>
                 </View>
                 <View style={styles.sessionRow}>
                   <Text style={styles.sessionDevice}>MacBook Pro</Text>
-                  <Text style={styles.sessionMeta}>3 days ago</Text>
+                  <Text style={styles.sessionMeta}>{t.sessions.daysAgo(3)}</Text>
                 </View>
               </View>
 
               <Pressable onPress={handleSignOutAll}>
                 <AdaptiveGlassView style={styles.buttonGhost}>
-                  <Text style={styles.buttonGhostText}>End all other sessions</Text>
+                  <Text style={styles.buttonGhostText}>{t.sessions.endAllSessions}</Text>
                 </AdaptiveGlassView>
               </Pressable>
             </AdaptiveGlassView>
@@ -1415,15 +1371,15 @@ const SecuritySettingsScreen: React.FC = () => {
 
           <View style={styles.section} onLayout={register('emergency')}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Emergency actions</Text>
+              <Text style={styles.sectionTitle}>{t.sections.emergencyActions.title}</Text>
               <Text style={styles.sectionSubtitle}>
-                Quick responses when your device is lost or compromised.
+                {t.sections.emergencyActions.subtitle}
               </Text>
             </View>
             <AdaptiveGlassView style={styles.card}>
               <Pressable onPress={handleDeactivateAccount}>
                 <AdaptiveGlassView style={styles.emergencyButton}>
-                  <Text style={styles.emergencyText}>Deactivate account</Text>
+                  <Text style={styles.emergencyText}>{t.emergency.deactivateAccount}</Text>
                 </AdaptiveGlassView>
               </Pressable>
               <Pressable onPress={handleWipeData}>
@@ -1436,7 +1392,7 @@ const SecuritySettingsScreen: React.FC = () => {
                       styles.emergencySecondaryText,
                     ]}
                   >
-                    Wipe all data
+                    {t.emergency.wipeAllData}
                   </Text>
                 </AdaptiveGlassView>
               </Pressable>

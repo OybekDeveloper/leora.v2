@@ -11,7 +11,6 @@ import {
 import { useRouter } from 'expo-router';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { useShallow } from 'zustand/react/shallow';
-import { Calendar, Info } from 'lucide-react-native';
 
 import { useAppTheme } from '@/constants/theme';
 import { usePlannerDomainStore } from '@/stores/usePlannerDomainStore';
@@ -33,7 +32,7 @@ export function TaskComponent({ taskId, goalId }: Props) {
   );
 
   const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
+  const [notes, setNotes] = useState('');
   const [date, setDate] = useState<Date | undefined>(undefined);
   const [showDatePicker, setShowDatePicker] = useState(false);
 
@@ -43,7 +42,7 @@ export function TaskComponent({ taskId, goalId }: Props) {
       const task = tasks.find((t) => t.id === taskId);
       if (task) {
         setTitle(task.title || '');
-        setDescription(task.description || '');
+        setNotes(task.notes || '');
         if (task.dueDate) setDate(new Date(task.dueDate));
       }
     }
@@ -55,7 +54,7 @@ export function TaskComponent({ taskId, goalId }: Props) {
     if (taskId) {
       updateTask(taskId, {
         title,
-        description: description || undefined,
+        notes: notes || undefined,
         dueDate: date?.toISOString(),
         updatedAt: new Date().toISOString(),
       });
@@ -63,13 +62,11 @@ export function TaskComponent({ taskId, goalId }: Props) {
       createTask({
         userId: 'current-user',
         title,
-        description: description || undefined,
+        notes: notes || undefined,
         status: 'planned',
         priority: 'medium',
         dueDate: date?.toISOString(),
         goalId: goalId || undefined,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
       });
     }
 
@@ -77,7 +74,7 @@ export function TaskComponent({ taskId, goalId }: Props) {
     setTimeout(() => {
       router.back();
     }, 100);
-  }, [title, description, date, taskId, goalId, createTask, updateTask, router]);
+  }, [title, notes, date, taskId, goalId, createTask, updateTask, router]);
 
   const handleDatePress = () => {
     if (Platform.OS === 'android') {
@@ -117,12 +114,12 @@ export function TaskComponent({ taskId, goalId }: Props) {
         </View>
 
         <View style={styles.section}>
-          <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Description</Text>
+          <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Notes</Text>
           <TextInput
             style={[styles.textArea, { backgroundColor: theme.colors.card, color: theme.colors.textPrimary, borderColor: theme.colors.border }]}
-            value={description}
-            onChangeText={setDescription}
-            placeholder="Add description (optional)"
+            value={notes}
+            onChangeText={setNotes}
+            placeholder="Add notes (optional)"
             placeholderTextColor={theme.colors.textMuted}
             multiline
             numberOfLines={4}

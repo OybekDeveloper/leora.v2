@@ -7,17 +7,14 @@ import {
   View,
 } from 'react-native';
 import {
-  BellRing,
   Calendar,
-  HandCoins,
-  LucideIcon,
   TrendingDown,
   TrendingUp,
   UserRound,
-  CreditCard,
 } from 'lucide-react-native';
 
 import { AdaptiveGlassView } from '@/components/ui/AdaptiveGlassView';
+import EmptyState from '@/components/shared/EmptyState';
 import type { Theme } from '@/constants/theme';
 import { useAppTheme } from '@/constants/theme';
 import { useLocalization } from '@/localization/useLocalization';
@@ -33,15 +30,6 @@ type DebtSectionData = {
   title: string;
   debts: LegacyDebt[];
   isIncoming: boolean;
-};
-
-type DebtCardActionKind = 'full' | 'partial' | 'schedule' | 'reminder';
-
-type DebtAction = {
-  label: string;
-  Icon: LucideIcon;
-  action: DebtCardActionKind;
-  tint?: string;
 };
 
 const formatDueIn = (
@@ -232,31 +220,6 @@ const createStyles = (theme: Theme) =>
       fontWeight: '600',
       color: theme.colors.textPrimary,
     },
-    actionsRow: {
-      flexDirection: 'row',
-      gap: theme.spacing.sm,
-      flexWrap: 'wrap',
-    },
-    actionButton: {
-      flexGrow: 1,
-      minWidth: '45%',
-      borderRadius: theme.radius.full,
-      paddingVertical: theme.spacing.sm,
-      paddingHorizontal: theme.spacing.sm,
-      flexDirection: 'row',
-      justifyContent: 'center',
-      alignItems: 'center',
-      gap: theme.spacing.xs,
-      backgroundColor:
-        theme.mode === 'dark'
-          ? 'rgba(148,163,184,0.12)'
-          : 'rgba(15,23,42,0.08)',
-    },
-    actionLabel: {
-      fontSize: 12,
-      fontWeight: '600',
-      color: theme.colors.textSecondary,
-    },
   });
 
 const DebtCard = ({
@@ -264,40 +227,18 @@ const DebtCard = ({
   strings,
   onPress,
   formatAmount,
-  onActionPress,
 }: {
   debt: LegacyDebt;
   strings: DebtsStrings;
   onPress?: () => void;
   formatAmount: (value: number, currency: FinanceCurrency) => string;
-  onActionPress?: (debt: LegacyDebt, action: DebtCardActionKind) => void;
 }) => {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const isIncoming = debt.type === 'lent';
+  const isLent = debt.type === 'lent';
   const currency = normalizeFinanceCurrency(debt.currency);
-  const signedAmount = `${isIncoming ? '+' : '−'}${formatAmount(debt.remainingAmount, currency)}`;
-
-  const actionLabels = strings.modal.actionsBar ?? {
-    pay: 'Pay debt',
-    partial: 'Partial payment',
-    notify: 'Notification',
-    schedule: 'Manage dates',
-  };
-
-  const actionColors = {
-    full: theme.colors.textPrimary,
-    partial: theme.colors.textPrimary,
-    schedule: theme.colors.textPrimary,
-    reminder: theme.colors.textPrimary,
-  };
-
-  const actions: DebtAction[] = [
-    { label: actionLabels.pay, Icon: CreditCard, action: 'full', tint: actionColors.full },
-    { label: actionLabels.partial, Icon: HandCoins, action: 'partial', tint: actionColors.partial },
-    { label: actionLabels.schedule, Icon: Calendar, action: 'schedule', tint: actionColors.schedule },
-    { label: actionLabels.notify, Icon: BellRing, action: 'reminder', tint: actionColors.reminder },
-  ];
+  // Pul oqimi nuqtai nazaridan: lent = pul chiqdi (-), borrowed = pul kirdi (+)
+  const signedAmount = `${isLent ? '−' : '+'}${formatAmount(debt.remainingAmount, currency)}`;
 
   return (
     <Pressable onPress={onPress} style={({ pressed }) => (pressed ? { opacity: 0.95 } : undefined)}>
@@ -316,7 +257,7 @@ const DebtCard = ({
             <Text
               style={[
                 styles.amount,
-                { color: isIncoming ? theme.colors.success : theme.colors.danger },
+                { color: isLent ? theme.colors.danger : theme.colors.success },
               ]}
             >
               {signedAmount}
@@ -331,11 +272,11 @@ const DebtCard = ({
 
         <View style={styles.timelineRow}>
           <View style={styles.avatar}>
-            <Calendar size={16} color={isIncoming ? theme.colors.success : theme.colors.danger} />
+            <Calendar size={16} color={isLent ? theme.colors.danger : theme.colors.success} />
           </View>
           <View>
             <Text style={styles.timelineLabel}>
-              {isIncoming ? strings.timeline.incoming : strings.timeline.outgoing}
+              {isLent ? strings.timeline.incoming : strings.timeline.outgoing}
             </Text>
             <Text style={styles.timelineValue}>
               {formatDueIn(debt, strings.timeline, strings.modal.defaults.due)}
@@ -356,25 +297,6 @@ const DebtCard = ({
             </Text>
           </View>
         </View>
-
-        <View style={styles.actionsRow}>
-          {actions.map(({ label, Icon, action, tint }) => (
-            <Pressable
-              key={label}
-              style={({ pressed }) => [
-                styles.actionButton,
-                pressed && { opacity: 0.85 },
-              ]}
-              onPress={(event) => {
-                event.stopPropagation();
-                onActionPress?.(debt, action);
-              }}
-            >
-              <Icon size={14} color={tint ?? theme.colors.textSecondary} />
-              <Text style={[styles.actionLabel, tint ? { color: tint } : null]}>{label}</Text>
-            </Pressable>
-          ))}
-        </View>
       </AdaptiveGlassView>
     </Pressable>
   );
@@ -385,13 +307,11 @@ const DebtSection = ({
   strings,
   onCardPress,
   formatAmount,
-  onActionPress,
 }: {
   section: DebtSectionData;
   strings: DebtsStrings;
   onCardPress?: (debt: LegacyDebt) => void;
   formatAmount: (value: number, currency: FinanceCurrency) => string;
-  onActionPress?: (debt: LegacyDebt, action: DebtCardActionKind) => void;
 }) => {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -408,7 +328,6 @@ const DebtSection = ({
             strings={strings}
             onPress={() => onCardPress?.(debt)}
             formatAmount={formatAmount}
-            onActionPress={onActionPress}
           />
         ))}
       </View>
@@ -461,20 +380,23 @@ const DebtsScreen: React.FC = () => {
     };
   }, [convertAmount, debtsStrings.summary, formatCurrency, globalCurrency, incoming, outgoing]);
 
-  const handleDebtAction = React.useCallback(
-    (debt: LegacyDebt, _action: DebtCardActionKind) => {
-      router.push({ pathname: '/(modals)/finance/debt', params: { id: debt.id } });
+  const handleDebtPress = React.useCallback(
+    (debt: LegacyDebt) => {
+      router.push({ pathname: '/(modals)/finance/debt-detail', params: { id: debt.id } });
     },
     [router],
   );
 
+  // Faqat ma'lumot bor bo'limlarni ko'rsatish
   const sections: DebtSectionData[] = useMemo(
     () => [
       { title: debtsStrings.sections.incoming, debts: incoming, isIncoming: true },
       { title: debtsStrings.sections.outgoing, debts: outgoing, isIncoming: false },
-    ],
+    ].filter((section) => section.debts.length > 0),
     [debtsStrings.sections, incoming, outgoing],
   );
+
+  const isEmpty = debts.length === 0;
 
   return (
     <View style={styles.root}>
@@ -482,77 +404,83 @@ const DebtsScreen: React.FC = () => {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.summarySection}>
-          <AdaptiveGlassView
-            style={[
-              styles.glassSurface,
-              styles.balanceCard,
-              { backgroundColor: theme.colors.card },
-            ]}
-          >
-            <Text style={[styles.summaryBalanceLabel, { color: theme.colors.textSecondary }]}>
-              {debtsStrings.summary.balanceLabel}
-            </Text>
-            <Text style={[styles.summaryBalanceValue, { color: theme.colors.textPrimary }]}>
-              {summaryMetrics.balance}
-            </Text>
-          </AdaptiveGlassView>
-          <View style={styles.summaryRow}>
-            <AdaptiveGlassView
-              style={[
-                styles.glassSurface,
-                styles.summaryMiniCard,
-                { backgroundColor: theme.colors.card },
-              ]}
-            >
-              <View style={styles.summaryMiniHeader}>
-                <Text style={[styles.summaryMiniLabel, { color: theme.colors.textSecondary }]}>
-                  {debtsStrings.summary.givenLabel}
-                </Text>
-                <TrendingUp size={14} color={theme.colors.success} />
-              </View>
-              <Text style={[styles.summaryMiniValue, { color: theme.colors.success }]}>
-                {summaryMetrics.given.amount}
-              </Text>
-              <Text style={[styles.summaryMiniChange, { color: theme.colors.textSecondary }]}>
-                {summaryMetrics.given.change}
-              </Text>
-            </AdaptiveGlassView>
-            <AdaptiveGlassView
-              style={[
-                styles.glassSurface,
-                styles.summaryMiniCard,
-                { borderColor: theme.colors.border, backgroundColor: theme.colors.card },
-              ]}
-            >
-              <View style={styles.summaryMiniHeader}>
-                <Text style={[styles.summaryMiniLabel, { color: theme.colors.textSecondary }]}>
-                  {debtsStrings.summary.takenLabel}
-                </Text>
-                <TrendingDown size={14} color={theme.colors.danger} />
-              </View>
-              <Text style={[styles.summaryMiniValue, { color: theme.colors.danger }]}>
-                {summaryMetrics.taken.amount}
-              </Text>
-              <Text style={[styles.summaryMiniChange, { color: theme.colors.textSecondary }]}>
-                {summaryMetrics.taken.change}
-              </Text>
-            </AdaptiveGlassView>
-          </View>
-        </View>
-
-        {sections.map((section) => (
-          <DebtSection
-            key={section.title}
-            section={section}
-            strings={debtsStrings}
-            onCardPress={(debt) =>
-              router.push({ pathname: '/(modals)/finance/debt', params: { id: debt.id } })
-            }
-            formatAmount={formatAccountAmount}
-            onActionPress={handleDebtAction}
+        {isEmpty ? (
+          <EmptyState
+            title={debtsStrings.empty.title}
+            subtitle={debtsStrings.empty.subtitle}
           />
-        ))}
+        ) : (
+          <>
+            <View style={styles.summarySection}>
+              <AdaptiveGlassView
+                style={[
+                  styles.glassSurface,
+                  styles.balanceCard,
+                  { backgroundColor: theme.colors.card },
+                ]}
+              >
+                <Text style={[styles.summaryBalanceLabel, { color: theme.colors.textSecondary }]}>
+                  {debtsStrings.summary.balanceLabel}
+                </Text>
+                <Text style={[styles.summaryBalanceValue, { color: theme.colors.textPrimary }]}>
+                  {summaryMetrics.balance}
+                </Text>
+              </AdaptiveGlassView>
+              <View style={styles.summaryRow}>
+                <AdaptiveGlassView
+                  style={[
+                    styles.glassSurface,
+                    styles.summaryMiniCard,
+                    { backgroundColor: theme.colors.card },
+                  ]}
+                >
+                  <View style={styles.summaryMiniHeader}>
+                    <Text style={[styles.summaryMiniLabel, { color: theme.colors.textSecondary }]}>
+                      {debtsStrings.summary.givenLabel}
+                    </Text>
+                    <TrendingUp size={14} color={theme.colors.success} />
+                  </View>
+                  <Text style={[styles.summaryMiniValue, { color: theme.colors.success }]}>
+                    {summaryMetrics.given.amount}
+                  </Text>
+                  <Text style={[styles.summaryMiniChange, { color: theme.colors.textSecondary }]}>
+                    {summaryMetrics.given.change}
+                  </Text>
+                </AdaptiveGlassView>
+                <AdaptiveGlassView
+                  style={[
+                    styles.glassSurface,
+                    styles.summaryMiniCard,
+                    { borderColor: theme.colors.border, backgroundColor: theme.colors.card },
+                  ]}
+                >
+                  <View style={styles.summaryMiniHeader}>
+                    <Text style={[styles.summaryMiniLabel, { color: theme.colors.textSecondary }]}>
+                      {debtsStrings.summary.takenLabel}
+                    </Text>
+                    <TrendingDown size={14} color={theme.colors.danger} />
+                  </View>
+                  <Text style={[styles.summaryMiniValue, { color: theme.colors.danger }]}>
+                    {summaryMetrics.taken.amount}
+                  </Text>
+                  <Text style={[styles.summaryMiniChange, { color: theme.colors.textSecondary }]}>
+                    {summaryMetrics.taken.change}
+                  </Text>
+                </AdaptiveGlassView>
+              </View>
+            </View>
+
+            {sections.map((section) => (
+              <DebtSection
+                key={section.title}
+                section={section}
+                strings={debtsStrings}
+                onCardPress={handleDebtPress}
+                formatAmount={formatAccountAmount}
+              />
+            ))}
+          </>
+        )}
       </ScrollView>
     </View>
   );

@@ -36,7 +36,7 @@ const ForgotPasswordScreen = () => {
   const hasFocusedRef = useRef(false);
 
   const forgotErrorMap = useMemo(
-    () => ({
+    (): Record<string, string> => ({
       'Please enter a valid email address': validationStrings.emailInvalid,
       'An error occurred. Please try again.': forgotStrings.errors.generic,
       'OTP expired or invalid': forgotStrings.errors.otpExpired,
@@ -87,6 +87,7 @@ const ForgotPasswordScreen = () => {
       }, 1000);
       return () => clearInterval(interval);
     }
+    return undefined;
   }, [step, timer]);
 
   const handleSelectLanguage = useCallback(

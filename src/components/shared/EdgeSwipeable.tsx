@@ -116,7 +116,7 @@ const EdgeSwipeable = forwardRef<EdgeSwipeableRef, EdgeSwipeableProps>(
 
     const wrappedRenderRightActions = useMemo<SwipeableProps['renderRightActions']>(() => {
       if (!renderRightActions) return undefined;
-      return (progress, dragX) => {
+      return (progress, dragX, swipeable) => {
         const actionWidth = layoutWidth ? layoutWidth * MAX_ACTION_WIDTH_RATIO : undefined;
         return (
           <View
@@ -128,7 +128,7 @@ const EdgeSwipeable = forwardRef<EdgeSwipeableRef, EdgeSwipeableProps>(
               },
             ]}
           >
-            <View style={styles.actionsInner}>{renderRightActions(progress, dragX)}</View>
+            <View style={styles.actionsInner}>{renderRightActions(progress, dragX, swipeable)}</View>
           </View>
         );
       };

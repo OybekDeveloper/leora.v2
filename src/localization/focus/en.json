@@ -1,0 +1,93 @@
+{
+  "focusMode": {
+    "header": {
+      "title": "FOCUS MODE",
+      "settings": "Settings"
+    },
+    "status": {
+      "ready": "Ready",
+      "inProgress": "In progress",
+      "paused": "Paused"
+    },
+    "timer": {
+      "start": "Start",
+      "end": "End"
+    },
+    "task": {
+      "cardLabel": "Currently focusing on",
+      "goalTag": "Goal: {goal}"
+    },
+    "toggles": {
+      "notifications": "Turn off notification",
+      "backgroundMusic": "Background music",
+      "appBlock": "App block",
+      "dynamicIsland": "Dynamic Island"
+    },
+    "statistics": {
+      "title": "Today's statistics",
+      "focusTime": "Focus time:",
+      "sessionsCompleted": "Sessions completed:",
+      "productivity": "Productivity:"
+    },
+    "buttons": {
+      "reset": "Reset",
+      "finish": "Finish"
+    },
+    "alerts": {
+      "resetTitle": "Reset Timer?",
+      "resetMessage": "This will reset your timer and discard current progress.",
+      "cancel": "Cancel",
+      "resetConfirm": "Reset"
+    },
+    "time": {
+      "hours": "h",
+      "minutes": "m"
+    }
+  },
+  "focusSettings": {
+    "header": {
+      "title": "Focus Settings",
+      "close": "Close"
+    },
+    "technique": {
+      "label": "Technique",
+      "pomodoro": "Pomodoro",
+      "pomodoroSummary": "25m + 5m",
+      "blocs": "Blocs",
+      "blocsSummary": "50m + 10m",
+      "free": "Free timer",
+      "freeSummary": "No limit"
+    },
+    "session": {
+      "label": "Session duration",
+      "workTime": "Work time (m)",
+      "breakTime": "Break time (m)",
+      "sessionsUntilBigBreak": "Sessions until big break",
+      "bigBreakTime": "Big break time (m)"
+    },
+    "locks": {
+      "label": "Locks",
+      "notifications": "Notifications",
+      "social": "Lock social networks",
+      "apps": "Lock all apps",
+      "autoReply": "Auto-reply to messages"
+    },
+    "motivation": {
+      "label": "Motivation",
+      "progress": "Show progress",
+      "sound": "Completion sound",
+      "vibration": "Vibration",
+      "music": "Music for concentration"
+    },
+    "buttons": {
+      "reset": "Reset",
+      "confirm": "Confirm"
+    },
+    "alerts": {
+      "resetTitle": "Reset focus settings?",
+      "resetMessage": "This will restore default techniques and durations.",
+      "cancel": "Cancel",
+      "resetConfirm": "Reset"
+    }
+  }
+}

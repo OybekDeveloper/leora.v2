@@ -1,7 +1,14 @@
 {
   "title": "Yangi vazifa",
+  "editTitle": "Vazifani tahrirlash",
+  "createTitle": "Vazifa yaratish",
+  "close": "Yopish",
+  "cancel": "Bekor qilish",
+  "update": "Yangilash",
+  "create": "Yaratish",
   "nameLabel": "Vazifa nomi",
   "namePlaceholder": "Sarlavha",
+  "titleRequired": "*",
   "whenLabel": "Qachon",
   "whenOptions": {
     "today": "Bugun",
@@ -14,16 +21,24 @@
   "time": "Vaqt",
   "notes": "Tavsif",
   "notesPlaceholder": "Tavsif (majburiy emas)",
+  "descriptionLabel": "Tavsif",
+  "descriptionPlaceholder": "Tavsif (majburiy emas)",
   "project": "Loyiha",
   "projectPlaceholder": "Loyihangizni tanlang",
   "context": "Kontekst",
-  "energy": "Energiya",
+  "energy": "Energiya darajasi",
+  "energyOptions": {
+    "low": "Past",
+    "medium": "O'rta",
+    "high": "Yuqori"
+  },
   "priority": "Ustuvorlik",
   "additional": "Qo'shimcha",
   "reminder": "Oldindan eslatma",
+  "reminderBefore": "Oldindan eslatma",
   "repeat": "Takrorlash",
-  "needFocus": "Fokus kerak",
-  "subtasks": "Quyi vazifalar",
+  "needFocus": "FOKUS kerak",
+  "subtasks": "Quyi vazifalar:",
   "subtaskPlaceholder": "Quyi vazifa qo'shish",
   "submit": "Vazifani yaratish",
   "submitMore": "Yaratish va davom etish",
@@ -41,5 +56,19 @@
   },
   "goalLabel": "Maqsad bilan bog'lash",
   "goalUnset": "Maqsad yo'q",
-  "goalHelper": "AI va tahlillar progressni ko'rishi uchun maqsadni bog'lang."
+  "goalHelper": "AI va tahlillar progressni ko'rishi uchun maqsadni bog'lang.",
+  "financeAction": "Moliyaviy amal",
+  "financeOptions": {
+    "recordExpenses": "Xarajatlarni yozish",
+    "payDebt": "Qarzni to'lash",
+    "reviewBudget": "Byudjetni ko'rish",
+    "transferMoney": "Pul o'tkazish",
+    "none": "Yo'q"
+  },
+  "validation": {
+    "selectDate": "Sanani tanlang",
+    "pastDate": "O'tgan sanani tanlab bo'lmaydi",
+    "futureTime": "Vaqt kelajakda bo'lishi kerak"
+  },
+  "done": "Tayyor"
 }

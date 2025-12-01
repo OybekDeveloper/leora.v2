@@ -9,7 +9,7 @@ import React, { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { buildCalendarDays, toISODateKey, useCalendarWeeks, addMonths } from '@/utils/calendar';
+import { buildCalendarDays, toISODateKey, useCalendarWeeks } from '@/utils/calendar';
 import { createThemedStyles, useAppTheme } from '@/constants/theme';
 import type { Task, Habit, Goal } from '@/domain/planner/types';
 import type { Transaction } from '@/domain/finance/types';

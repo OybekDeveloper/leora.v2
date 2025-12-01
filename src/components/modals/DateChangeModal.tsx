@@ -21,9 +21,10 @@ import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BottomSheetHandle } from '@/components/modals/BottomSheet';
+import { ProgressDots } from '@/components/shared/ProgressDots';
 import { useAppTheme } from '@/constants/theme';
 import { useLocalization } from '@/localization/useLocalization';
-import type { CalendarIndicatorsMap, CalendarEventMap, CalendarEventType, HomeDataStatus } from '@/types/home';
+import type { CalendarIndicatorsMap, CalendarEventMap, CalendarProgressMap } from '@/types/home';
 import {
   addDays,
   addMonths,
@@ -41,6 +42,7 @@ interface DateModalProps {
   selectedDate?: Date;
   indicators?: CalendarIndicatorsMap;
   events?: CalendarEventMap;
+  progress?: CalendarProgressMap;
   onDismiss?: () => void;
   onSelectDate?: (date: Date) => void;
 }
@@ -54,15 +56,14 @@ function clampDay(date: Date, targetMonth: Date): Date {
 }
 
 function DateChangeModalComponent(
-  { selectedDate, indicators, events, onDismiss, onSelectDate }: DateModalProps,
+  { selectedDate, progress, onDismiss, onSelectDate }: DateModalProps,
   ref: ForwardedRef<BottomSheetHandle>
 ) {
   const theme = useAppTheme();
   const { strings, locale } = useLocalization();
   const { height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const indicatorSource = useMemo(() => indicators ?? {}, [indicators]);
-  const eventSource = useMemo(() => events ?? {}, [events]);
+  const progressSource = useMemo(() => progress ?? {}, [progress]);
   const [visible, setVisible] = useState(false);
   const today = useMemo(() => startOfDay(new Date()), []);
   const sanitizedSelected = useMemo(
@@ -167,24 +168,6 @@ function DateChangeModalComponent(
     return Array.from({ length: 12 }).map((_, idx) => formatter.format(new Date(2000, idx, 1)));
   }, [locale]);
 
-  const statusColors: Record<HomeDataStatus, string> = useMemo(
-    () => ({
-      success: theme.colors.success,
-      warning: theme.colors.warning,
-      danger: theme.colors.danger,
-      muted: theme.colors.border,
-    }),
-    [theme.colors.border, theme.colors.danger, theme.colors.success, theme.colors.warning],
-  );
-  const eventColors: Record<CalendarEventType, string> = useMemo(
-    () => ({
-      tasks: theme.colors.primary,
-      habits: theme.colors.success,
-      goals: theme.colors.warning,
-      finance: theme.colors.info ?? theme.colors.textSecondary,
-    }),
-    [theme.colors.info, theme.colors.primary, theme.colors.success, theme.colors.textSecondary, theme.colors.warning],
-  );
 
   const handleDayPress = useCallback(
     (day: Date) => {
@@ -215,57 +198,25 @@ function DateChangeModalComponent(
     [pickerMode],
   );
 
-  const renderDots = useCallback(
+  const renderProgressDots = useCallback(
     (isoKey: string, isDimmed: boolean) => {
-      const dayEvents = eventSource[isoKey];
-      if (dayEvents) {
-        const entries = Object.entries(dayEvents).filter(([, count]) => (count ?? 0) > 0);
-        if (entries.length) {
-          return (
-            <View style={[styles.dotRow, isDimmed && { opacity: 0.4 }]}>
-              {entries.slice(0, 4).map(([type]) => {
-                const color = eventColors[type as CalendarEventType] ?? theme.colors.textSecondary;
-                return (
-                  <View
-                    key={`${isoKey}-event-${type}`}
-                    style={[
-                      styles.dot,
-                      {
-                        backgroundColor: color,
-                        borderColor: color,
-                      },
-                    ]}
-                  />
-                );
-              })}
-            </View>
-          );
-        }
-      }
-      const statuses = indicatorSource[isoKey] ?? [];
+      const dayProgress = progressSource[isoKey];
+
+      const tasksValue = dayProgress?.tasks ?? 0;
+      const budgetValue = dayProgress?.budget ?? 0;
+      const habitsValue = dayProgress?.focus ?? 0;
+
       return (
-        <View style={[styles.dotRow, isDimmed && { opacity: 0.4 }]}>
-          {Array.from({ length: 3 }).map((_, idx) => {
-            const status = statuses[idx] ?? 'muted';
-            const color = statusColors[status];
-            const hasFill = status !== 'muted';
-            return (
-              <View
-                key={`${isoKey}-dot-${idx}`}
-                style={[
-                  styles.dot,
-                  {
-                    backgroundColor: hasFill ? color : 'transparent',
-                    borderColor: hasFill ? color : theme.colors.border,
-                  },
-                ]}
-              />
-            );
-          })}
+        <View style={[styles.dotsContainer, isDimmed && { opacity: 0.4 }]}>
+          <ProgressDots
+            tasks={tasksValue}
+            budget={budgetValue}
+            habits={habitsValue}
+          />
         </View>
       );
     },
-    [eventColors, eventSource, indicatorSource, statusColors, theme.colors.border],
+    [progressSource],
   );
 
   const renderMonthGrid = () => (
@@ -489,7 +440,7 @@ function DateChangeModalComponent(
                                 {parseInt(day.label, 10)}
                               </Text>
                             </Pressable>
-                            {renderDots(isoKey, isDimmed || day.isFuture)}
+                            {renderProgressDots(isoKey, isDimmed || day.isFuture)}
                           </View>
                         );
                       })}
@@ -624,16 +575,10 @@ const styles = StyleSheet.create({
   dayPressed: {
     opacity: 0.8,
   },
-  dotRow: {
-    flexDirection: 'row',
-    marginTop: 4,
-  },
-  dot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    marginHorizontal: 2,
-    borderWidth: StyleSheet.hairlineWidth,
+  dotsContainer: {
+    marginTop: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   monthGrid: {
     marginTop: 16,

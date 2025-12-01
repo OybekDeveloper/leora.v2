@@ -1,9 +1,8 @@
 import React from 'react';
-import { Stack, useRouter } from 'expo-router';
+import { Stack } from 'expo-router';
 import ProfileHeader from '../_components/ProfileHeader';
 
 export default function AccountLayout() {
-  const router = useRouter()
   return (
     <Stack
       screenOptions={{

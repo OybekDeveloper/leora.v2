@@ -1,12 +1,729 @@
-import { View, Text } from 'react-native'
-import React from 'react'
+import React, { useMemo, useCallback } from 'react';
+import {
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import {
+  CreditCard,
+  HandCoins,
+  Calendar,
+  User,
+  Clock,
+  FileText,
+  TrendingUp,
+  TrendingDown,
+  Check,
+  Edit3,
+  Trash2,
+} from 'lucide-react-native';
 
-const DebtDetail = () => {
+import { AdaptiveGlassView } from '@/components/ui/AdaptiveGlassView';
+import { useAppTheme } from '@/constants/theme';
+import { useLocalization } from '@/localization/useLocalization';
+import { useFinanceDomainStore } from '@/stores/useFinanceDomainStore';
+import { useShallow } from 'zustand/react/shallow';
+
+const formatCurrencyDisplay = (value: number, currency?: string) => {
+  const resolvedCurrency = currency ?? 'USD';
+  try {
+    return new Intl.NumberFormat(resolvedCurrency === 'UZS' ? 'uz-UZ' : 'en-US', {
+      style: 'currency',
+      currency: resolvedCurrency,
+      maximumFractionDigits: resolvedCurrency === 'UZS' ? 0 : 2,
+    }).format(Math.abs(value));
+  } catch {
+    return `${resolvedCurrency} ${Math.abs(value).toFixed(2)}`;
+  }
+};
+
+const formatDate = (dateString?: string): string => {
+  if (!dateString) return '—';
+  try {
+    return new Intl.DateTimeFormat('en-US', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    }).format(new Date(dateString));
+  } catch {
+    return dateString;
+  }
+};
+
+const formatShortDate = (dateString: string): string => {
+  try {
+    return new Intl.DateTimeFormat('en-US', {
+      day: 'numeric',
+      month: 'short',
+    }).format(new Date(dateString));
+  } catch {
+    return dateString;
+  }
+};
+
+type ActionButtonProps = {
+  icon: React.ReactNode;
+  label: string;
+  onPress: () => void;
+  disabled?: boolean;
+  theme: ReturnType<typeof useAppTheme>;
+};
+
+const ActionButton = ({ icon, label, onPress, disabled, theme }: ActionButtonProps) => {
   return (
-    <View>
-      <Text>DebtDetail</Text>
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      style={({ pressed }) => [
+        styles.actionButton,
+        { backgroundColor: theme.colors.card, borderColor: theme.colors.border },
+        pressed && styles.pressedOpacity,
+        disabled && styles.disabledButton,
+      ]}
+    >
+      {icon}
+      <Text style={[styles.actionLabel, { color: theme.colors.textPrimary }]} numberOfLines={1}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+};
+
+type DetailRowProps = {
+  label: string;
+  value: string;
+  valueColor?: string;
+  theme: ReturnType<typeof useAppTheme>;
+};
+
+const DetailRow = ({ label, value, valueColor, theme }: DetailRowProps) => {
+  return (
+    <View style={styles.detailRow}>
+      <Text style={[styles.detailLabel, { color: theme.colors.textSecondary }]}>{label}</Text>
+      <Text
+        style={[styles.detailValue, { color: valueColor ?? theme.colors.textPrimary }]}
+        numberOfLines={2}
+      >
+        {value}
+      </Text>
     </View>
-  )
+  );
+};
+
+// =====================================================
+// Main Component
+// =====================================================
+export default function DebtDetailModal() {
+  const router = useRouter();
+  const theme = useAppTheme();
+  const { id } = useLocalSearchParams<{ id?: string }>();
+  const debtId = Array.isArray(id) ? id[0] : id ?? null;
+  const { strings } = useLocalization();
+  const commonStrings = (strings as any).common ?? {};
+  const closeLabel = commonStrings.close ?? 'Close';
+
+
+  const { debts, debtPayments, accounts, deleteDebt } = useFinanceDomainStore(
+    useShallow((state) => ({
+      debts: state.debts,
+      debtPayments: state.debtPayments,
+      accounts: state.accounts,
+      deleteDebt: state.deleteDebt,
+    })),
+  );
+
+  const debt = useMemo(
+    () => debts.find((d) => d.id === debtId) ?? null,
+    [debtId, debts],
+  );
+
+  const payments = useMemo(
+    () => debtPayments.filter((p) => p.debtId === debtId).sort((a, b) =>
+      new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime()
+    ),
+    [debtId, debtPayments],
+  );
+
+  const fundingAccount = useMemo(
+    () => accounts.find((a) => a.id === debt?.fundingAccountId) ?? null,
+    [accounts, debt?.fundingAccountId],
+  );
+
+  // Calculate progress
+  const progressData = useMemo(() => {
+    if (!debt) return { percent: 0, paid: 0, original: 0, remaining: 0 };
+    const original = debt.principalOriginalAmount ?? debt.principalAmount;
+    const paid = payments.reduce((sum, p) => sum + p.convertedAmountToDebt, 0);
+    const remaining = debt.principalAmount;
+    const percent = original > 0 ? (paid / original) * 100 : 0;
+    return { percent, paid, original, remaining };
+  }, [debt, payments]);
+
+  // Multi-currency P/L calculation
+  const currencyPL = useMemo(() => {
+    if (!debt?.repaymentCurrency || debt.repaymentCurrency === debt.principalCurrency) {
+      return null;
+    }
+    const startRate = debt.repaymentRateOnStart ?? 1;
+    const currentRate = startRate;
+    const totalPaidBase = payments.reduce((sum, p) => sum + p.convertedAmountToBase, 0);
+    const expectedAtStart = totalPaidBase * startRate;
+    const actualReceived = totalPaidBase * currentRate;
+    const profitLoss = actualReceived - expectedAtStart;
+    return {
+      startRate,
+      currentRate,
+      profitLoss,
+      isProfit: profitLoss >= 0,
+    };
+  }, [debt, payments]);
+
+  const handleBack = useCallback(() => {
+    router.back();
+  }, [router]);
+
+  const handlePayFull = useCallback(() => {
+    router.push({ pathname: '/(modals)/finance/debt-actions', params: { id: debt?.id, action: 'full_payment' } });
+  }, [router, debt?.id]);
+
+  const handlePayPartial = useCallback(() => {
+    router.push({ pathname: '/(modals)/finance/debt-actions', params: { id: debt?.id, action: 'partial_payment' } });
+  }, [router, debt?.id]);
+
+  const handleSchedule = useCallback(() => {
+    router.push({ pathname: '/(modals)/finance/debt-actions', params: { id: debt?.id, action: 'extend_date' } });
+  }, [router, debt?.id]);
+
+  const handleMarkSettled = useCallback(() => {
+    router.push({ pathname: '/(modals)/finance/debt-actions', params: { id: debt?.id, action: 'mark_settled' } });
+  }, [router, debt?.id]);
+
+  const handleEdit = useCallback(() => {
+    router.push({ pathname: '/(modals)/finance/debt', params: { id: debt?.id } });
+  }, [router, debt?.id]);
+
+  const handleDelete = useCallback(() => {
+    if (!debt) return;
+
+    Alert.alert(
+      'Delete Debt',
+      `Are you sure you want to delete the debt with ${debt.counterpartyName}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            deleteDebt(debt.id);
+            router.back();
+          },
+        },
+      ]
+    );
+  }, [debt, deleteDebt, router]);
+
+
+  if (!debt) {
+    return (
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.background }]} edges={['top', 'bottom']}>
+        <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
+          <Text style={[styles.title, { color: theme.colors.textSecondary }]}>Debt Details</Text>
+          <Pressable onPress={handleBack} hitSlop={12}>
+            <Text style={[styles.closeText, { color: theme.colors.textSecondary }]}>{closeLabel}</Text>
+          </Pressable>
+        </View>
+        <View style={styles.emptyState}>
+          <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>Debt not found</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const isTheyOweMe = debt.direction === 'they_owe_me';
+  const isIOwe = debt.direction === 'i_owe';
+  const isPaid = debt.status === 'paid' || debt.principalAmount <= 0;
+  const payFullLabel = isIOwe ? 'Repay Full' : 'Collect Full';
+  const payPartialLabel = isIOwe ? 'Repay Partial' : 'Collect Partial';
+
+  // Debug: Log debt details to understand why actions might be hidden
+  console.log('[DebtDetail] Debt state:', {
+    id: debt.id,
+    counterparty: debt.counterpartyName,
+    principalAmount: debt.principalAmount,
+    principalOriginalAmount: debt.principalOriginalAmount,
+    status: debt.status,
+    isPaid,
+    direction: debt.direction,
+  });
+
+  return (
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.background }]} edges={['top', 'bottom']}>
+      {/* Header */}
+      <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
+        <Text style={[styles.title, { color: theme.colors.textSecondary }]}>Debt Details</Text>
+        <Pressable onPress={handleBack} hitSlop={12}>
+          <Text style={[styles.closeText, { color: theme.colors.textSecondary }]}>{closeLabel}</Text>
+        </Pressable>
+      </View>
+
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.contentContainer}
+      >
+        {/* Main Card */}
+        <AdaptiveGlassView style={[styles.mainCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+          <View style={styles.mainCardHeader}>
+            <View style={[styles.avatarLarge, { backgroundColor: isTheyOweMe ? `${theme.colors.success}20` : `${theme.colors.danger}20` }]}>
+              <User size={28} color={isTheyOweMe ? theme.colors.success : theme.colors.danger} />
+            </View>
+            <View style={styles.counterpartyInfo}>
+              <Text style={[styles.counterpartyName, { color: theme.colors.textPrimary }]}>
+                {debt.counterpartyName}
+              </Text>
+              <Text style={[styles.debtType, { color: isTheyOweMe ? theme.colors.success : theme.colors.danger }]}>
+                {isTheyOweMe ? 'They owe you' : 'You owe them'}
+              </Text>
+            </View>
+            {isPaid && (
+              <View style={[styles.paidBadge, { backgroundColor: `${theme.colors.success}20` }]}>
+                <Check size={14} color={theme.colors.success} />
+                <Text style={[styles.paidBadgeText, { color: theme.colors.success }]}>Paid</Text>
+              </View>
+            )}
+          </View>
+
+          {/* Amount & Progress */}
+          <View style={styles.amountSection}>
+            <View style={styles.amountRow}>
+              <Text style={[styles.amountLabel, { color: theme.colors.textSecondary }]}>
+                {isIOwe ? 'You still owe' : 'They still owe'}
+              </Text>
+              <Text style={[styles.amountValue, { color: isIOwe ? theme.colors.danger : theme.colors.success }]}>
+                {formatCurrencyDisplay(progressData.remaining, debt.principalCurrency)}
+              </Text>
+            </View>
+            {progressData.paid > 0 && (
+              <View style={styles.amountRow}>
+                <Text style={[styles.amountLabel, { color: theme.colors.textSecondary }]}>
+                  {isIOwe ? 'Repaid' : 'Collected'}
+                </Text>
+                <Text style={[styles.amountPaid, { color: theme.colors.success }]}>
+                  {formatCurrencyDisplay(progressData.paid, debt.principalCurrency)}
+                </Text>
+              </View>
+            )}
+            <View style={styles.amountRow}>
+              <Text style={[styles.amountLabel, { color: theme.colors.textSecondary }]}>Original</Text>
+              <Text style={[styles.amountOriginal, { color: theme.colors.textMuted }]}>
+                {formatCurrencyDisplay(progressData.original, debt.principalCurrency)}
+              </Text>
+            </View>
+          </View>
+
+          {/* Progress Bar */}
+          <View style={styles.progressContainer}>
+            <View style={[styles.progressTrack, { backgroundColor: theme.colors.border }]}>
+              <View
+                style={[
+                  styles.progressFill,
+                  {
+                    backgroundColor: theme.colors.success,
+                    width: `${Math.min(progressData.percent, 100)}%`
+                  },
+                ]}
+              />
+            </View>
+            <Text style={[styles.progressText, { color: theme.colors.textSecondary }]}>
+              {progressData.percent.toFixed(0)}% {isIOwe ? 'repaid' : 'collected'}
+            </Text>
+          </View>
+
+          {/* Due Date */}
+          {debt.dueDate && (
+            <View style={styles.dueRow}>
+              <Clock size={14} color={theme.colors.textMuted} />
+              <Text style={[styles.dueText, { color: theme.colors.textSecondary }]}>
+                Due: {formatDate(debt.dueDate)}
+              </Text>
+            </View>
+          )}
+        </AdaptiveGlassView>
+
+        {/* Action Buttons */}
+        {!isPaid && (
+          <View style={styles.actionsGrid}>
+            <ActionButton
+              icon={<CreditCard size={18} color={theme.colors.primary} />}
+              label={payFullLabel}
+              onPress={handlePayFull}
+              theme={theme}
+            />
+            <ActionButton
+              icon={<HandCoins size={18} color={theme.colors.primary} />}
+              label={payPartialLabel}
+              onPress={handlePayPartial}
+              theme={theme}
+            />
+            <ActionButton
+              icon={<Calendar size={18} color={theme.colors.primary} />}
+              label="Due Date"
+              onPress={handleSchedule}
+              theme={theme}
+            />
+            <ActionButton
+              icon={<Check size={18} color={theme.colors.primary} />}
+              label="Settled"
+              onPress={handleMarkSettled}
+              theme={theme}
+            />
+          </View>
+        )}
+
+        {/* Details Card */}
+        <AdaptiveGlassView style={[styles.detailCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+          <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>Details</Text>
+          <View style={styles.detailsList}>
+            <DetailRow
+              label="Type"
+              value={isTheyOweMe ? 'Lent money (they owe me)' : 'Borrowed money (I owe)'}
+              theme={theme}
+            />
+            <DetailRow label="Currency" value={debt.principalCurrency} theme={theme} />
+            <DetailRow label="Created" value={formatDate(debt.createdAt)} theme={theme} />
+            {debt.dueDate && <DetailRow label="Due Date" value={formatDate(debt.dueDate)} theme={theme} />}
+            {fundingAccount && <DetailRow label="Account" value={fundingAccount.name} theme={theme} />}
+            {debt.description && <DetailRow label="Note" value={debt.description} theme={theme} />}
+          </View>
+        </AdaptiveGlassView>
+
+        {/* Multi-currency Repayment Info */}
+        {debt.repaymentCurrency && debt.repaymentCurrency !== debt.principalCurrency && (
+          <AdaptiveGlassView style={[styles.detailCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+            <View style={styles.sectionHeader}>
+              <TrendingUp size={16} color={theme.colors.primary} />
+              <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>Repayment Plan</Text>
+            </View>
+            <View style={styles.detailsList}>
+              <DetailRow label="Repay in" value={debt.repaymentCurrency} theme={theme} />
+              <DetailRow
+                label="Rate at start"
+                value={`1 ${debt.principalCurrency} = ${debt.repaymentRateOnStart?.toLocaleString() ?? '—'} ${debt.repaymentCurrency}`}
+                theme={theme}
+              />
+              {debt.repaymentAmount && (
+                <DetailRow
+                  label="Expected amount"
+                  value={formatCurrencyDisplay(debt.repaymentAmount, debt.repaymentCurrency)}
+                  theme={theme}
+                />
+              )}
+            </View>
+          </AdaptiveGlassView>
+        )}
+
+        {/* Payment History */}
+        {payments.length > 0 && (
+          <AdaptiveGlassView style={[styles.detailCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+            <View style={styles.sectionHeader}>
+              <FileText size={16} color={theme.colors.primary} />
+              <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>
+                {isIOwe ? 'Repayment History' : 'Collection History'}
+              </Text>
+            </View>
+            <View style={styles.paymentsList}>
+              {payments.map((payment) => (
+                <View key={payment.id} style={styles.paymentItem}>
+                  <View style={styles.paymentLeft}>
+                    <Text style={[styles.paymentDate, { color: theme.colors.textSecondary }]}>
+                      {formatShortDate(payment.paymentDate)}
+                    </Text>
+                    {payment.note && (
+                      <Text style={[styles.paymentNote, { color: theme.colors.textMuted }]} numberOfLines={1}>
+                        {payment.note}
+                      </Text>
+                    )}
+                  </View>
+                  <Text style={[styles.paymentAmount, { color: theme.colors.success }]}>
+                    +{formatCurrencyDisplay(payment.amount, payment.currency)}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </AdaptiveGlassView>
+        )}
+
+        {/* Currency P/L Section */}
+        {currencyPL && (
+          <AdaptiveGlassView style={[styles.detailCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+            <View style={styles.sectionHeader}>
+              {currencyPL.isProfit ? (
+                <TrendingUp size={16} color={theme.colors.success} />
+              ) : (
+                <TrendingDown size={16} color={theme.colors.danger} />
+              )}
+              <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>Currency P/L</Text>
+            </View>
+            <View style={styles.detailsList}>
+              <DetailRow label="Rate at start" value={`${currencyPL.startRate.toLocaleString()}`} theme={theme} />
+              <DetailRow label="Current rate" value={`${currencyPL.currentRate.toLocaleString()}`} theme={theme} />
+              <DetailRow
+                label="Profit/Loss"
+                value={`${currencyPL.isProfit ? '+' : '−'}${formatCurrencyDisplay(Math.abs(currencyPL.profitLoss), debt.baseCurrency)}`}
+                valueColor={currencyPL.isProfit ? theme.colors.success : theme.colors.danger}
+                theme={theme}
+              />
+            </View>
+          </AdaptiveGlassView>
+        )}
+      </ScrollView>
+
+      {/* Bottom Actions */}
+      <View style={[styles.bottomActions, { borderTopColor: theme.colors.border, backgroundColor: theme.colors.background }]}>
+        <Pressable
+          onPress={handleEdit}
+          style={[styles.bottomButton, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}
+        >
+          <Edit3 size={18} color={theme.colors.primary} />
+          <Text style={[styles.bottomButtonText, { color: theme.colors.primary }]}>Edit</Text>
+        </Pressable>
+        <Pressable
+          onPress={handleDelete}
+          style={[styles.bottomButton, { backgroundColor: `${theme.colors.danger}10`, borderColor: `${theme.colors.danger}30` }]}
+        >
+          <Trash2 size={18} color={theme.colors.danger} />
+          <Text style={[styles.bottomButtonText, { color: theme.colors.danger }]}>Delete</Text>
+        </Pressable>
+      </View>
+    </SafeAreaView>
+  );
 }
 
-export default DebtDetail
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  closeText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  contentContainer: {
+    padding: 16,
+    paddingBottom: 32,
+    gap: 16,
+  },
+  mainCard: {
+    borderRadius: 24,
+    padding: 20,
+    borderWidth: StyleSheet.hairlineWidth,
+    gap: 16,
+  },
+  mainCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  avatarLarge: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  counterpartyInfo: {
+    flex: 1,
+    gap: 4,
+  },
+  counterpartyName: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  debtType: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  paidBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  paidBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  amountSection: {
+    gap: 8,
+  },
+  amountRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+  },
+  amountLabel: {
+    fontSize: 13,
+  },
+  amountValue: {
+    fontSize: 26,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+  },
+  amountPaid: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  amountOriginal: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  progressContainer: {
+    gap: 8,
+  },
+  progressTrack: {
+    height: 8,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  progressText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  dueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  dueText: {
+    fontSize: 13,
+  },
+  actionsGrid: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  actionButton: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    gap: 6,
+  },
+  actionLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  disabledButton: {
+    opacity: 0.5,
+  },
+  detailCard: {
+    borderRadius: 20,
+    padding: 18,
+    borderWidth: StyleSheet.hairlineWidth,
+    gap: 14,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  sectionTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  detailsList: {
+    gap: 12,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  detailLabel: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  detailValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'right',
+    maxWidth: '60%',
+  },
+  paymentsList: {
+    gap: 12,
+  },
+  paymentItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  paymentLeft: {
+    gap: 2,
+  },
+  paymentDate: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  paymentNote: {
+    fontSize: 12,
+  },
+  paymentAmount: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  emptyState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyText: {
+    fontSize: 15,
+  },
+  pressedOpacity: {
+    opacity: 0.8,
+  },
+  bottomActions: {
+    flexDirection: 'row',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  bottomButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  bottomButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+});

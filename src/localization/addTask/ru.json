@@ -1,7 +1,14 @@
 {
   "title": "Новая задача",
+  "editTitle": "Редактировать задачу",
+  "createTitle": "Создать задачу",
+  "close": "Закрыть",
+  "cancel": "Отмена",
+  "update": "Обновить",
+  "create": "Создать",
   "nameLabel": "Название задачи",
   "namePlaceholder": "Название",
+  "titleRequired": "*",
   "whenLabel": "Когда",
   "whenOptions": {
     "today": "Сегодня",
@@ -14,16 +21,24 @@
   "time": "Время",
   "notes": "Описание",
   "notesPlaceholder": "Описание (необязательно)",
+  "descriptionLabel": "Описание",
+  "descriptionPlaceholder": "Описание (необязательно)",
   "project": "Проект",
   "projectPlaceholder": "Выберите проект",
   "context": "Контекст",
-  "energy": "Энергия",
+  "energy": "Уровень энергии",
+  "energyOptions": {
+    "low": "Низкий",
+    "medium": "Средний",
+    "high": "Высокий"
+  },
   "priority": "Приоритет",
   "additional": "Дополнительно",
   "reminder": "Напомнить за",
+  "reminderBefore": "Напомнить за",
   "repeat": "Повтор",
-  "needFocus": "Нужен фокус",
-  "subtasks": "Подзадачи",
+  "needFocus": "Нужен ФОКУС",
+  "subtasks": "Подзадачи:",
   "subtaskPlaceholder": "Добавить подзадачу",
   "submit": "Создать задачу",
   "submitMore": "Создать и ещё",
@@ -41,5 +56,19 @@
   },
   "goalLabel": "Связанная цель",
   "goalUnset": "Без цели",
-  "goalHelper": "Привяжите цель, чтобы ИИ и аналитика точно отслеживали прогресс."
+  "goalHelper": "Привяжите цель, чтобы ИИ и аналитика точно отслеживали прогресс.",
+  "financeAction": "Финансовое действие",
+  "financeOptions": {
+    "recordExpenses": "Записать расходы",
+    "payDebt": "Оплатить долг",
+    "reviewBudget": "Просмотреть бюджет",
+    "transferMoney": "Перевести деньги",
+    "none": "Нет"
+  },
+  "validation": {
+    "selectDate": "Выберите дату",
+    "pastDate": "Нельзя выбрать прошедшую дату",
+    "futureTime": "Время должно быть в будущем"
+  },
+  "done": "Готово"
 }

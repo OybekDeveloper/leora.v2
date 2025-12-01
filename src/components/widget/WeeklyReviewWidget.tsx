@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Dot } from 'lucide-react-native';
 import { FireIcon } from '../../../assets/icons';

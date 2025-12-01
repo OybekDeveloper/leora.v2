@@ -1,11 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import {
   ArrowRight,
   BookOpen,
-  HelpCircle,
   Mail,
   MessageCircle,
   Play,
@@ -252,12 +251,12 @@ const SupportScreen: React.FC = () => {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { support: copy } = useMorePagesLocalization();
-  const router = useRouter();
 
   const { section } = useLocalSearchParams<{ section?: string }>();
   const normalizedSection = (section?.toLowerCase() ?? 'popular') as SectionKey;
 
-  const [activeSection, setActiveSection] = useState<SectionKey>(
+  // activeSection used in commented filter chips code
+  const [_activeSection, setActiveSection] = useState<SectionKey>(
     copy.sections[normalizedSection] ? normalizedSection : 'popular',
   );
 
@@ -269,15 +268,6 @@ const SupportScreen: React.FC = () => {
       schedule(normalizedSection);
     }
   }, [copy.sections, normalizedSection, schedule]);
-
-  const handleFilter = useCallback(
-    (target: SectionKey) => {
-      setActiveSection(target);
-      schedule(target);
-      router.setParams({ section: target });
-    },
-    [router, schedule],
-  );
 
   const renderPopular = useCallback(
     () => (

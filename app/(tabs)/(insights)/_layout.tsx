@@ -5,7 +5,6 @@ import { StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import UniversalFAB from '@/components/UniversalFAB';
-import InsightsModals from '@/components/screens/insights/InsightsModals';
 import { useAppTheme } from '@/constants/theme';
 
 const InsightsLayout = () => {
@@ -43,7 +42,6 @@ const InsightsLayout = () => {
         </Stack>
         <UniversalFAB />
       </View>
-      <InsightsModals />
     </SafeAreaView>
   );
 };

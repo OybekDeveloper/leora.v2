@@ -8,6 +8,7 @@ import { useLocalization } from '@/localization/useLocalization';
 import { useFinanceCurrency } from '@/hooks/useFinanceCurrency';
 import type {
   CalendarIndicatorsMap,
+  CalendarProgressMap,
   HomeDataStatus,
   ProgressData,
   Task,
@@ -25,13 +26,13 @@ import type { Budget, Transaction } from '@/domain/finance/types';
 import { normalizeFinanceCurrency } from '@/utils/financeCurrency';
 import {
   addDays,
-  addMonths,
   isSameDay,
   startOfDay,
   startOfMonth,
+  startOfWeek,
   toISODateKey,
 } from '@/utils/calendar';
-import { calculateHabitProgress, calculateTaskProgress } from '@/utils/progressCalculator';
+import { calculateHabitProgress, calculateTaskProgress, calculateTaskProgressByDueDate } from '@/utils/progressCalculator';
 import { useShallow } from 'zustand/shallow';
 import { Activity, BookOpen, Brain, Dumbbell, Heart, Sparkles } from 'lucide-react-native';
 
@@ -48,6 +49,7 @@ interface UseHomeDashboardResult {
   loading: boolean;
   refreshing: boolean;
   calendarIndicators: CalendarIndicatorsMap;
+  calendarProgress: CalendarProgressMap;
   calendarEvents: CalendarEventMap;
   refresh: () => void;
 }
@@ -121,8 +123,18 @@ export function useHomeDashboard(initialDate?: Date): UseHomeDashboardResult {
     });
   }, [budgetScore, convertAmount, financeState, globalCurrency, locale, plannerState, selectedDate]);
 
-  const calendarIndicators = useMemo<CalendarIndicatorsMap>(() => {
+  // Compute both calendarIndicators and calendarProgress in a single pass for efficiency
+  const { calendarIndicators, calendarProgress } = useMemo(() => {
     const dateKeys = new Set<string>();
+
+    // Generate all 42 days for the calendar view (6 weeks)
+    const monthStart = startOfMonth(selectedDate);
+    const calendarStart = startOfWeek(monthStart);
+    for (let i = 0; i < 42; i++) {
+      dateKeys.add(toISODateKey(addDays(calendarStart, i)));
+    }
+
+    // Also add dates from events for extended range
     const appendKey = (value?: string | Date | null) => {
       if (!value) return;
       const date = typeof value === 'string' ? new Date(value) : value;
@@ -143,20 +155,24 @@ export function useHomeDashboard(initialDate?: Date): UseHomeDashboardResult {
       });
     });
     financeState.transactions.forEach((txn) => appendKey(txn.date));
-    dateKeys.add(toISODateKey(selectedDate));
 
     const indicators: CalendarIndicatorsMap = {};
+    const progressMap: CalendarProgressMap = {};
+
     dateKeys.forEach((key) => {
       const date = startOfDay(new Date(key));
-      const dailyProgress = computeProgressData(
+      // Use computeCalendarDayProgress which filters tasks by dueDate
+      const dailyProgress = computeCalendarDayProgress(
         date,
         plannerState.tasks,
         plannerState.habits,
         budgetScore,
       );
       indicators[key] = buildIndicators(dailyProgress);
+      progressMap[key] = dailyProgress;
     });
-    return indicators;
+
+    return { calendarIndicators: indicators, calendarProgress: progressMap };
   }, [budgetScore, financeState.transactions, plannerState.goals, plannerState.habits, plannerState.tasks, selectedDate]);
 
   const calendarEvents = useMemo<CalendarEventMap>(() => {
@@ -217,6 +233,7 @@ export function useHomeDashboard(initialDate?: Date): UseHomeDashboardResult {
     loading,
     refreshing,
     calendarIndicators,
+    calendarProgress,
     calendarEvents,
     refresh,
   };
@@ -230,6 +247,23 @@ function computeProgressData(
 ): ProgressData {
   return {
     tasks: calculateTaskProgress(tasks, targetDate),
+    budget: budgetScore,
+    focus: calculateHabitProgress(habits, targetDate),
+  };
+}
+
+/**
+ * Compute progress for calendar day indicators.
+ * Uses dueDate for tasks (showing tasks scheduled for that day).
+ */
+function computeCalendarDayProgress(
+  targetDate: Date,
+  tasks: PlannerTask[],
+  habits: PlannerHabit[],
+  budgetScore: number,
+): ProgressData {
+  return {
+    tasks: calculateTaskProgressByDueDate(tasks, targetDate),
     budget: budgetScore,
     focus: calculateHabitProgress(habits, targetDate),
   };
@@ -584,7 +618,7 @@ function buildSpendingSummary(
 function buildBudgetList(
   budgets: Budget[],
   transactions: Transaction[],
-  selectedDate: Date,
+  _selectedDate: Date,
   targetCurrency: string,
   convertAmount: (amount: number, from: string, to?: string) => number,
 ) {
@@ -690,7 +724,7 @@ function buildProductivityInsights(
 function computeBudgetScore(
   budgets: Budget[],
   transactions: Transaction[],
-  selectedDate: Date,
+  _selectedDate: Date,
   convertAmount: (amount: number, from: string, to?: string) => number,
 ): number {
   const activeBudgets = budgets.filter((budget) => !budget.isArchived);

@@ -37,7 +37,7 @@ const LoginScreen = () => {
   const hasFocusedRef = useRef(false);
 
   const remoteErrorMap = useMemo(
-    () => ({
+    (): Record<string, string> => ({
       "Please enter both email/username and password": loginStrings.errors.missingCredentials,
       "Invalid email/username or password": loginStrings.errors.invalidCredentials,
       "An error occurred during login. Please try again.": loginStrings.errors.generic,
@@ -98,7 +98,7 @@ const LoginScreen = () => {
 
     const latestError = useAuthStore.getState().error;
     const message =
-      (latestError ? remoteErrorMap[latestError] ?? latestError : undefined) ??
+      (latestError ? (remoteErrorMap[latestError] ?? latestError) : undefined) ??
       loginStrings.alerts.failureMessage;
     Alert.alert(loginStrings.alerts.failureTitle, message);
   };

@@ -249,7 +249,6 @@ type RowProps = {
 };
 const AchievementRow: React.FC<RowProps> = ({ title, subtitle, details, right }) => {
   const styles = useStyles();
-  const theme = useAppTheme();
   return (
     <View style={styles.item}>
       <View style={styles.itemTop}>

@@ -22,11 +22,6 @@ import { useMorePagesLocalization } from '@/localization/more/pages';
 
 type SectionKey = 'backup' | 'export' | 'storage';
 
-type SectionContent = {
-  title: string;
-  subtitle: string;
-};
-
 type IconComponent = React.ComponentType<{ color?: string; size?: number }>;
 
 const ROW_ICONS: Record<SectionKey, IconComponent[]> = {

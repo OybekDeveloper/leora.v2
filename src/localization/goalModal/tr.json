@@ -1,6 +1,8 @@
 {
   "title": "Hedef oluştur",
+  "editTitle": "Hedefi düzenle",
   "subtitle": "Uzun vadeli planları ölçülebilir adımlara çevirin.",
+  "close": "Kapat",
   "scenarioSection": {
     "title": "Senaryo",
     "subtitle": "Şablonlar metrik ve süreyi otomatik ayarlar"
@@ -26,6 +28,51 @@
       "title": "Özel",
       "subtitle": "Kendi metriğinizi seçin"
     }
+  },
+  "wizardSteps": {
+    "basics": "Temel",
+    "measure": "Ölçüm",
+    "timeline": "Zaman",
+    "connect": "Bağla"
+  },
+  "step1": {
+    "title": "Ne elde etmek istiyorsunuz?",
+    "categoryLabel": "Kategori",
+    "whyLabel": "Bu neden önemli? (isteğe bağlı)",
+    "placeholder": "Örn. \"Tatil için birikim\", \"Maraton koşmak\", \"İspanyolca öğrenmek\"",
+    "motivationPlaceholder": "Motivasyonunuz...",
+    "hint": "Net 'neden'i olan hedefler %60 daha başarılı",
+    "characterCount": "/100"
+  },
+  "step2": {
+    "title": "İlerlemeyi nasıl takip edeceksiniz?",
+    "goalTypeLabel": "Hedef türü",
+    "currencyInherited": "Para birimi bağlı bütçeden alındı",
+    "progressHint": "İlerleme işlemlerinize göre otomatik güncellenir"
+  },
+  "step3": {
+    "title": "Buna ne zaman ulaşmak istiyorsunuz?",
+    "deadlineHint": "Son tarihi olan hedefler %42 daha başarılı",
+    "quickSelect": "Hızlı seçim"
+  },
+  "step4": {
+    "title": "Finansa bağla (isteğe bağlı)",
+    "subtitle": "Otomatik takip için bütçe veya borca bağlayın",
+    "livePreview": "Canlı önizleme",
+    "budgetBalance": "Bütçe bakiyesi",
+    "goalProgress": "Hedef ilerlemesi",
+    "debtRemaining": "Kalan borç",
+    "savingsLink": "Tasarruf bütçesine bağla",
+    "debtLink": "Hangi borcu ödüyorsunuz?",
+    "budgetCategoryLink": "Bütçe kategorisine bağla",
+    "noBudget": "Bütçe yok",
+    "noDebt": "Borç yok",
+    "addBudget": "Bütçe ekle",
+    "createDebt": "Yeni borç oluştur",
+    "noBudgetsHint": "Bütçe bulunamadı. Otomatik bağlama için bir tane oluşturun.",
+    "noDebtsHint": "Aktif borç yok. Finans sekmesinde oluşturun.",
+    "autoPaymentHint": "Ödeme yaptığınızda ilerleme otomatik güncellenir",
+    "nonFinanceHint": "Finans bağlama sadece finansal hedefler için geçerlidir. Alışkanlık ve görevleri daha sonra hedef detayları ekranından ekleyebilirsiniz."
   },
   "detailsSection": {
     "title": "Detaylar",
@@ -74,14 +121,45 @@
     "empty": "Henüz kilometre taşı yok",
     "delete": "Kaldır"
   },
+  "goalTypes": {
+    "financial": { "label": "Para", "examples": ["5000$ biriktir", "Borcu öde"] },
+    "career": { "label": "Kariyer", "examples": ["Terfi al", "Proje başlat"] },
+    "personal": { "label": "Kişisel", "examples": ["Her gün meditasyon", "5 ülkeyi ziyaret et"] }
+  },
+  "financeModes": {
+    "save": { "label": "Para biriktir", "description": "Tasarruf oluştur" },
+    "spend": { "label": "Bütçe limiti", "description": "Harcamayı kontrol et" },
+    "debt_close": { "label": "Borcu öde", "description": "Borçtan kurtul" }
+  },
+  "metricKinds": {
+    "amount": { "label": "Para", "description": "Finansal hedefler" },
+    "count": { "label": "Sayı", "description": "Miktarları takip et" },
+    "duration": { "label": "Süre", "description": "Zaman bazlı hedefler" },
+    "weight": { "label": "Ağırlık", "description": "Kilo takibi" },
+    "custom": { "label": "Özel", "description": "Kendi metriğiniz" }
+  },
+  "deadlinePresets": {
+    "week1": "1 hafta",
+    "month1": "1 ay",
+    "month3": "3 ay",
+    "month6": "6 ay",
+    "year1": "1 yıl"
+  },
   "actions": {
     "cancel": "Kapat",
+    "back": "Geri",
+    "next": "İleri →",
     "create": "Hedef oluştur",
     "createMore": "Oluştur ve devam et",
-    "update": "Değişiklikleri kaydet"
+    "update": "Değişiklikleri kaydet",
+    "done": "Tamam"
   },
   "alerts": {
     "missingTitle": "Önce hedefe bir ad verin.",
-    "invalidTarget": "Sıfırdan büyük bir hedef değeri girin."
+    "titleTooShort": "Başlık çok kısa. Daha açıklayıcı olun!",
+    "invalidTarget": "Hedef geçerli bir sayı olmalı",
+    "targetSameAsCurrent": "Hedef mevcut değerden farklı olmalı",
+    "selectBudget": "Bu hedef için bir bütçe seçin veya oluşturun.",
+    "selectDebt": "Ödemeleri takip etmek için bir borç bağlayın."
   }
 }

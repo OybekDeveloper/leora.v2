@@ -23,46 +23,133 @@ import {
   BookOpen,
   Smile,
   PlusCircle,
+  Dumbbell,
+  Brain,
+  Droplets,
+  CircleSlash,
+  Plus,
+  Minus,
+  Bell,
+  Flame,
+  Zap,
+  HelpCircle,
 } from 'lucide-react-native';
 
 import { createThemedStyles, useAppTheme } from '@/constants/theme';
 import { usePlannerDomainStore } from '@/stores/usePlannerDomainStore';
 import { useFinanceDomainStore } from '@/stores/useFinanceDomainStore';
 import { AdaptiveGlassView } from '@/components/ui/AdaptiveGlassView';
-import type { HabitType, CompletionMode, HabitFinanceRule, Frequency } from '@/domain/planner/types';
+import { FloatList, FloatListItem } from '@/components/ui/FloatList';
+import { useLocalization } from '@/localization/useLocalization';
+import type {
+  HabitType,
+  CompletionMode,
+  HabitFinanceRule,
+  Frequency,
+  HabitCountingType,
+  HabitDifficulty,
+  HabitPriority,
+} from '@/domain/planner/types';
+import { Dropdown } from 'react-native-element-dropdown';
+import { Flag, Check } from 'lucide-react-native';
 
 type Props = {
   habitId?: string;
+  presetGoalId?: string;
 };
 
-const HABIT_TYPES: { id: HabitType; label: string; icon: typeof HeartPulse }[] = [
-  { id: 'health', label: 'Health', icon: HeartPulse },
-  { id: 'finance', label: 'Finance', icon: PiggyBank },
-  { id: 'productivity', label: 'Productivity', icon: Sparkles },
-  { id: 'education', label: 'Education', icon: BookOpen },
-  { id: 'personal', label: 'Personal', icon: Smile },
-  { id: 'custom', label: 'Custom', icon: PlusCircle },
+const HABIT_TYPE_IDS: { id: HabitType; icon: typeof HeartPulse }[] = [
+  { id: 'health', icon: HeartPulse },
+  { id: 'finance', icon: PiggyBank },
+  { id: 'productivity', icon: Sparkles },
+  { id: 'education', icon: BookOpen },
+  { id: 'personal', icon: Smile },
+  { id: 'custom', icon: PlusCircle },
 ];
 
-const FREQUENCY_TYPES: { id: Frequency; label: string; icon: string }[] = [
-  { id: 'daily', label: 'Daily', icon: 'calendar' },
-  { id: 'weekly', label: 'Weekly', icon: 'calendarDays' },
-  { id: 'custom', label: 'Custom', icon: 'settings' },
+const FREQUENCY_TYPE_IDS: { id: Frequency; icon: string }[] = [
+  { id: 'daily', icon: 'calendar' },
+  { id: 'weekly', icon: 'calendarDays' },
+  { id: 'custom', icon: 'settings' },
 ];
 
-const TIMES_OPTIONS = [
-  { value: 1, label: 'Once' },
-  { value: 2, label: 'Twice' },
-  { value: 3, label: '3 times' },
-  { value: 4, label: '4 times' },
-  { value: 5, label: '5 times' },
+const FINANCE_RULE_TYPE_IDS = [
+  'no_spend_in_categories',
+  'spend_in_categories',
+  'has_any_transactions',
+  'daily_spend_under',
+] as const;
+
+const DIFFICULTY_OPTIONS: { id: HabitDifficulty; icon: typeof Zap }[] = [
+  { id: 'easy', icon: Zap },
+  { id: 'medium', icon: Flame },
+  { id: 'hard', icon: Sparkles },
 ];
 
-const FINANCE_RULE_TYPES = [
-  { id: 'no_spend_in_categories', label: 'No Spend in Categories' },
-  { id: 'spend_in_categories', label: 'Spend in Categories' },
-  { id: 'has_any_transactions', label: 'Has Any Transactions' },
-  { id: 'daily_spend_under', label: 'Daily Spend Under' },
+const STREAK_OPTIONS = [
+  { days: 7, key: 'days7' as const },
+  { days: 21, key: 'days21' as const },
+  { days: 30, key: 'days30' as const },
+  { days: 66, key: 'days66' as const },
+  { days: 100, key: 'days100' as const },
+];
+
+const WEEKDAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
+
+const PRIORITY_OPTIONS: { id: HabitPriority; label: string }[] = [
+  { id: 'low', label: 'low' },
+  { id: 'medium', label: 'medium' },
+  { id: 'high', label: 'high' },
+];
+
+type PopularHabitTemplate = {
+  id: string;
+  titleKey: 'morningWorkout' | 'meditation' | 'drinkWater' | 'quitSmoking';
+  icon: typeof Dumbbell;
+  habitType: HabitType;
+  countingType: HabitCountingType;
+  difficulty: HabitDifficulty;
+  completionMode?: CompletionMode;
+  targetPerDay?: number;
+  unit?: string;
+};
+
+const POPULAR_HABITS: PopularHabitTemplate[] = [
+  {
+    id: 'morning-workout',
+    titleKey: 'morningWorkout',
+    icon: Dumbbell,
+    habitType: 'health',
+    countingType: 'create',
+    difficulty: 'medium',
+  },
+  {
+    id: 'meditation',
+    titleKey: 'meditation',
+    icon: Brain,
+    habitType: 'personal',
+    countingType: 'create',
+    difficulty: 'easy',
+  },
+  {
+    id: 'drink-water',
+    titleKey: 'drinkWater',
+    icon: Droplets,
+    habitType: 'health',
+    countingType: 'create',
+    difficulty: 'easy',
+    completionMode: 'numeric',
+    targetPerDay: 8,
+    unit: 'glasses',
+  },
+  {
+    id: 'quit-smoking',
+    titleKey: 'quitSmoking',
+    icon: CircleSlash,
+    habitType: 'health',
+    countingType: 'quit',
+    difficulty: 'hard',
+  },
 ];
 
 const renderFrequencyIcon = (iconId: string, size: number, color: string) => {
@@ -78,10 +165,130 @@ const renderFrequencyIcon = (iconId: string, size: number, color: string) => {
   }
 };
 
-export function HabitComponent({ habitId }: Props) {
+// Custom dates picker component for custom frequency
+type CustomDatesPickerProps = {
+  selectedDates: string[];
+  onDatesChange: (dates: string[]) => void;
+  styles: any;
+};
+
+function CustomDatesPicker({ selectedDates, onDatesChange, styles }: CustomDatesPickerProps) {
+  const today = new Date();
+  const [currentMonth, setCurrentMonth] = useState(today);
+
+  const getDaysInMonth = (date: Date) => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    const startDayOfWeek = firstDay.getDay();
+
+    const days: (number | null)[] = [];
+    // Add empty cells for days before the first day of the month
+    for (let i = 0; i < (startDayOfWeek === 0 ? 6 : startDayOfWeek - 1); i++) {
+      days.push(null);
+    }
+    // Add days of the month
+    for (let i = 1; i <= daysInMonth; i++) {
+      days.push(i);
+    }
+    return days;
+  };
+
+  const formatDateKey = (day: number) => {
+    const year = currentMonth.getFullYear();
+    const month = String(currentMonth.getMonth() + 1).padStart(2, '0');
+    const dayStr = String(day).padStart(2, '0');
+    return `${year}-${month}-${dayStr}`;
+  };
+
+  const toggleDate = (day: number) => {
+    const dateKey = formatDateKey(day);
+    if (selectedDates.includes(dateKey)) {
+      onDatesChange(selectedDates.filter(d => d !== dateKey));
+    } else {
+      onDatesChange([...selectedDates, dateKey]);
+    }
+  };
+
+  const goToPrevMonth = () => {
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
+  };
+
+  const goToNextMonth = () => {
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
+  };
+
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const days = getDaysInMonth(currentMonth);
+
+  return (
+    <View style={styles.calendarContainer}>
+      {/* Month navigation */}
+      <View style={styles.calendarHeader}>
+        <Pressable onPress={goToPrevMonth} hitSlop={12}>
+          <Text style={styles.calendarNavButton}>{'<'}</Text>
+        </Pressable>
+        <Text style={styles.calendarMonthText}>
+          {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
+        </Text>
+        <Pressable onPress={goToNextMonth} hitSlop={12}>
+          <Text style={styles.calendarNavButton}>{'>'}</Text>
+        </Pressable>
+      </View>
+
+      {/* Weekday headers */}
+      <View style={styles.calendarWeekdayRow}>
+        {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map((day) => (
+          <Text key={day} style={styles.calendarWeekdayText}>{day}</Text>
+        ))}
+      </View>
+
+      {/* Days grid */}
+      <View style={styles.calendarDaysGrid}>
+        {days.map((day, index) => {
+          if (day === null) {
+            return <View key={`empty-${index}`} style={styles.calendarDayCell} />;
+          }
+          const dateKey = formatDateKey(day);
+          const isSelected = selectedDates.includes(dateKey);
+          return (
+            <Pressable
+              key={day}
+              style={[
+                styles.calendarDayCell,
+                isSelected && styles.calendarDayCellSelected,
+              ]}
+              onPress={() => toggleDate(day)}
+            >
+              <Text style={[
+                styles.calendarDayText,
+                isSelected && styles.calendarDayTextSelected,
+              ]}>
+                {day}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {/* Selected count */}
+      {selectedDates.length > 0 && (
+        <Text style={styles.calendarSelectedCount}>
+          {selectedDates.length} date{selectedDates.length > 1 ? 's' : ''} selected
+        </Text>
+      )}
+    </View>
+  );
+}
+
+export function HabitComponent({ habitId, presetGoalId }: Props) {
   const styles = useStyles();
   const theme = useAppTheme();
   const router = useRouter();
+  const { strings } = useLocalization();
+  const habitStrings = strings.plannerModals.habit;
 
   const { habits, createHabit, updateHabit, goals } = usePlannerDomainStore(
     useShallow((state) => ({
@@ -102,16 +309,27 @@ export function HabitComponent({ habitId }: Props) {
   // Basic fields
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [iconId, setIconId] = useState<string | undefined>();
   const [habitType, setHabitType] = useState<HabitType>('health');
   const [frequency, setFrequency] = useState<Frequency>('daily');
   const [timesPerWeek, setTimesPerWeek] = useState(1);
 
-  // New fields from spec
+  // New fields
+  const [countingType, setCountingType] = useState<HabitCountingType>('create');
+  const [difficulty, setDifficulty] = useState<HabitDifficulty>('medium');
+  const [priority, setPriority] = useState<HabitPriority>('medium');
+  const [selectedDays, setSelectedDays] = useState<number[]>([]);
+  const [customDates, setCustomDates] = useState<string[]>([]); // ISO date strings like '2024-01-15'
+  const [reminderEnabled, setReminderEnabled] = useState(false);
+  const [reminderTime, setReminderTime] = useState<Date | undefined>();
+  const [challengeLengthDays, setChallengeLengthDays] = useState<number | undefined>();
+
+  // Existing fields from spec
   const [completionMode, setCompletionMode] = useState<CompletionMode>('boolean');
   const [targetPerDay, setTargetPerDay] = useState<string>('1');
   const [unit, setUnit] = useState('');
   const [timeOfDay, setTimeOfDay] = useState<Date | undefined>();
-  const [goalId, setGoalId] = useState<string | undefined>();
+  const [goalId, setGoalId] = useState<string | undefined>(presetGoalId);
 
   // Finance Rule
   const [enableFinanceRule, setEnableFinanceRule] = useState(false);
@@ -123,6 +341,7 @@ export function HabitComponent({ habitId }: Props) {
 
   // Pickers
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const [showReminderPicker, setShowReminderPicker] = useState(false);
 
   // Load habit data if editing
   useEffect(() => {
@@ -131,6 +350,7 @@ export function HabitComponent({ habitId }: Props) {
       if (habit) {
         setTitle(habit.title || '');
         setDescription(habit.description || '');
+        setIconId(habit.iconId);
         setHabitType(habit.habitType || 'health');
         setFrequency(habit.frequency || 'daily');
         setTimesPerWeek(habit.timesPerWeek || 1);
@@ -138,12 +358,25 @@ export function HabitComponent({ habitId }: Props) {
         setTargetPerDay(String(habit.targetPerDay || 1));
         setUnit(habit.unit || '');
         setGoalId(habit.goalId);
+        setCountingType(habit.countingType || 'create');
+        setDifficulty(habit.difficulty || 'medium');
+        setPriority(habit.priority || 'medium');
+        setSelectedDays(habit.daysOfWeek || []);
+        setReminderEnabled(habit.reminderEnabled || false);
+        setChallengeLengthDays(habit.challengeLengthDays);
 
         if (habit.timeOfDay) {
           const [hours, minutes] = habit.timeOfDay.split(':').map(Number);
           const date = new Date();
           date.setHours(hours, minutes, 0, 0);
           setTimeOfDay(date);
+        }
+
+        if (habit.reminderTime) {
+          const [hours, minutes] = habit.reminderTime.split(':').map(Number);
+          const date = new Date();
+          date.setHours(hours, minutes, 0, 0);
+          setReminderTime(date);
         }
 
         if (habit.financeRule) {
@@ -167,9 +400,57 @@ export function HabitComponent({ habitId }: Props) {
     }
   }, [habitId, habits]);
 
-  const handleSubmit = useCallback(() => {
-    if (!title.trim()) return;
+  const resetForm = useCallback(() => {
+    setTitle('');
+    setDescription('');
+    setIconId(undefined);
+    setHabitType('health');
+    setFrequency('daily');
+    setTimesPerWeek(1);
+    setCountingType('create');
+    setDifficulty('medium');
+    setPriority('medium');
+    setSelectedDays([]);
+    setReminderEnabled(false);
+    setReminderTime(undefined);
+    setChallengeLengthDays(undefined);
+    setCompletionMode('boolean');
+    setTargetPerDay('1');
+    setUnit('');
+    setTimeOfDay(undefined);
+    setGoalId(presetGoalId);
+    setEnableFinanceRule(false);
+    setFinanceRuleType('no_spend_in_categories');
+    setSelectedCategories([]);
+    setSelectedAccounts([]);
+    setRuleAmount('');
+    setRuleCurrency('USD');
+  }, [presetGoalId]);
 
+  const handlePopularHabitSelect = useCallback((template: PopularHabitTemplate) => {
+    const templateStrings = habitStrings.popularHabits[template.titleKey];
+    setTitle(templateStrings.title);
+    setHabitType(template.habitType);
+    setCountingType(template.countingType);
+    setDifficulty(template.difficulty);
+    if (template.completionMode) {
+      setCompletionMode(template.completionMode);
+    }
+    if (template.targetPerDay) {
+      setTargetPerDay(String(template.targetPerDay));
+    }
+    if (template.unit) {
+      setUnit(template.unit);
+    }
+    if (templateStrings.time) {
+      const [hours, minutes] = templateStrings.time.split(':').map(Number);
+      const date = new Date();
+      date.setHours(hours, minutes, 0, 0);
+      setTimeOfDay(date);
+    }
+  }, [habitStrings.popularHabits]);
+
+  const buildHabitData = useCallback(() => {
     let financeRule: HabitFinanceRule | undefined;
 
     if (enableFinanceRule) {
@@ -199,12 +480,20 @@ export function HabitComponent({ habitId }: Props) {
       }
     }
 
-    const habitData = {
+    return {
       title,
       description: description || undefined,
+      iconId,
       habitType,
       frequency,
       timesPerWeek: frequency === 'weekly' || frequency === 'custom' ? timesPerWeek : undefined,
+      daysOfWeek: (frequency === 'weekly' || frequency === 'custom') && selectedDays.length > 0 ? selectedDays : undefined,
+      countingType,
+      difficulty,
+      priority,
+      reminderEnabled,
+      reminderTime: reminderTime ? `${reminderTime.getHours().toString().padStart(2, '0')}:${reminderTime.getMinutes().toString().padStart(2, '0')}` : undefined,
+      challengeLengthDays,
       completionMode,
       targetPerDay: completionMode === 'numeric' ? parseFloat(targetPerDay) : undefined,
       unit: completionMode === 'numeric' ? unit : undefined,
@@ -213,6 +502,37 @@ export function HabitComponent({ habitId }: Props) {
       financeRule,
       updatedAt: new Date().toISOString(),
     };
+  }, [
+    title,
+    description,
+    iconId,
+    habitType,
+    frequency,
+    timesPerWeek,
+    selectedDays,
+    countingType,
+    difficulty,
+    priority,
+    reminderEnabled,
+    reminderTime,
+    challengeLengthDays,
+    completionMode,
+    targetPerDay,
+    unit,
+    timeOfDay,
+    goalId,
+    enableFinanceRule,
+    financeRuleType,
+    selectedCategories,
+    selectedAccounts,
+    ruleAmount,
+    ruleCurrency,
+  ]);
+
+  const handleSubmit = useCallback((andMore = false) => {
+    if (!title.trim()) return;
+
+    const habitData = buildHabitData();
 
     if (habitId) {
       updateHabit(habitId, habitData);
@@ -229,32 +549,14 @@ export function HabitComponent({ habitId }: Props) {
       } as any);
     }
 
-    // Delay navigation to allow AsyncStorage to persist the changes
-    setTimeout(() => {
-      router.back();
-    }, 100);
-  }, [
-    title,
-    description,
-    habitType,
-    frequency,
-    timesPerWeek,
-    completionMode,
-    targetPerDay,
-    unit,
-    timeOfDay,
-    goalId,
-    enableFinanceRule,
-    financeRuleType,
-    selectedCategories,
-    selectedAccounts,
-    ruleAmount,
-    ruleCurrency,
-    habitId,
-    createHabit,
-    updateHabit,
-    router,
-  ]);
+    if (andMore) {
+      resetForm();
+    } else {
+      setTimeout(() => {
+        router.back();
+      }, 100);
+    }
+  }, [title, buildHabitData, habitId, updateHabit, createHabit, resetForm, router]);
 
   const handleTimePress = () => {
     if (Platform.OS === 'android') {
@@ -273,6 +575,23 @@ export function HabitComponent({ habitId }: Props) {
     }
   };
 
+  const handleReminderTimePress = () => {
+    if (Platform.OS === 'android') {
+      DateTimePickerAndroid.open({
+        value: reminderTime || new Date(),
+        mode: 'time',
+        is24Hour: true,
+        onChange: (event, selectedTime) => {
+          if (event.type === 'set' && selectedTime) {
+            setReminderTime(selectedTime);
+          }
+        },
+      });
+    } else {
+      setShowReminderPicker(true);
+    }
+  };
+
   const toggleCategory = (catId: string) => {
     setSelectedCategories(prev =>
       prev.includes(catId) ? prev.filter(id => id !== catId) : [...prev, catId]
@@ -285,42 +604,84 @@ export function HabitComponent({ habitId }: Props) {
     );
   };
 
+  const toggleDay = (dayIndex: number) => {
+    setSelectedDays(prev =>
+      prev.includes(dayIndex) ? prev.filter(d => d !== dayIndex) : [...prev, dayIndex]
+    );
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>
-          {habitId ? 'Edit Habit' : 'New Habit'}
+          {habitId ? habitStrings.editTitle : habitStrings.createTitle}
         </Text>
         <Pressable onPress={() => router.back()} hitSlop={12}>
-          <Text style={styles.closeText}>Close</Text>
+          <Text style={styles.closeText}>{habitStrings.close}</Text>
         </Pressable>
       </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        {/* Popular Habits */}
+        {!habitId && (
+          <View style={styles.section}>
+            <Text style={styles.label}>{habitStrings.popularHabitsLabel}</Text>
+            <FloatList
+              items={POPULAR_HABITS.map((template) => ({
+                id: template.id,
+                label: habitStrings.popularHabits[template.titleKey].title,
+                icon: null,
+                template,
+              })) as (FloatListItem & { template: PopularHabitTemplate })[]}
+              onSelect={(item) => handlePopularHabitSelect((item as any).template)}
+              gap={10}
+              renderItem={(item) => {
+                const template = (item as any).template as PopularHabitTemplate;
+                const Icon = template.icon;
+                const templateStrings = habitStrings.popularHabits[template.titleKey];
+                return (
+                  <AdaptiveGlassView style={styles.popularHabitCard}>
+                    <View style={styles.popularHabitIconWrap}>
+                      <Icon size={24} color={theme.colors.textPrimary} />
+                    </View>
+                    <Text style={styles.popularHabitTitle} numberOfLines={1} ellipsizeMode="tail">
+                      {templateStrings.title}
+                    </Text>
+                    {templateStrings.time ? (
+                      <Text style={styles.popularHabitTime}>
+                        <Clock size={10} color={theme.colors.textMuted} /> {templateStrings.time}
+                      </Text>
+                    ) : null}
+                  </AdaptiveGlassView>
+                );
+              }}
+            />
+          </View>
+        )}
+
         {/* Habit Name */}
         <View style={styles.section}>
-          <Text style={styles.label}>Habit Name *</Text>
+          <Text style={styles.label}>{habitStrings.nameLabel} {habitStrings.nameRequired}</Text>
           <AdaptiveGlassView style={styles.inputWrapper}>
             <TextInput
               style={styles.input}
               value={title}
               onChangeText={setTitle}
-              placeholder="E.g., Morning meditation, Exercise, Read"
+              placeholder={habitStrings.namePlaceholder}
               placeholderTextColor={theme.colors.textMuted}
-              autoFocus
             />
           </AdaptiveGlassView>
         </View>
 
         {/* Description */}
         <View style={styles.section}>
-          <Text style={styles.label}>Description</Text>
+          <Text style={styles.label}>{habitStrings.descriptionLabel}</Text>
           <AdaptiveGlassView style={styles.inputWrapper}>
             <TextInput
               style={styles.textArea}
               value={description}
               onChangeText={setDescription}
-              placeholder="Why is this habit important to you?"
+              placeholder={habitStrings.descriptionPlaceholder}
               placeholderTextColor={theme.colors.textMuted}
               multiline
               numberOfLines={3}
@@ -328,122 +689,334 @@ export function HabitComponent({ habitId }: Props) {
           </AdaptiveGlassView>
         </View>
 
-        {/* Habit Type */}
+        {/* Counting Type (Create / Quit) */}
         <View style={styles.section}>
-          <Text style={styles.label}>Habit Type</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.carouselRow}
-          >
-            {HABIT_TYPES.map((type) => {
-              const Icon = type.icon;
-              const active = habitType === type.id;
+          <Text style={styles.label}>{habitStrings.countingTypeLabel}</Text>
+          <View style={styles.countingTypeRow}>
+            <Pressable
+              style={[
+                styles.countingTypeButton,
+                countingType === 'create' && styles.countingTypeButtonActive,
+              ]}
+              onPress={() => setCountingType('create')}
+            >
+              <Plus size={18} color={countingType === 'create' ? theme.colors.primary : theme.colors.textSecondary} />
+              <Text style={[
+                styles.countingTypeLabel,
+                countingType === 'create' && styles.countingTypeLabelActive,
+              ]}>
+                {habitStrings.countingTypes.create}
+              </Text>
+            </Pressable>
+            <Pressable
+              style={[
+                styles.countingTypeButton,
+                countingType === 'quit' && styles.countingTypeButtonActive,
+              ]}
+              onPress={() => setCountingType('quit')}
+            >
+              <Minus size={18} color={countingType === 'quit' ? theme.colors.primary : theme.colors.textSecondary} />
+              <Text style={[
+                styles.countingTypeLabel,
+                countingType === 'quit' && styles.countingTypeLabelActive,
+              ]}>
+                {habitStrings.countingTypes.quit}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+
+        {/* Categories (Habit Type) */}
+        <View style={styles.section}>
+          <Text style={styles.label}>{habitStrings.categoriesLabel}</Text>
+          <FloatList
+            items={HABIT_TYPE_IDS.map((type) => ({
+              id: type.id,
+              label: habitStrings.habitTypes[type.id],
+              icon: null,
+              iconComponent: type.icon,
+            })) as (FloatListItem & { iconComponent: typeof HeartPulse })[]}
+            selectedId={habitType}
+            onSelect={(item) => setHabitType(item.id as HabitType)}
+            gap={10}
+            renderItem={(item, isSelected) => {
+              const Icon = (item as any).iconComponent as typeof HeartPulse;
+              return (
+                <AdaptiveGlassView
+                  style={[styles.typeCard, isSelected && styles.typeCardActive]}
+                >
+                  <View style={[styles.typeIconWrap, isSelected && styles.typeIconWrapActive]}>
+                    <Icon size={18} color={isSelected ? theme.colors.primary : theme.colors.textSecondary} />
+                  </View>
+                  <Text
+                    style={[styles.typeLabel, isSelected && styles.typeLabelActive]}
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                  >
+                    {item.label}
+                  </Text>
+                </AdaptiveGlassView>
+              );
+            }}
+          />
+        </View>
+
+        {/* Difficulty */}
+        <View style={styles.section}>
+          <Text style={styles.label}>{habitStrings.difficultyLabel}</Text>
+          <Dropdown
+            mode="default"
+            data={DIFFICULTY_OPTIONS.map((opt) => ({
+              value: opt.id,
+              label: habitStrings.difficultyLevels[opt.id],
+              icon: opt.icon,
+            }))}
+            labelField="label"
+            valueField="value"
+            value={difficulty}
+            onChange={(item) => setDifficulty(item.value as HabitDifficulty)}
+            style={styles.dropdown}
+            containerStyle={[styles.dropdownContainer, { backgroundColor: theme.colors.card }]}
+            placeholderStyle={styles.dropdownPlaceholder}
+            selectedTextStyle={styles.dropdownSelectedText}
+            renderLeftIcon={() => {
+              const currentOption = DIFFICULTY_OPTIONS.find(o => o.id === difficulty);
+              const Icon = currentOption?.icon || Zap;
+              return (
+                <Icon
+                  size={18}
+                  color={theme.colors.textSecondary}
+                  style={{ marginRight: 10 }}
+                />
+              );
+            }}
+            renderItem={(item) => {
+              const active = item.value === difficulty;
+              const Icon = (item as any).icon || Zap;
+              return (
+                <View style={[styles.dropdownItem, active && styles.dropdownItemActive]}>
+                  <Icon size={16} color={active ? theme.colors.textPrimary : theme.colors.textSecondary} />
+                  <Text style={[styles.dropdownItemLabel, active && styles.dropdownItemLabelActive]}>
+                    {item.label}
+                  </Text>
+                  {active && <Check size={16} color={theme.colors.textPrimary} />}
+                </View>
+              );
+            }}
+          />
+        </View>
+
+        {/* Priority */}
+        <View style={styles.section}>
+          <Text style={styles.label}>{habitStrings.priorityLabel || 'Priority'}</Text>
+          <Dropdown
+            mode="default"
+            data={PRIORITY_OPTIONS.map((opt) => ({
+              value: opt.id,
+              label: habitStrings.priorityLevels?.[opt.id] || opt.label.charAt(0).toUpperCase() + opt.label.slice(1),
+            }))}
+            labelField="label"
+            valueField="value"
+            value={priority}
+            onChange={(item) => setPriority(item.value as HabitPriority)}
+            style={styles.dropdown}
+            containerStyle={[styles.dropdownContainer, { backgroundColor: theme.colors.card }]}
+            placeholderStyle={styles.dropdownPlaceholder}
+            selectedTextStyle={styles.dropdownSelectedText}
+            renderLeftIcon={() => (
+              <Flag
+                size={18}
+                color={theme.colors.textSecondary}
+                style={{ marginRight: 10 }}
+              />
+            )}
+            renderItem={(item) => {
+              const active = item.value === priority;
+              return (
+                <View style={[styles.dropdownItem, active && styles.dropdownItemActive]}>
+                  <Flag size={16} color={active ? theme.colors.textPrimary : theme.colors.textSecondary} />
+                  <Text style={[styles.dropdownItemLabel, active && styles.dropdownItemLabelActive]}>
+                    {item.label}
+                  </Text>
+                  {active && <Check size={16} color={theme.colors.textPrimary} />}
+                </View>
+              );
+            }}
+          />
+        </View>
+
+        {/* Reminder */}
+        <View style={styles.section}>
+          <AdaptiveGlassView style={styles.switchRow}>
+            <Bell size={20} color={theme.colors.textSecondary} />
+            <Text style={[styles.label, { flex: 1, marginBottom: 0 }]}>{habitStrings.reminderLabel}</Text>
+            <Switch
+              value={reminderEnabled}
+              onValueChange={setReminderEnabled}
+              trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
+              thumbColor="#FFFFFF"
+            />
+          </AdaptiveGlassView>
+        </View>
+
+        {reminderEnabled && (
+          <View style={styles.section}>
+            <Pressable onPress={handleReminderTimePress}>
+              <AdaptiveGlassView style={styles.dateButton}>
+                <Clock size={20} color={theme.colors.textSecondary} />
+                <Text style={styles.dateButtonText}>
+                  {reminderTime ? reminderTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : habitStrings.addReminder}
+                </Text>
+              </AdaptiveGlassView>
+            </Pressable>
+          </View>
+        )}
+
+        {/* Streak Challenge */}
+        <View style={styles.section}>
+          <AdaptiveGlassView style={styles.switchRow}>
+            <Flame size={20} color={theme.colors.textSecondary} />
+            <Text style={[styles.label, { flex: 1, marginBottom: 0 }]}>{habitStrings.streakLabel}</Text>
+            <Switch
+              value={challengeLengthDays !== undefined}
+              onValueChange={(val) => setChallengeLengthDays(val ? 21 : undefined)}
+              trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
+              thumbColor="#FFFFFF"
+            />
+          </AdaptiveGlassView>
+        </View>
+
+        {challengeLengthDays !== undefined && (
+          <>
+            <View style={styles.streakOptionsRow}>
+              {STREAK_OPTIONS.map((option) => {
+                const active = challengeLengthDays === option.days;
+                return (
+                  <Pressable
+                    key={option.days}
+                    style={[
+                      styles.streakOption,
+                      active && styles.streakOptionActive,
+                    ]}
+                    onPress={() => setChallengeLengthDays(option.days)}
+                  >
+                    <Text style={[
+                      styles.streakOptionDays,
+                      active && styles.streakOptionDaysActive,
+                    ]}>
+                      {option.days}
+                    </Text>
+                    <Text style={[
+                      styles.streakOptionLabel,
+                      active && styles.streakOptionLabelActive,
+                    ]}>
+                      {habitStrings.streakOptions[option.key]}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <View style={styles.streakMotivationRow}>
+              <Flame size={16} color={theme.colors.warning} />
+              <Text style={styles.streakMotivationText}>
+                {habitStrings.streakMotivation.replace('{days}', String(challengeLengthDays))}
+              </Text>
+            </View>
+          </>
+        )}
+
+        {/* Frequency */}
+        <View style={styles.section}>
+          <Text style={styles.label}>{habitStrings.frequencyLabel}</Text>
+          <View style={styles.chipRow}>
+            {FREQUENCY_TYPE_IDS.map((type) => {
+              const label = habitStrings.frequencyTypes[type.id];
               return (
                 <Pressable
                   key={type.id}
-                  onPress={() => setHabitType(type.id)}
+                  onPress={() => setFrequency(type.id)}
                 >
                   <AdaptiveGlassView
                     style={[
-                      styles.typeCard,
-                      active && styles.typeCardActive,
+                      styles.chip,
+                      frequency === type.id && styles.chipActive,
                     ]}
                   >
-                    <View style={[
-                      styles.typeIconWrap,
-                      active && styles.typeIconWrapActive,
-                    ]}>
-                      <Icon size={18} color={active ? theme.colors.primary : theme.colors.textSecondary} />
-                    </View>
+                    {renderFrequencyIcon(
+                      type.icon,
+                      16,
+                      frequency === type.id ? theme.colors.primary : theme.colors.textPrimary
+                    )}
                     <Text style={[
-                      styles.typeLabel,
-                      active && styles.typeLabelActive,
+                      styles.chipLabel,
+                      frequency === type.id && styles.chipLabelActive,
                     ]}>
-                      {type.label}
+                      {label}
                     </Text>
                   </AdaptiveGlassView>
                 </Pressable>
               );
             })}
-          </ScrollView>
-        </View>
-
-        {/* Frequency */}
-        <View style={styles.section}>
-          <Text style={styles.label}>Frequency</Text>
-          <View style={styles.chipRow}>
-            {FREQUENCY_TYPES.map((type) => (
-              <Pressable
-                key={type.id}
-                onPress={() => setFrequency(type.id)}
-              >
-                <AdaptiveGlassView
-                  style={[
-                    styles.chip,
-                    frequency === type.id && styles.chipActive,
-                  ]}
-                >
-                  {renderFrequencyIcon(
-                    type.icon,
-                    16,
-                    frequency === type.id ? theme.colors.primary : theme.colors.textPrimary
-                  )}
-                  <Text style={[
-                    styles.chipLabel,
-                    frequency === type.id && styles.chipLabelActive,
-                  ]}>
-                    {type.label}
-                  </Text>
-                </AdaptiveGlassView>
-              </Pressable>
-            ))}
           </View>
         </View>
 
-        {/* Times per week/day */}
-        {(frequency === 'weekly' || frequency === 'custom') && (
+        {/* Select Days of Week - only for weekly */}
+        {frequency === 'weekly' && (
           <View style={styles.section}>
-            <Text style={styles.label}>
-              {frequency === 'weekly' ? 'Times per week' : 'Times per period'}
-            </Text>
-            <View style={styles.chipRow}>
-              {TIMES_OPTIONS.map((opt) => (
-                <Pressable
-                  key={opt.value}
-                  onPress={() => setTimesPerWeek(opt.value)}
-                >
-                  <AdaptiveGlassView
+            <Text style={styles.label}>{habitStrings.selectDaysLabel || 'Select days'}</Text>
+            <View style={styles.weekdayRow}>
+              {WEEKDAY_KEYS.map((dayKey, index) => {
+                const isSelected = selectedDays.includes(index);
+                const dayLabel = habitStrings.weekdays?.[dayKey] || dayKey.charAt(0).toUpperCase() + dayKey.slice(1);
+                return (
+                  <Pressable
+                    key={index}
                     style={[
-                      styles.chip,
-                      timesPerWeek === opt.value && styles.chipActive,
+                      styles.weekdayButton,
+                      isSelected && styles.weekdayButtonActive,
                     ]}
+                    onPress={() => toggleDay(index)}
                   >
                     <Text style={[
-                      styles.chipLabel,
-                      timesPerWeek === opt.value && styles.chipLabelActive,
+                      styles.weekdayText,
+                      isSelected && styles.weekdayTextActive,
                     ]}>
-                      {opt.label}
+                      {dayLabel}
                     </Text>
-                  </AdaptiveGlassView>
-                </Pressable>
-              ))}
+                  </Pressable>
+                );
+              })}
             </View>
+          </View>
+        )}
+
+        {/* Custom dates calendar - only for custom */}
+        {frequency === 'custom' && (
+          <View style={styles.section}>
+            <Text style={styles.label}>{habitStrings.selectDatesLabel || 'Select dates'}</Text>
+            <CustomDatesPicker
+              selectedDates={customDates}
+              onDatesChange={setCustomDates}
+              styles={styles}
+            />
           </View>
         )}
 
         {/* Completion Mode */}
         <View style={styles.section}>
-          <Text style={styles.label}>Completion Mode</Text>
-          <AdaptiveGlassView style={styles.switchRow}>
-            <Text style={styles.switchLabel}>Boolean (Done/Miss)</Text>
+          <AdaptiveGlassView style={styles.completionModeSwitchRow}>
+            <View style={styles.completionModeTextContainer}>
+              <Text style={styles.completionModeTitle}>{habitStrings.completionModeLabel}</Text>
+              <Text style={styles.completionModeDesc}>
+                {completionMode === 'boolean' ? habitStrings.completionModes.boolean : habitStrings.completionModes.numeric}
+              </Text>
+            </View>
             <Switch
               value={completionMode === 'numeric'}
               onValueChange={(val) => setCompletionMode(val ? 'numeric' : 'boolean')}
               trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
               thumbColor="#FFFFFF"
             />
-            <Text style={styles.switchLabel}>Numeric (Track Value)</Text>
           </AdaptiveGlassView>
         </View>
 
@@ -451,26 +1024,26 @@ export function HabitComponent({ habitId }: Props) {
         {completionMode === 'numeric' && (
           <>
             <View style={styles.section}>
-              <Text style={styles.label}>Target per Day</Text>
+              <Text style={styles.label}>{habitStrings.targetPerDay}</Text>
               <AdaptiveGlassView style={styles.inputWrapper}>
                 <TextInput
                   style={styles.input}
                   value={targetPerDay}
                   onChangeText={setTargetPerDay}
-                  placeholder="E.g., 8, 10000, 30"
+                  placeholder={habitStrings.targetPlaceholder}
                   placeholderTextColor={theme.colors.textMuted}
                   keyboardType="numeric"
                 />
               </AdaptiveGlassView>
             </View>
             <View style={styles.section}>
-              <Text style={styles.label}>Unit</Text>
+              <Text style={styles.label}>{habitStrings.unitLabel}</Text>
               <AdaptiveGlassView style={styles.inputWrapper}>
                 <TextInput
                   style={styles.input}
                   value={unit}
                   onChangeText={setUnit}
-                  placeholder="E.g., km, glasses, minutes"
+                  placeholder={habitStrings.unitPlaceholder}
                   placeholderTextColor={theme.colors.textMuted}
                 />
               </AdaptiveGlassView>
@@ -480,12 +1053,12 @@ export function HabitComponent({ habitId }: Props) {
 
         {/* Time of Day */}
         <View style={styles.section}>
-          <Text style={styles.label}>Time of Day (Optional)</Text>
+          <Text style={styles.label}>{habitStrings.timeOfDayLabel}</Text>
           <Pressable onPress={handleTimePress}>
             <AdaptiveGlassView style={styles.dateButton}>
               <Clock size={20} color={theme.colors.textSecondary} />
               <Text style={styles.dateButtonText}>
-                {timeOfDay ? timeOfDay.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Set time'}
+                {timeOfDay ? timeOfDay.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : habitStrings.setTime}
               </Text>
             </AdaptiveGlassView>
           </Pressable>
@@ -493,7 +1066,7 @@ export function HabitComponent({ habitId }: Props) {
 
         {/* Link to Goal */}
         <View style={styles.section}>
-          <Text style={styles.label}>Link to Goal (Optional)</Text>
+          <Text style={styles.label}>{habitStrings.linkToGoalLabel}</Text>
           <View style={styles.chipRow}>
             <Pressable onPress={() => setGoalId(undefined)}>
               <AdaptiveGlassView
@@ -506,7 +1079,7 @@ export function HabitComponent({ habitId }: Props) {
                   styles.chipLabel,
                   !goalId && styles.chipLabelActive,
                 ]}>
-                  None
+                  {habitStrings.none}
                 </Text>
               </AdaptiveGlassView>
             </Pressable>
@@ -521,10 +1094,11 @@ export function HabitComponent({ habitId }: Props) {
                     goalId === goal.id && styles.chipActive,
                   ]}
                 >
-                  <Text style={[
-                    styles.chipLabel,
-                    goalId === goal.id && styles.chipLabelActive,
-                  ]}>
+                  <Text
+                    style={[styles.chipLabel, goalId === goal.id && styles.chipLabelActive]}
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                  >
                     {goal.title}
                   </Text>
                 </AdaptiveGlassView>
@@ -537,7 +1111,7 @@ export function HabitComponent({ habitId }: Props) {
         <View style={styles.section}>
           <AdaptiveGlassView style={styles.switchRow}>
             <DollarSign size={20} color={theme.colors.textSecondary} />
-            <Text style={[styles.label, { flex: 1, marginBottom: 0 }]}>Finance Rule (Auto-evaluate)</Text>
+            <Text style={[styles.label, { flex: 1, marginBottom: 0 }]}>{habitStrings.financeRuleLabel}</Text>
             <Switch
               value={enableFinanceRule}
               onValueChange={setEnableFinanceRule}
@@ -551,35 +1125,43 @@ export function HabitComponent({ habitId }: Props) {
           <>
             {/* Finance Rule Type */}
             <View style={styles.section}>
-              <Text style={styles.label}>Rule Type</Text>
+              <Text style={styles.label}>{habitStrings.ruleTypeLabel}</Text>
               <View style={styles.chipRow}>
-                {FINANCE_RULE_TYPES.map((rule) => (
-                  <Pressable
-                    key={rule.id}
-                    onPress={() => setFinanceRuleType(rule.id as any)}
-                  >
-                    <AdaptiveGlassView
-                      style={[
-                        styles.chip,
-                        financeRuleType === rule.id && styles.chipActive,
-                      ]}
+                {FINANCE_RULE_TYPE_IDS.map((ruleId) => {
+                  const labelKey = ruleId === 'no_spend_in_categories' ? 'noSpendInCategories'
+                    : ruleId === 'spend_in_categories' ? 'spendInCategories'
+                    : ruleId === 'has_any_transactions' ? 'hasAnyTransactions'
+                    : 'dailySpendUnder';
+                  const label = habitStrings.ruleTypes[labelKey];
+                  return (
+                    <Pressable
+                      key={ruleId}
+                      onPress={() => setFinanceRuleType(ruleId as any)}
                     >
-                      <Text style={[
-                        styles.chipLabel,
-                        financeRuleType === rule.id && styles.chipLabelActive,
-                      ]}>
-                        {rule.label}
-                      </Text>
-                    </AdaptiveGlassView>
-                  </Pressable>
-                ))}
+                      <AdaptiveGlassView
+                        style={[
+                          styles.chip,
+                          financeRuleType === ruleId && styles.chipActive,
+                        ]}
+                      >
+                        <Text
+                          style={[styles.chipLabel, financeRuleType === ruleId && styles.chipLabelActive]}
+                          numberOfLines={1}
+                          ellipsizeMode="tail"
+                        >
+                          {label}
+                        </Text>
+                      </AdaptiveGlassView>
+                    </Pressable>
+                  );
+                })}
               </View>
             </View>
 
             {/* Categories (for no_spend / spend_in) */}
             {(financeRuleType === 'no_spend_in_categories' || financeRuleType === 'spend_in_categories') && (
               <View style={styles.section}>
-                <Text style={styles.label}>Select Categories</Text>
+                <Text style={styles.label}>{habitStrings.selectCategories}</Text>
                 <View style={styles.chipRow}>
                   {categories.map((cat) => (
                     <Pressable
@@ -592,10 +1174,11 @@ export function HabitComponent({ habitId }: Props) {
                           selectedCategories.includes(cat) && styles.chipActive,
                         ]}
                       >
-                        <Text style={[
-                          styles.chipLabel,
-                          selectedCategories.includes(cat) && styles.chipLabelActive,
-                        ]}>
+                        <Text
+                          style={[styles.chipLabel, selectedCategories.includes(cat) && styles.chipLabelActive]}
+                          numberOfLines={1}
+                          ellipsizeMode="tail"
+                        >
                           {cat}
                         </Text>
                       </AdaptiveGlassView>
@@ -608,13 +1191,13 @@ export function HabitComponent({ habitId }: Props) {
             {/* Min Amount (for spend_in_categories) */}
             {financeRuleType === 'spend_in_categories' && (
               <View style={styles.section}>
-                <Text style={styles.label}>Minimum Amount (Optional)</Text>
+                <Text style={styles.label}>{habitStrings.minAmount}</Text>
                 <AdaptiveGlassView style={styles.inputWrapper}>
                   <TextInput
                     style={styles.input}
                     value={ruleAmount}
                     onChangeText={setRuleAmount}
-                    placeholder="E.g., 50"
+                    placeholder="50"
                     placeholderTextColor={theme.colors.textMuted}
                     keyboardType="numeric"
                   />
@@ -625,7 +1208,7 @@ export function HabitComponent({ habitId }: Props) {
             {/* Accounts (for has_any_transactions) */}
             {financeRuleType === 'has_any_transactions' && (
               <View style={styles.section}>
-                <Text style={styles.label}>Select Accounts (Optional)</Text>
+                <Text style={styles.label}>{habitStrings.selectAccounts}</Text>
                 <View style={styles.chipRow}>
                   {accounts.map((acc) => (
                     <Pressable
@@ -638,10 +1221,11 @@ export function HabitComponent({ habitId }: Props) {
                           selectedAccounts.includes(acc.id) && styles.chipActive,
                         ]}
                       >
-                        <Text style={[
-                          styles.chipLabel,
-                          selectedAccounts.includes(acc.id) && styles.chipLabelActive,
-                        ]}>
+                        <Text
+                          style={[styles.chipLabel, selectedAccounts.includes(acc.id) && styles.chipLabelActive]}
+                          numberOfLines={1}
+                          ellipsizeMode="tail"
+                        >
                           {acc.name}
                         </Text>
                       </AdaptiveGlassView>
@@ -655,20 +1239,20 @@ export function HabitComponent({ habitId }: Props) {
             {financeRuleType === 'daily_spend_under' && (
               <>
                 <View style={styles.section}>
-                  <Text style={styles.label}>Daily Limit Amount</Text>
+                  <Text style={styles.label}>{habitStrings.dailyLimitAmount}</Text>
                   <AdaptiveGlassView style={styles.inputWrapper}>
                     <TextInput
                       style={styles.input}
                       value={ruleAmount}
                       onChangeText={setRuleAmount}
-                      placeholder="E.g., 100"
+                      placeholder="100"
                       placeholderTextColor={theme.colors.textMuted}
                       keyboardType="numeric"
                     />
                   </AdaptiveGlassView>
                 </View>
                 <View style={styles.section}>
-                  <Text style={styles.label}>Currency</Text>
+                  <Text style={styles.label}>{habitStrings.currency}</Text>
                   <AdaptiveGlassView style={styles.inputWrapper}>
                     <TextInput
                       style={styles.input}
@@ -683,23 +1267,51 @@ export function HabitComponent({ habitId }: Props) {
             )}
           </>
         )}
+
+        {/* AI Tip */}
+        {!habitId && title.trim() && (
+          <AdaptiveGlassView style={styles.aiTipCard}>
+            <View style={styles.aiTipHeader}>
+              <HelpCircle size={16} color={theme.colors.warning} />
+              <Text style={styles.aiTipLabel}>{habitStrings.aiTipLabel}</Text>
+            </View>
+            <Text style={styles.aiTipText}>
+              {countingType === 'quit'
+                ? 'Each day you resist strengthens your willpower. Stay focused on your goal!'
+                : 'Consistency is key. Start small and build up gradually for lasting change.'}
+            </Text>
+          </AdaptiveGlassView>
+        )}
       </ScrollView>
 
       <View style={styles.footer}>
-        <Pressable
-          style={styles.buttonSecondary}
-          onPress={() => router.back()}
-        >
-          <AdaptiveGlassView style={styles.buttonSecondaryInner}>
-            <Text style={styles.buttonSecondaryText}>Cancel</Text>
-          </AdaptiveGlassView>
-        </Pressable>
+        {!habitId && (
+          <Pressable
+            style={styles.buttonSecondary}
+            onPress={() => handleSubmit(true)}
+            disabled={!title.trim()}
+          >
+            <AdaptiveGlassView style={[styles.buttonSecondaryInner, !title.trim() && styles.buttonDisabled]}>
+              <Text style={styles.buttonSecondaryText}>{habitStrings.createAndMore}</Text>
+            </AdaptiveGlassView>
+          </Pressable>
+        )}
+        {habitId && (
+          <Pressable
+            style={styles.buttonSecondary}
+            onPress={() => router.back()}
+          >
+            <AdaptiveGlassView style={styles.buttonSecondaryInner}>
+              <Text style={styles.buttonSecondaryText}>{habitStrings.cancel}</Text>
+            </AdaptiveGlassView>
+          </Pressable>
+        )}
         <Pressable
           style={[styles.buttonPrimary, !title.trim() && styles.buttonDisabled]}
-          onPress={handleSubmit}
+          onPress={() => handleSubmit(false)}
           disabled={!title.trim()}
         >
-          <Text style={styles.buttonPrimaryText}>{habitId ? 'Update' : 'Create'} Habit</Text>
+          <Text style={styles.buttonPrimaryText}>{habitId ? habitStrings.update : habitStrings.create}</Text>
         </Pressable>
       </View>
 
@@ -720,7 +1332,29 @@ export function HabitComponent({ habitId }: Props) {
             style={styles.pickerDoneButton}
             onPress={() => setShowTimePicker(false)}
           >
-            <Text style={styles.pickerDoneText}>Done</Text>
+            <Text style={styles.pickerDoneText}>{habitStrings.done}</Text>
+          </Pressable>
+        </View>
+      )}
+
+      {Platform.OS === 'ios' && showReminderPicker && (
+        <View style={styles.pickerContainer}>
+          <DateTimePicker
+            value={reminderTime || new Date()}
+            mode="time"
+            display="spinner"
+            is24Hour={true}
+            onChange={(event, selectedTime) => {
+              if (event.type === 'set' && selectedTime) {
+                setReminderTime(selectedTime);
+              }
+            }}
+          />
+          <Pressable
+            style={styles.pickerDoneButton}
+            onPress={() => setShowReminderPicker(false)}
+          >
+            <Text style={styles.pickerDoneText}>{habitStrings.done}</Text>
           </Pressable>
         </View>
       )}
@@ -768,6 +1402,173 @@ const useStyles = createThemedStyles((theme) => ({
     color: theme.colors.textSecondary,
     marginBottom: 4,
   },
+  // Popular Habits
+  popularHabitsRow: {
+    gap: 10,
+    paddingVertical: 4,
+  },
+  popularHabitCard: {
+    width: 130,
+    paddingHorizontal: 12,
+    paddingVertical: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    alignItems: 'center',
+    gap: 8,
+  },
+  popularHabitIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.surfaceMuted,
+  },
+  popularHabitTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: theme.colors.textPrimary,
+    textAlign: 'center',
+    maxWidth: 106,
+  },
+  popularHabitTime: {
+    fontSize: 10,
+    color: theme.colors.textMuted,
+  },
+  // Counting Type
+  countingTypeRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  countingTypeButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surfaceMuted,
+  },
+  countingTypeButtonActive: {
+    borderColor: theme.colors.primary,
+    backgroundColor: `${theme.colors.primary}15`,
+  },
+  countingTypeLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: theme.colors.textSecondary,
+  },
+  countingTypeLabelActive: {
+    color: theme.colors.primary,
+  },
+  // Difficulty
+  difficultyRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  difficultyButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surfaceMuted,
+  },
+  difficultyButtonActive: {
+    borderColor: theme.colors.primary,
+    backgroundColor: `${theme.colors.primary}15`,
+  },
+  difficultyLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.textSecondary,
+  },
+  difficultyLabelActive: {
+    color: theme.colors.primary,
+  },
+  // Streak
+  streakOptionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: -16,
+  },
+  streakOption: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: theme.colors.border,
+    alignItems: 'center',
+    backgroundColor: theme.colors.surfaceMuted,
+  },
+  streakOptionActive: {
+    borderColor: theme.colors.primary,
+    backgroundColor: `${theme.colors.primary}15`,
+  },
+  streakOptionDays: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: theme.colors.textPrimary,
+  },
+  streakOptionDaysActive: {
+    color: theme.colors.primary,
+  },
+  streakOptionLabel: {
+    fontSize: 10,
+    color: theme.colors.textMuted,
+    marginTop: 2,
+  },
+  streakOptionLabelActive: {
+    color: theme.colors.primary,
+  },
+  streakMotivationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: `${theme.colors.warning}15`,
+    marginTop: -8,
+  },
+  streakMotivationText: {
+    flex: 1,
+    fontSize: 13,
+    color: theme.colors.warning,
+    fontWeight: '500',
+  },
+  // AI Tip
+  aiTipCard: {
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    gap: 8,
+  },
+  aiTipHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  aiTipLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: theme.colors.warning,
+  },
+  aiTipText: {
+    fontSize: 13,
+    color: theme.colors.textSecondary,
+    lineHeight: 18,
+  },
+  // Existing styles
   inputWrapper: {
     borderRadius: 12,
     borderWidth: 1,
@@ -792,18 +1593,17 @@ const useStyles = createThemedStyles((theme) => ({
     gap: 8,
   },
   carouselRow: {
-    gap: 12,
+    gap: 10,
     paddingVertical: 6,
   },
   typeCard: {
-    width: 120,
+    width: 110,
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderRadius: 16,
     borderWidth: 1.5,
     borderColor: theme.colors.border,
-    marginRight: 10,
-    justifyContent: 'center',
+    alignItems: 'center',
   },
   typeCardActive: {
     borderColor: theme.colors.primary,
@@ -822,9 +1622,10 @@ const useStyles = createThemedStyles((theme) => ({
     backgroundColor: `${theme.colors.primary}20`,
   },
   typeLabel: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '700',
     color: theme.colors.textPrimary,
+    maxWidth: 86,
   },
   typeLabelActive: {
     color: theme.colors.primary,
@@ -847,6 +1648,7 @@ const useStyles = createThemedStyles((theme) => ({
     fontSize: 14,
     fontWeight: '600',
     color: theme.colors.textPrimary,
+    maxWidth: 140,
   },
   chipLabelActive: {
     color: theme.colors.primary,
@@ -933,5 +1735,167 @@ const useStyles = createThemedStyles((theme) => ({
     fontSize: 17,
     fontWeight: '600',
     color: theme.colors.primary,
+  },
+  // Weekday styles
+  weekdayRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 6,
+  },
+  weekdayButton: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: 'center',
+    backgroundColor: theme.colors.card,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  weekdayButtonActive: {
+    backgroundColor: `${theme.colors.primary}20`,
+    borderColor: theme.colors.primary,
+  },
+  weekdayText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: theme.colors.textSecondary,
+  },
+  weekdayTextActive: {
+    color: theme.colors.primary,
+  },
+  // Priority dropdown styles
+  dropdown: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    backgroundColor: theme.colors.card,
+  },
+  dropdownContainer: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    overflow: 'hidden',
+  },
+  dropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  dropdownItemActive: {
+    backgroundColor: theme.colors.cardItem,
+  },
+  dropdownItemLabel: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '500',
+    color: theme.colors.textSecondary,
+  },
+  dropdownItemLabelActive: {
+    color: theme.colors.textPrimary,
+  },
+  dropdownPlaceholder: {
+    fontSize: 15,
+    color: theme.colors.textMuted,
+  },
+  dropdownSelectedText: {
+    fontSize: 15,
+    color: theme.colors.textPrimary,
+  },
+  // Completion Mode styles
+  completionModeSwitchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  completionModeTextContainer: {
+    flex: 1,
+    marginRight: 12,
+  },
+  completionModeTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.textPrimary,
+  },
+  completionModeDesc: {
+    fontSize: 12,
+    fontWeight: '400',
+    color: theme.colors.textMuted,
+    marginTop: 2,
+  },
+  // Calendar styles for custom dates picker
+  calendarContainer: {
+    backgroundColor: theme.colors.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    padding: 12,
+  },
+  calendarHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  calendarNavButton: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: theme.colors.textPrimary,
+    paddingHorizontal: 8,
+  },
+  calendarMonthText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.colors.textPrimary,
+  },
+  calendarWeekdayRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  calendarWeekdayText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: theme.colors.textMuted,
+    width: 40,
+    textAlign: 'center',
+  },
+  calendarDaysGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 4,
+  },
+  calendarDayCell: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 8,
+  },
+  calendarDayCellSelected: {
+    backgroundColor: theme.colors.primary,
+  },
+  calendarDayText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: theme.colors.textPrimary,
+  },
+  calendarDayTextSelected: {
+    color: '#FFFFFF',
+  },
+  calendarSelectedCount: {
+    marginTop: 12,
+    fontSize: 13,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
   },
 }));

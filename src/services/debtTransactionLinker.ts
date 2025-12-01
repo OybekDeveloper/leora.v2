@@ -78,8 +78,8 @@ export function createTransactionFromDebtPayment(
   const transactionType = debt.direction === 'i_owe' ? 'expense' : 'income';
 
   // Find the account to use (prefer linked account or use first available)
-  const account = debt.accountId
-    ? accounts.find(a => a.id === debt.accountId)
+  const account = debt.fundingAccountId
+    ? accounts.find(a => a.id === debt.fundingAccountId)
     : accounts[0];
 
   if (!account) {
@@ -97,9 +97,11 @@ export function createTransactionFromDebtPayment(
       currency: payment.currency || debt.principalCurrency,
       categoryId: 'debt-payment', // Special category for debt payments
       description: `Debt payment: ${debt.counterpartyName}${payment.note ? ' - ' + payment.note : ''}`,
-      date: payment.paidAt,
+      date: payment.paymentDate,
       debtId: debt.id,
       baseCurrency: debt.baseCurrency,
+      rateUsedToBase: payment.rateUsedToBase,
+      convertedAmountToBase: payment.convertedAmountToBase,
     });
 
     // Link the payment to the transaction
@@ -139,12 +141,11 @@ export function syncDebtFromTransaction(transaction: Transaction) {
   // For "i_owe" debts, payments (expenses) reduce the balance
   // For "they_owe_me" debts, payments (income) reduce the balance
   const paymentAmount = Math.abs(transaction.amount);
-  const currentRemaining = debt.remainingAmount || debt.principalAmount;
+  const currentRemaining = debt.principalAmount;
   const newRemaining = Math.max(0, currentRemaining - paymentAmount);
 
-  // Update debt
+  // Update debt - mark as paid if fully settled
   updateDebt(debt.id, {
-    remainingAmount: newRemaining,
     status: newRemaining === 0 ? 'paid' : debt.status,
     updatedAt: new Date().toISOString(),
   });
@@ -174,14 +175,13 @@ export function reverseSyncDebtFromTransaction(transaction: Transaction) {
 
   console.log(`[DebtTransactionLinker] Reversing debt sync for ${debt.id}`);
 
-  // Add the payment amount back to the debt
+  // Add the payment amount back to the debt (reactivate if was paid)
   const paymentAmount = Math.abs(transaction.amount);
-  const currentRemaining = debt.remainingAmount || 0;
+  const currentRemaining = 0;
   const newRemaining = Math.min(debt.principalAmount, currentRemaining + paymentAmount);
 
-  // Update debt
+  // Update debt - reactivate if payment was reversed
   updateDebt(debt.id, {
-    remainingAmount: newRemaining,
     status: newRemaining > 0 ? 'active' : debt.status,
     updatedAt: new Date().toISOString(),
   });
@@ -205,7 +205,7 @@ export function reverseSyncDebtFromTransaction(transaction: Transaction) {
  * @param paymentId - The payment ID
  * @returns true if transaction already exists
  */
-export function hasTransactionForPayment(debtId: string, paymentId: string): boolean {
+export function hasTransactionForPayment(debtId: string, _paymentId: string): boolean {
   const { transactions } = useFinanceDomainStore.getState();
 
   // Check if there's a transaction with this debtId and matching description
@@ -225,7 +225,7 @@ export function initDebtTransactionLinker() {
 
   // Subscribe to transaction created events
   plannerEventBus.subscribe('finance.tx.created', (event) => {
-    const { transaction } = event.payload || event;
+    const { transaction } = event;
     if (transaction && transaction.debtId) {
       syncDebtFromTransaction(transaction);
     }
@@ -233,7 +233,7 @@ export function initDebtTransactionLinker() {
 
   // Subscribe to transaction deleted events
   plannerEventBus.subscribe('finance.tx.deleted', (event) => {
-    const { transaction } = event.payload || event;
+    const { transaction } = event;
     if (transaction && transaction.debtId) {
       reverseSyncDebtFromTransaction(transaction);
     }
@@ -241,9 +241,9 @@ export function initDebtTransactionLinker() {
 
   // Subscribe to debt payment events (if we want automatic transaction creation)
   plannerEventBus.subscribe('finance.debt.payment_added', (event) => {
-    const { debt, payment } = event.payload || event;
+    const { debt, payment } = event;
     if (debt && payment && !hasTransactionForPayment(debt.id, payment.id)) {
-      createTransactionFromDebtPayment(debt, payment);
+      createTransactionFromDebtPayment(debt, payment as unknown as DebtPayment);
     }
   });
 

@@ -1,4 +1,3 @@
-// app/(tabs)/(planner)/(tabs)/goals.tsx
 import React, { useCallback, useMemo } from 'react';
 import { LayoutAnimation, SectionList, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -12,13 +11,16 @@ import { createGoalSections, type Goal, type GoalSection } from '@/features/plan
 import { useLocalization } from '@/localization/useLocalization';
 import { usePlannerDomainStore } from '@/stores/usePlannerDomainStore';
 import { useSelectionStore } from '@/stores/useSelectionStore';
+import { useSelectedDayStore } from '@/stores/selectedDayStore';
 import { useShallow } from 'zustand/react/shallow';
+import { startOfDay } from '@/utils/calendar';
 
 const GoalsPage: React.FC = () => {
   const styles = useStyles();
   const router = useRouter();
   const { strings, locale } = useLocalization();
   const goalStrings = strings.plannerScreens.goals;
+  const selectedDate = useSelectedDayStore((state) => state.selectedDate);
   const {
     goals: domainGoals,
     archiveGoal,
@@ -33,7 +35,6 @@ const GoalsPage: React.FC = () => {
     })),
   );
 
-  // Selection mode
   const {
     isSelectionMode,
     entityType,
@@ -43,9 +44,20 @@ const GoalsPage: React.FC = () => {
   } = useSelectionStore();
 
   const isGoalSelectionMode = isSelectionMode && entityType === 'goal';
+  const selectedDayStart = useMemo(() => startOfDay(selectedDate).getTime(), [selectedDate]);
 
-  const activeGoals = useMemo(() => domainGoals.filter((goal) => goal.status !== 'archived'), [domainGoals]);
-  const deletedGoals = useMemo(() => domainGoals.filter((goal) => goal.status === 'archived'), [domainGoals]);
+  const activeGoals = useMemo(() =>
+    domainGoals.filter((goal) => {
+      if (goal.showStatus === 'archived' || goal.showStatus === 'deleted') return false;
+      const createdAtDay = startOfDay(new Date(goal.createdAt)).getTime();
+      return createdAtDay <= selectedDayStart;
+    }),
+    [domainGoals, selectedDayStart]
+  );
+  const deletedGoals = useMemo(() =>
+    domainGoals.filter((goal) => goal.showStatus === 'archived' || goal.showStatus === 'deleted'),
+    [domainGoals]
+  );
 
   const sections = useMemo(() => {
     const activeSections = createGoalSections(goalStrings, activeGoals, locale);

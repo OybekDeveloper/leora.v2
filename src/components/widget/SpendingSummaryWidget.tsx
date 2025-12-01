@@ -40,7 +40,7 @@ export default function SpendingSummaryWidget({
         amount: item.amount,
       }));
     }
-    return strings.widgets.spendingSummary.placeholders.map((label, index) => ({
+    return strings.widgets.spendingSummary.placeholders.map((label, _index) => ({
       label,
       amount: 0,
     }));

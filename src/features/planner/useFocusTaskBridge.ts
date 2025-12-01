@@ -16,7 +16,7 @@ type FocusBridgeState = {
   clearFocusedTask: () => void;
 };
 
-export const usePlannerFocusBridge = create<FocusBridgeState>((set, get) => ({
+export const usePlannerFocusBridge = create<FocusBridgeState>((set) => ({
   focusedTaskId: undefined,
   activeSessionId: undefined,
   lastCompletedTaskId: undefined,

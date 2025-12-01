@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 
 import type { Habit, Task } from '@/domain/planner/types';
-import { mapDomainTaskToPlannerTask, mapHistoryEntryToPlannerTask, type PlannerTaskCard } from '@/features/planner/taskAdapters';
+import { mapDomainTaskToPlannerTask, type PlannerTaskCard } from '@/features/planner/taskAdapters';
 import type { PlannerTaskSection } from '@/types/planner';
 import { usePlannerDomainStore } from '@/stores/usePlannerDomainStore';
 import { useSelectedDayStore } from '@/stores/selectedDayStore';
@@ -36,23 +36,24 @@ const ACTIVE_TASK_STATUSES = new Set<Task['status']>([
   'completed',
 ]);
 
-const isHabitDueOnDate = (habit: Habit, normalizedDay: Date) => {
-  if (habit.status !== 'active') return false;
-  const dayOfWeek = normalizedDay.getDay();
-  if (habit.daysOfWeek && habit.daysOfWeek.length > 0) {
-    return habit.daysOfWeek.includes(dayOfWeek);
+const isTaskVisible = (task: Task): boolean => {
+  if (task.showStatus === 'deleted' || task.showStatus === 'archived') {
+    return false;
   }
-  if (habit.frequency === 'daily') return true;
-  if (habit.frequency === 'weekly') return true;
-  return true;
+  return ACTIVE_TASK_STATUSES.has(task.status);
+};
+
+const isHabitVisibleOnDate = (habit: Habit, dayStart: number) => {
+  if (habit.showStatus === 'archived' || habit.showStatus === 'deleted') return false;
+  const createdAtDay = startOfDay(new Date(habit.createdAt)).getTime();
+  return createdAtDay <= dayStart;
 };
 
 export const usePlannerTasksForDay = (expandedMap: Record<string, boolean>) => {
-  const { tasks, habits, taskHistory } = usePlannerDomainStore(
+  const { tasks, habits } = usePlannerDomainStore(
     useShallow((state) => ({
       tasks: state.tasks,
       habits: state.habits,
-      taskHistory: state.taskHistory,
     })),
   );
   const selectedDay = useSelectedDayStore((state) => state.selectedDate);
@@ -61,7 +62,7 @@ export const usePlannerTasksForDay = (expandedMap: Record<string, boolean>) => {
   const dayEnd = dayStart + DAY_MS;
 
   const activeTasks = useMemo(
-    () => tasks.filter((task) => ACTIVE_TASK_STATUSES.has(task.status)),
+    () => tasks.filter(isTaskVisible),
     [tasks],
   );
 
@@ -73,11 +74,11 @@ export const usePlannerTasksForDay = (expandedMap: Record<string, boolean>) => {
   const tasksForDay = useMemo(
     () =>
       plannerTasks.filter((task) => {
-        // Only include tasks that have a due date matching the selected day
-        if (task.dueAt == null) return false;
-        return task.dueAt >= dayStart && task.dueAt < dayEnd;
+        const createdAtTs = task.createdAt ?? 0;
+        const createdAtDay = startOfDay(new Date(createdAtTs)).getTime();
+        return createdAtDay <= dayStart;
       }),
-    [dayEnd, dayStart, plannerTasks],
+    [dayStart, plannerTasks],
   );
 
   const groupedTasks: GroupedTasks = useMemo(() => {
@@ -88,22 +89,33 @@ export const usePlannerTasksForDay = (expandedMap: Record<string, boolean>) => {
     return base;
   }, [tasksForDay]);
 
-  const historyTasks = useMemo(() => {
-    const entriesForDay = taskHistory.filter((entry) => {
-      const ts = new Date(entry.timestamp).getTime();
-      return Number.isFinite(ts) && ts >= dayStart && ts < dayEnd;
-    });
-    return entriesForDay
-      .map((entry) => mapHistoryEntryToPlannerTask(entry, expandedMap))
-      .sort(
-        (a, b) =>
-          (b.deletedAt ?? b.updatedAt ?? b.createdAt ?? 0) - (a.deletedAt ?? a.updatedAt ?? a.createdAt ?? 0),
-      );
-  }, [dayEnd, dayStart, expandedMap, taskHistory]);
+  const archivedTasks = useMemo(
+    () => tasks.filter((task) => task.showStatus === 'archived'),
+    [tasks],
+  );
 
-  const habitsDueToday = useMemo(
-    () => habits.filter((habit) => isHabitDueOnDate(habit, normalizedDay)).length,
-    [habits, normalizedDay],
+  // Filter history tasks by createdAt date (show tasks created on or before the selected day)
+  const historyTasks = useMemo(() => {
+    return archivedTasks
+      .filter((task) => {
+        // Filter by createdAt - show tasks created on or before the selected day
+        const createdAtTs = new Date(task.createdAt).getTime();
+        const createdAtDay = startOfDay(new Date(createdAtTs)).getTime();
+        return createdAtDay <= dayStart;
+      })
+      .map((task) => {
+        const updatedAtTs = new Date(task.updatedAt).getTime();
+        return mapDomainTaskToPlannerTask(task, {
+          expandedMap,
+          deletedAt: updatedAtTs,
+        });
+      })
+      .sort((a, b) => (b.deletedAt ?? 0) - (a.deletedAt ?? 0));
+  }, [archivedTasks, dayStart, expandedMap]);
+
+  const habitsForDay = useMemo(
+    () => habits.filter((habit) => isHabitVisibleOnDate(habit, dayStart)),
+    [habits, dayStart],
   );
 
   const goalsForDay = useMemo(() => {
@@ -113,40 +125,31 @@ export const usePlannerTasksForDay = (expandedMap: Record<string, boolean>) => {
         goalIds.add(task.goalId);
       }
     });
-    habits.forEach((habit) => {
-      if (!isHabitDueOnDate(habit, normalizedDay)) {
-        return;
-      }
+    habitsForDay.forEach((habit) => {
       if (habit.goalId) {
         goalIds.add(habit.goalId);
       }
       habit.linkedGoalIds?.forEach((id) => goalIds.add(id));
     });
     return goalIds;
-  }, [habits, normalizedDay, tasksForDay]);
+  }, [habitsForDay, tasksForDay]);
 
   const summaryCounts: SummaryCounts = useMemo(
     () => ({
       tasks: tasksForDay.length,
-      habits: habitsDueToday,
+      habits: habitsForDay.length,
       goals: goalsForDay.size,
     }),
-    [goalsForDay.size, habitsDueToday, tasksForDay.length],
+    [goalsForDay.size, habitsForDay.length, tasksForDay.length],
   );
 
-  // Calculate progress stats for the selected day
   const progressStats: ProgressStats = useMemo(() => {
     const dayKey = normalizedDay.toISOString().split('T')[0]!;
-
-    // Task progress: completed / total for the day
     const tasksTotal = tasksForDay.length;
     const tasksCompleted = tasksForDay.filter((t) => t.status === 'completed').length;
     const tasksProgress = tasksTotal > 0 ? Math.round((tasksCompleted / tasksTotal) * 100) : 0;
-
-    // Habit progress: completed / due for the day
-    const habitsDueForDay = habits.filter((habit) => isHabitDueOnDate(habit, normalizedDay));
-    const habitsTotal = habitsDueForDay.length;
-    const habitsCompleted = habitsDueForDay.filter((habit) => {
+    const habitsTotal = habitsForDay.length;
+    const habitsCompleted = habitsForDay.filter((habit) => {
       if (!habit.completionHistory) return false;
       const entry = habit.completionHistory[dayKey];
       const status = typeof entry === 'string' ? entry : entry?.status;
@@ -162,7 +165,7 @@ export const usePlannerTasksForDay = (expandedMap: Record<string, boolean>) => {
       habitsCompleted,
       habitsProgress,
     };
-  }, [habits, normalizedDay, tasksForDay]);
+  }, [habitsForDay, normalizedDay, tasksForDay]);
 
   return {
     normalizedDay,

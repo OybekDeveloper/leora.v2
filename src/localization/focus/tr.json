@@ -1,0 +1,93 @@
+{
+  "focusMode": {
+    "header": {
+      "title": "ODAK MODU",
+      "settings": "Ayarlar"
+    },
+    "status": {
+      "ready": "Hazır",
+      "inProgress": "Devam ediyor",
+      "paused": "Duraklatıldı"
+    },
+    "timer": {
+      "start": "Başlangıç",
+      "end": "Bitiş"
+    },
+    "task": {
+      "cardLabel": "Şu anda odaklanılan",
+      "goalTag": "Hedef: {goal}"
+    },
+    "toggles": {
+      "notifications": "Bildirimleri kapat",
+      "backgroundMusic": "Arka plan müziği",
+      "appBlock": "Uygulama engelleme",
+      "dynamicIsland": "Dynamic Island"
+    },
+    "statistics": {
+      "title": "Bugünün istatistikleri",
+      "focusTime": "Odak süresi:",
+      "sessionsCompleted": "Tamamlanan oturumlar:",
+      "productivity": "Verimlilik:"
+    },
+    "buttons": {
+      "reset": "Sıfırla",
+      "finish": "Bitir"
+    },
+    "alerts": {
+      "resetTitle": "Zamanlayıcıyı sıfırla?",
+      "resetMessage": "Bu, zamanlayıcıyı sıfırlar ve mevcut ilerlemeyi siler.",
+      "cancel": "İptal",
+      "resetConfirm": "Sıfırla"
+    },
+    "time": {
+      "hours": "s",
+      "minutes": "d"
+    }
+  },
+  "focusSettings": {
+    "header": {
+      "title": "Odak Ayarları",
+      "close": "Kapat"
+    },
+    "technique": {
+      "label": "Teknik",
+      "pomodoro": "Pomodoro",
+      "pomodoroSummary": "25d + 5d",
+      "blocs": "Bloklar",
+      "blocsSummary": "50d + 10d",
+      "free": "Serbest zamanlayıcı",
+      "freeSummary": "Sınırsız"
+    },
+    "session": {
+      "label": "Oturum süresi",
+      "workTime": "Çalışma süresi (d)",
+      "breakTime": "Mola süresi (d)",
+      "sessionsUntilBigBreak": "Büyük molaya kadar oturum",
+      "bigBreakTime": "Büyük mola süresi (d)"
+    },
+    "locks": {
+      "label": "Kilitler",
+      "notifications": "Bildirimler",
+      "social": "Sosyal ağları kilitle",
+      "apps": "Tüm uygulamaları kilitle",
+      "autoReply": "Mesajlara otomatik yanıt"
+    },
+    "motivation": {
+      "label": "Motivasyon",
+      "progress": "İlerlemeyi göster",
+      "sound": "Tamamlama sesi",
+      "vibration": "Titreşim",
+      "music": "Konsantrasyon müziği"
+    },
+    "buttons": {
+      "reset": "Sıfırla",
+      "confirm": "Onayla"
+    },
+    "alerts": {
+      "resetTitle": "Odak ayarlarını sıfırla?",
+      "resetMessage": "Bu, varsayılan ayarları geri yükler.",
+      "cancel": "İptal",
+      "resetConfirm": "Sıfırla"
+    }
+  }
+}

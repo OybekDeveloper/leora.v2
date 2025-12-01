@@ -4,9 +4,14 @@ import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-na
 import { AlertCircle, Check } from 'lucide-react-native';
 
 import { AdaptiveGlassView } from '@/components/ui/AdaptiveGlassView';
+import EmptyState from '@/components/shared/EmptyState';
 import SelectableListItem from '@/components/shared/SelectableListItem';
 import SelectionToolbar from '@/components/shared/SelectionToolbar';
+import UndoSnackbar from '@/components/shared/UndoSnackbar';
+import FloatList, { type FloatListItem } from '@/components/ui/FloatList';
 import { useSelectedDayStore } from '@/stores/selectedDayStore';
+import { useUndoDeleteStore } from '@/stores/useUndoDeleteStore';
+import type { Budget } from '@/domain/finance/types';
 import { startOfDay } from '@/utils/calendar';
 import { useLocalization } from '@/localization/useLocalization';
 import { useFinanceDomainStore } from '@/stores/useFinanceDomainStore';
@@ -20,8 +25,10 @@ import type { FinanceCurrency } from '@/stores/useFinancePreferencesStore';
 
 type BudgetState = 'exceeding' | 'warning' | 'within' | 'fixed';
 
-type CategoryBudget = {
+// Extend FloatListItem to work with FloatList
+interface CategoryBudget extends FloatListItem {
   id: string;
+  label: string; // Required by FloatListItem (will be same as name)
   name: string;
   spent: number;
   limit: number;
@@ -32,7 +39,7 @@ type CategoryBudget = {
   categories: string[];
   notifyOnExceed: boolean;
   budgetKind: 'spending' | 'saving';
-};
+}
 
 const PROGRESS_HEIGHT = 32;
 const PROGRESS_RADIUS = 18;
@@ -275,11 +282,22 @@ const BudgetsScreen: React.FC = () => {
     [selectedDate],
   );
   const baseCurrency = useFinancePreferencesStore((state) => state.baseCurrency);
-  const { budgets: domainBudgets, accounts: domainAccounts, batchArchiveBudgets, batchDeleteBudgetsPermanently } = useFinanceDomainStore(
+
+  // Undo delete store
+  const { scheduleDeletion, pendingDeletion } = useUndoDeleteStore();
+
+  const {
+    budgets: domainBudgets,
+    accounts: domainAccounts,
+    batchSoftDeleteBudgets,
+    batchUndoDeleteBudgets,
+    batchDeleteBudgetsPermanently,
+  } = useFinanceDomainStore(
     useShallow((state) => ({
       budgets: state.budgets,
       accounts: state.accounts,
-      batchArchiveBudgets: state.batchArchiveBudgets,
+      batchSoftDeleteBudgets: state.batchSoftDeleteBudgets,
+      batchUndoDeleteBudgets: state.batchUndoDeleteBudgets,
       batchDeleteBudgetsPermanently: state.batchDeleteBudgetsPermanently,
     })),
   );
@@ -342,6 +360,7 @@ const BudgetsScreen: React.FC = () => {
       const state = resolveBudgetState(limit, spent);
       return {
         id: budget.id,
+        label: budget.name, // Required by FloatListItem
         name: budget.name,
         spent,
         limit,
@@ -430,25 +449,37 @@ const BudgetsScreen: React.FC = () => {
     }
   }, [selectedIds.length, activeBudgetIds, selectAll, deselectAll]);
 
+  // Telegram-style delete with undo - soft delete immediately, permanent delete after timeout
   const handleArchiveSelected = useCallback(() => {
-    const count = selectedIds.length;
-    Alert.alert(
-      'Archive Budgets',
-      `Archive ${count} budget${count > 1 ? 's' : ''}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Archive',
-          onPress: () => {
-            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-            batchArchiveBudgets(selectedIds);
-            exitSelectionMode();
-          },
-        },
-      ],
-    );
-  }, [selectedIds, batchArchiveBudgets, exitSelectionMode]);
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
 
+    const idsToDelete = [...selectedIds]; // Capture IDs before exiting selection mode
+    const snapshots = batchSoftDeleteBudgets(idsToDelete);
+
+    // Schedule permanent deletion with undo option
+    scheduleDeletion(
+      'budget',
+      snapshots,
+      idsToDelete,
+      () => {
+        // This runs after timeout - permanently delete
+        batchDeleteBudgetsPermanently(idsToDelete);
+      },
+      5 // 5 seconds timeout
+    );
+
+    exitSelectionMode();
+  }, [selectedIds, batchSoftDeleteBudgets, batchDeleteBudgetsPermanently, scheduleDeletion, exitSelectionMode]);
+
+  // Handle undo - restore budgets from snapshots
+  const handleUndo = useCallback(() => {
+    if (!pendingDeletion || pendingDeletion.entityType !== 'budget') return;
+
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    batchUndoDeleteBudgets(pendingDeletion.items as Budget[]);
+  }, [pendingDeletion, batchUndoDeleteBudgets]);
+
+  // For permanent delete, use the old flow with confirmation
   const handleDeleteSelected = useCallback(() => {
     const detailStrings = strings.financeScreens.budgets.detail;
     Alert.alert(
@@ -473,6 +504,8 @@ const BudgetsScreen: React.FC = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     exitSelectionMode();
   }, [exitSelectionMode]);
+
+  const isEmpty = aggregate.categories.length === 0;
 
   return (
     <>
@@ -505,39 +538,50 @@ const BudgetsScreen: React.FC = () => {
           </Pressable>
         </View>
 
-        <View style={styles.categoriesList}>
-          {aggregate.categories.map((category, index) => {
-            const enterSelection = () => {
-              LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-              handleEnterSelectionMode();
-              handleToggleSelection(category.id);
-            };
+        {isEmpty ? (
+          <EmptyState
+            title={budgetsStrings.empty.title}
+            subtitle={budgetsStrings.empty.subtitle}
+          />
+        ) : (
+          <FloatList<CategoryBudget>
+            items={aggregate.categories}
+            horizontal={false}
+            gap={12}
+            onSelect={(item) => handleOpenDetailBudget(item.id)}
+            renderItem={(category, _isSelected) => {
+              const index = aggregate.categories.findIndex((c) => c.id === category.id);
+              const enterSelection = () => {
+                LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                handleEnterSelectionMode();
+                handleToggleSelection(category.id);
+              };
 
-            return (
-              <SelectableListItem
-                key={category.id}
-                id={category.id}
-                isSelectionMode={isBudgetSelectionMode}
-                isSelected={isSelected(category.id)}
-                onToggleSelect={handleToggleSelection}
-                onLongPress={enterSelection}
-                onPress={() => handleOpenDetailBudget(category.id)}
-                style={isBudgetSelectionMode ? styles.selectionModeItem : undefined}
-              >
-                <CategoryBudgetCard
-                  category={category}
-                  index={index}
-                  labels={budgetsStrings.states}
-                  actionLabel={manageLabel}
-                  savedLabel={budgetsStrings.detail.savedLabel ?? 'Saved'}
-                  onManage={isBudgetSelectionMode ? undefined : handleManageBudget}
-                  onOpen={isBudgetSelectionMode ? undefined : handleOpenDetailBudget}
-                  formatValue={formatValue}
-                />
-              </SelectableListItem>
-            );
-          })}
-        </View>
+              return (
+                <SelectableListItem
+                  id={category.id}
+                  isSelectionMode={isBudgetSelectionMode}
+                  isSelected={isSelected(category.id)}
+                  onToggleSelect={handleToggleSelection}
+                  onLongPress={enterSelection}
+                  onPress={() => handleOpenDetailBudget(category.id)}
+                  style={isBudgetSelectionMode ? styles.selectionModeItem : undefined}
+                >
+                  <CategoryBudgetCard
+                    category={category}
+                    index={index}
+                    labels={budgetsStrings.states}
+                    actionLabel={manageLabel}
+                    savedLabel={budgetsStrings.detail.savedLabel ?? 'Saved'}
+                    onManage={isBudgetSelectionMode ? undefined : handleManageBudget}
+                    onOpen={isBudgetSelectionMode ? undefined : handleOpenDetailBudget}
+                    formatValue={formatValue}
+                  />
+                </SelectableListItem>
+              );
+            }}
+          />
+        )}
       </ScrollView>
 
       <SelectionToolbar
@@ -550,6 +594,9 @@ const BudgetsScreen: React.FC = () => {
         onCancel={handleCancelSelection}
         isHistoryMode={false}
       />
+
+      {/* Telegram-style undo snackbar */}
+      <UndoSnackbar onUndo={handleUndo} />
     </>
   );
 };

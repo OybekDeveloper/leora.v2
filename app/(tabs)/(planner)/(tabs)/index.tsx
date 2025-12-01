@@ -1,4 +1,3 @@
-// app/(tabs)/(planner)/(tabs)/index.tsx
 import React, { useMemo, useCallback, useState } from 'react';
 import {
   LayoutAnimation,
@@ -28,6 +27,7 @@ import {
   RotateCcw,
   Pencil,
   CalendarDays,
+  Archive,
 } from 'lucide-react-native';
 
 import { AdaptiveGlassView } from '@/components/ui/AdaptiveGlassView';
@@ -39,6 +39,7 @@ import { useLocalization } from '@/localization/useLocalization';
 import type { AppTranslations } from '@/localization/strings';
 import { useRouter } from 'expo-router';
 import { useSelectionStore } from '@/stores/useSelectionStore';
+import { useUndoDeleteStore } from '@/stores/useUndoDeleteStore';
 
 import type { PlannerTask, PlannerTaskSection, PlannerTaskStatus } from '@/types/planner';
 import { startOfDay } from '@/utils/calendar';
@@ -52,9 +53,6 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-// -----------------------------
-// Helpers
-// -----------------------------
 const energyIcons = (n: 1 | 2 | 3, color: string) =>
   Array.from({ length: n }).map((_, i) => <Zap key={i} size={14} color={color} />);
 
@@ -118,9 +116,6 @@ const durationToMinutes = (value?: string): number | undefined => {
   return undefined;
 };
 
-// -----------------------------
-// Components
-// -----------------------------
 export default function PlannerTasksTab() {
   const theme = useAppTheme();
   const { strings, locale } = useLocalization();
@@ -138,20 +133,24 @@ export default function PlannerTasksTab() {
   const {
     setTaskStatus,
     completeTask,
-    deleteTask: deleteDomainTask,
-    restoreTaskFromHistory,
-    removeHistoryEntry,
+    archiveTask,
+    batchSoftDeleteTasks,
+    deleteTaskPermanently,
+    setTaskShowStatus,
   } = usePlannerDomainStore(
     useShallow((state) => ({
       setTaskStatus: state.setTaskStatus,
       completeTask: state.completeTask,
-      deleteTask: state.deleteTask,
-      restoreTaskFromHistory: state.restoreTaskFromHistory,
-      removeHistoryEntry: state.removeHistoryEntry,
+      archiveTask: state.archiveTask,
+      batchSoftDeleteTasks: state.batchSoftDeleteTasks,
+      deleteTaskPermanently: state.deleteTaskPermanently,
+      setTaskShowStatus: state.setTaskShowStatus,
     })),
   );
 
-  // Selection mode
+  // Undo delete store for EdgeSwipe delete
+  const { scheduleDeletion } = useUndoDeleteStore();
+
   const {
     isSelectionMode,
     entityType,
@@ -191,30 +190,56 @@ export default function PlannerTasksTab() {
     setExpandedMap((prev) => ({ ...prev, [id]: !prev[id] }));
   }, []);
 
+  // EdgeSwipe delete with Undo support
   const handleDelete = useCallback(
     (id: string) => {
       LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-      deleteDomainTask(id);
+
+      // Soft delete first - get the snapshot
+      const snapshots = batchSoftDeleteTasks([id]);
+
+      // Schedule permanent deletion with undo option
+      scheduleDeletion(
+        'task',
+        snapshots,
+        [id],
+        () => {
+          // This runs after timeout - permanently delete
+          deleteTaskPermanently(id);
+        },
+        5 // 5 seconds timeout
+      );
     },
-    [deleteDomainTask],
+    [batchSoftDeleteTasks, scheduleDeletion, deleteTaskPermanently],
   );
 
-  const handleRestore = useCallback((historyId?: string) => {
-    if (!historyId) return;
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    restoreTaskFromHistory(historyId);
-  }, [restoreTaskFromHistory]);
-
-  const handleRemoveFromHistory = useCallback(
-    (historyId?: string) => {
-      if (!historyId) return;
+  // Archive task (showStatus = 'archived') - no permanent deletion
+  const handleArchive = useCallback(
+    (id: string) => {
       LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-      removeHistoryEntry(historyId);
+      archiveTask(id);
     },
-    [removeHistoryEntry],
+    [archiveTask],
   );
 
-  // Selection mode handlers
+  // Restore task from Delete History back to active list
+  const handleRestore = useCallback((taskId?: string) => {
+    if (!taskId) return;
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setTaskShowStatus(taskId, 'active');
+  }, [setTaskShowStatus]);
+
+  // Remove from history: directly permanent delete (archived -> gone)
+  const handleRemoveFromHistory = useCallback(
+    (taskId?: string) => {
+      if (!taskId) return;
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      // Directly permanently delete the task from history
+      deleteTaskPermanently(taskId);
+    },
+    [deleteTaskPermanently],
+  );
+
   const handleEnterSelectionMode = useCallback(
     (isHistory = false) => {
       LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -268,12 +293,6 @@ export default function PlannerTasksTab() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* Daily Summary Widget - MOVED TO TOP */}
-        <View style={[styles.dailySummary, { backgroundColor: theme.colors.surface }]}>
-          <Text style={[styles.dailySummaryText, { color: theme.colors.textPrimary }]}>{summaryLabel}</Text>
-        </View>
-
-
         {/* Top bar */}
         <View style={styles.topBar}>
           <Text style={[styles.topTitle, { color: theme.colors.textSecondary }]}>{plansTitle}</Text>
@@ -282,8 +301,6 @@ export default function PlannerTasksTab() {
             <Filter size={14} color={theme.colors.textSecondary} />
           </Pressable>
         </View>
-
-        <View style={[styles.separator, { backgroundColor: theme.colors.border }]} />
 
         {/* Sections */}
         {groupedTasks.morning.length > 0 && (
@@ -296,6 +313,7 @@ export default function PlannerTasksTab() {
             onToggleDone={handleToggleDone}
             onToggleExpand={handleToggleExpand}
             onDelete={handleDelete}
+            onArchive={handleArchive}
             onComplete={handleToggleDone}
             onFocusTask={handleStartFocus}
             onEditTask={handleEditTask}
@@ -317,6 +335,7 @@ export default function PlannerTasksTab() {
             onToggleDone={handleToggleDone}
             onToggleExpand={handleToggleExpand}
             onDelete={handleDelete}
+            onArchive={handleArchive}
             onComplete={handleToggleDone}
             onFocusTask={handleStartFocus}
             onEditTask={handleEditTask}
@@ -338,6 +357,7 @@ export default function PlannerTasksTab() {
             onToggleDone={handleToggleDone}
             onToggleExpand={handleToggleExpand}
             onDelete={handleDelete}
+            onArchive={handleArchive}
             onComplete={handleToggleDone}
             onFocusTask={handleStartFocus}
             onEditTask={handleEditTask}
@@ -399,6 +419,7 @@ function Section({
   onToggleDone,
   onToggleExpand,
   onDelete,
+  onArchive,
   onComplete,
   onFocusTask,
   onEditTask,
@@ -416,6 +437,7 @@ function Section({
   onToggleDone: (task: PlannerTaskCard) => void;
   onToggleExpand: (id: string) => void;
   onDelete: (id: string) => void;
+  onArchive: (id: string) => void;
   onComplete: (task: PlannerTaskCard) => void;
   onFocusTask: (task: PlannerTaskCard) => void;
   onEditTask: (task: PlannerTaskCard) => void;
@@ -438,7 +460,6 @@ function Section({
           {done}/{total} {tasksStrings.sectionCountLabel}
         </Text>
       </View>
-      <Text style={[styles.sectionTip, { color: theme.colors.textTertiary }]}>{tasksStrings.sectionTip}</Text>
 
       <View style={[{ gap: 10 }, isSelectionMode && styles.selectionModeContainer]}>
         {items.map((t) => {
@@ -463,6 +484,7 @@ function Section({
                 onToggleExpand={() => onToggleExpand(t.id)}
                 onLongPress={enterSelection}
                 onDelete={() => onDelete(t.id)}
+                onArchive={() => onArchive(t.id)}
                 onComplete={() => onComplete(t)}
                 onFocusTask={() => onFocusTask(t)}
                 onEditTask={() => onEditTask(t)}
@@ -487,6 +509,7 @@ function TaskCard({
   onToggleExpand,
   onLongPress,
   onDelete,
+  onArchive,
   onComplete,
   onRestore,
   mode = 'active',
@@ -501,6 +524,7 @@ function TaskCard({
   onToggleExpand: () => void;
   onLongPress?: () => void;
   onDelete: () => void;
+  onArchive?: () => void;
   onComplete: () => void;
   onRestore?: () => void;
   mode?: 'active' | 'history';
@@ -612,6 +636,20 @@ function TaskCard({
                 </View>
               </Pressable>
             )}
+            {onArchive && (
+              <Pressable
+                style={[
+                  styles.swipeActionButtonMono,
+                  baseActionStyle,
+                  { backgroundColor: theme.colors.warning ?? '#F59E0B' },
+                ]}
+                onPress={onArchive}
+              >
+                <View style={styles.swipeActionContent}>
+                  <Archive size={32} color={iconColor} />
+                </View>
+              </Pressable>
+            )}
             {allowDelete && (
               <Pressable
                 style={[
@@ -634,6 +672,7 @@ function TaskCard({
     allowComplete,
     allowDelete,
     allowRestore,
+    onArchive,
     onComplete,
     onDelete,
     onEditTask,
@@ -644,6 +683,7 @@ function TaskCard({
     theme.colors.danger,
     theme.colors.primary,
     theme.colors.success,
+    theme.colors.warning,
     theme.colors.white,
     theme.colors.textPrimary,
     theme.spacing.sm,
@@ -668,10 +708,16 @@ function TaskCard({
         ]}
       >
         <Pressable style={styles.cardPress} onPress={handleCardPress} onLongPress={onLongPress} delayLongPress={400} disabled={isHistory}>
-          {isHistory && task.deletedAt && (
-            <View style={[styles.historyBadge, { borderColor: theme.colors.danger }]}>
-              <Text style={[styles.historyBadgeText, { color: theme.colors.danger }]}>
-                {tasksStrings.history.deletedBadge}
+          {isHistory && (
+            <View style={[
+              styles.historyBadge,
+              { borderColor: theme.colors.warning ?? '#F59E0B' }
+            ]}>
+              <Text style={[
+                styles.historyBadgeText,
+                { color: theme.colors.warning ?? '#F59E0B' }
+              ]}>
+                {tasksStrings.history.archivedBadge ?? 'Archived'}
               </Text>
             </View>
           )}
@@ -821,21 +867,22 @@ function HistorySection({
         </Text>
         <Text style={[styles.historyHint, { color: theme.colors.textTertiary }]}>{tasksStrings.history.subtitle}</Text>
       </View>
-      <Text style={[styles.sectionTip, { color: theme.colors.textTertiary }]}>{tasksStrings.history.tip}</Text>
 
       <View style={[{ gap: 10 }, isSelectionMode && styles.selectionModeContainer]}>
         {items.map((task) => {
-          const itemId = task.historyId ?? task.id;
+          // Use task.id for operations (restore/delete), but historyId for selection UI
+          const selectionId = task.historyId ?? task.id;
+          const taskId = task.id;
           const enterHistorySelection = () => {
             onEnterSelectionMode();
-            onToggleSelect(itemId);
+            onToggleSelect(selectionId);
           };
           return (
             <SelectableListItem
-              key={itemId}
-              id={itemId}
+              key={selectionId}
+              id={selectionId}
               isSelectionMode={isSelectionMode}
-              isSelected={isSelected(itemId)}
+              isSelected={isSelected(selectionId)}
               onToggleSelect={onToggleSelect}
               onLongPress={enterHistorySelection}
             >
@@ -845,9 +892,9 @@ function HistorySection({
                 onToggleDone={() => { }}
                 onToggleExpand={() => { }}
                 onLongPress={enterHistorySelection}
-                onDelete={() => onRemove(itemId)}
+                onDelete={() => onRemove(taskId)}
                 onComplete={() => { }}
-                onRestore={() => onRestore(itemId)}
+                onRestore={() => onRestore(taskId)}
                 mode="history"
                 tasksStrings={tasksStrings}
                 disableSwipe={isSelectionMode}
@@ -896,13 +943,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-  },
-  sectionTip: {
-    paddingLeft: 4,
-    paddingBottom: 4,
-    fontSize: 11,
-    fontWeight: '500',
-    opacity: 0.75,
   },
   sectionLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   sectionTitle: { fontSize: 14, fontWeight: '700', letterSpacing: 0.3 },

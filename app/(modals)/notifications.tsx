@@ -16,6 +16,7 @@ import { Theme, useAppTheme } from '@/constants/theme';
 import { useNotificationsStore } from '@/stores/useNotificationsStore';
 import type { AppNotification } from '@/stores/useNotificationsStore';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useLocalization } from '@/localization/useLocalization';
 
 const iconByCategory = {
   task: Clock,
@@ -23,19 +24,28 @@ const iconByCategory = {
   system: Inbox,
 } as const;
 
-const formatRelativeTime = (date: Date) => {
+type TimeStrings = {
+  justNow: string;
+  minutesAgo: string;
+  hoursAgo: string;
+  daysAgo: string;
+};
+
+const formatRelativeTime = (date: Date, timeStrings: TimeStrings) => {
   const diffMs = Date.now() - date.getTime();
   const minutes = Math.floor(diffMs / (1000 * 60));
-  if (minutes < 1) return 'just now';
-  if (minutes < 60) return `${minutes}m ago`;
+  if (minutes < 1) return timeStrings.justNow;
+  if (minutes < 60) return timeStrings.minutesAgo.replace('{n}', String(minutes));
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
+  if (hours < 24) return timeStrings.hoursAgo.replace('{n}', String(hours));
   const days = Math.floor(hours / 24);
-  return `${days}d ago`;
+  return timeStrings.daysAgo.replace('{n}', String(days));
 };
 
 export default function NotificationsModalScreen() {
   const router = useRouter();
+  const { strings } = useLocalization();
+  const notifStrings = strings.modals.notifications;
   const theme = useAppTheme();
   const { colors } = theme;
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -97,7 +107,7 @@ export default function NotificationsModalScreen() {
   const renderHeader = () => (
     <View style={styles.headerContainer}>
       <View style={styles.header}>
-        <Text style={styles.title}>Notifications</Text>
+        <Text style={styles.title}>{notifStrings.title}</Text>
         <Pressable onPress={handleClose} hitSlop={10}>
           <Ionicons name="close" size={26} color={colors.textSecondary} />
         </Pressable>
@@ -113,10 +123,10 @@ export default function NotificationsModalScreen() {
           },
         ]}
       >
-        <Text style={[styles.markAllLabel, { color: colors.textSecondary }]}>Mark all as read</Text>
+        <Text style={[styles.markAllLabel, { color: colors.textSecondary }]}>{notifStrings.markAllAsRead}</Text>
       </Pressable>
       {activeNews && (
-        <View style={[styles.newsPanel, { backgroundColor: colors.card }]}> 
+        <View style={[styles.newsPanel, { backgroundColor: colors.card }]}>
           <View style={styles.newsHeader}>
             <Text style={[styles.newsTitle, { color: colors.textPrimary }]}>{activeNews.title}</Text>
             <Pressable onPress={() => setActiveNewsId(null)} hitSlop={8}>
@@ -130,7 +140,7 @@ export default function NotificationsModalScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={["bottom", "top"]}>
       <FlatList
         data={sortedNotifications}
         keyExtractor={(item) => item.id}
@@ -153,7 +163,7 @@ export default function NotificationsModalScreen() {
                 ]}
               >
                 <View style={styles.notificationHeader}>
-                  <View style={[styles.iconBox, { backgroundColor: colors.icon }]}> 
+                  <View style={[styles.iconBox, { backgroundColor: colors.icon }]}>
                     <IconComponent size={18} color={colors.iconText} strokeWidth={1.8} />
                   </View>
                   <View style={{ flex: 1 }}>
@@ -162,7 +172,7 @@ export default function NotificationsModalScreen() {
                   </View>
                   <View style={styles.metaColumn}>
                     <Text style={[styles.notificationTime, { color: colors.textSecondary }]}>
-                      {formatRelativeTime(item.createdAt)}
+                      {formatRelativeTime(item.createdAt, notifStrings)}
                     </Text>
                     {isUnread && <View style={[styles.statusDot, { backgroundColor: colors.iconText }]} />}
                   </View>
@@ -171,7 +181,7 @@ export default function NotificationsModalScreen() {
             </Pressable>
           );
         }}
-        ListEmptyComponent={<Text style={[styles.noResults, { color: colors.textSecondary }]}>No new notifications</Text>}
+        ListEmptyComponent={<Text style={[styles.noResults, { color: colors.textSecondary }]}>{notifStrings.noNewNotifications}</Text>}
         ListHeaderComponent={renderHeader}
         stickyHeaderIndices={[0]}
         contentContainerStyle={styles.listContent}

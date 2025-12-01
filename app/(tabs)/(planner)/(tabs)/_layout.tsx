@@ -1,14 +1,17 @@
 // app/(tabs)/(planner)/(tabs)/_layout.tsx
 import { createMaterialTopTabNavigator, MaterialTopTabBar } from '@react-navigation/material-top-tabs';
 import { withLayoutContext } from 'expo-router';
-import { Alert, LayoutAnimation, Pressable, StyleSheet, Text, View } from 'react-native';
+import { LayoutAnimation, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useCallback, useMemo } from 'react';
 import { X, Trash2, Archive, RotateCcw } from 'lucide-react-native';
 import { useAppTheme } from '@/constants/theme';
 import { useLocalization } from '@/localization/useLocalization';
 import { useSelectionStore } from '@/stores/useSelectionStore';
 import { usePlannerDomainStore } from '@/stores/usePlannerDomainStore';
+import { useUndoDeleteStore } from '@/stores/useUndoDeleteStore';
+import UndoSnackbar from '@/components/shared/UndoSnackbar';
 import { useShallow } from 'zustand/react/shallow';
+import type { Goal, Habit, Task } from '@/domain/planner/types';
 
 const { Navigator } = createMaterialTopTabNavigator();
 export const PlannerTopTabs = withLayoutContext(Navigator);
@@ -27,28 +30,37 @@ const PlannerTabsLayout = () => {
     exitSelectionMode,
   } = useSelectionStore();
 
+  // Undo delete store
+  const { scheduleDeletion, pendingDeletion } = useUndoDeleteStore();
+
   // Planner domain store for batch operations
   const {
-    batchDeleteGoals,
     batchDeleteGoalsPermanently,
+    batchSoftDeleteGoals,
+    batchUndoDeleteGoals,
     resumeGoal,
-    batchDeleteHabits,
     batchResumeHabits,
     batchDeleteHabitsPermanently,
-    batchDeleteTasks,
+    batchSoftDeleteHabits,
+    batchUndoDeleteHabits,
     batchRestoreTasks,
     batchDeleteTasksPermanently,
+    batchSoftDeleteTasks,
+    batchUndoDeleteTasks,
   } = usePlannerDomainStore(
     useShallow((state) => ({
-      batchDeleteGoals: state.batchDeleteGoals,
       batchDeleteGoalsPermanently: state.batchDeleteGoalsPermanently,
+      batchSoftDeleteGoals: state.batchSoftDeleteGoals,
+      batchUndoDeleteGoals: state.batchUndoDeleteGoals,
       resumeGoal: state.resumeGoal,
-      batchDeleteHabits: state.batchDeleteHabits,
       batchResumeHabits: state.batchResumeHabits,
       batchDeleteHabitsPermanently: state.batchDeleteHabitsPermanently,
-      batchDeleteTasks: state.batchDeleteTasks,
+      batchSoftDeleteHabits: state.batchSoftDeleteHabits,
+      batchUndoDeleteHabits: state.batchUndoDeleteHabits,
       batchRestoreTasks: state.batchRestoreTasks,
       batchDeleteTasksPermanently: state.batchDeleteTasksPermanently,
+      batchSoftDeleteTasks: state.batchSoftDeleteTasks,
+      batchUndoDeleteTasks: state.batchUndoDeleteTasks,
     })),
   );
 
@@ -57,42 +69,120 @@ const PlannerTabsLayout = () => {
     exitSelectionMode();
   }, [exitSelectionMode]);
 
+  // Archive - moves items to archive/history without scheduling permanent deletion
+  // Items can be restored from the delete history section
   const handleBatchArchive = useCallback(() => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    if (entityType === 'goal') {
-      batchDeleteGoals(selectedIds);
-    } else if (entityType === 'habit') {
-      batchDeleteHabits(selectedIds);
-    } else if (entityType === 'task') {
-      batchDeleteTasks(selectedIds);
-    }
-    exitSelectionMode();
-  }, [entityType, selectedIds, batchDeleteGoals, batchDeleteHabits, batchDeleteTasks, exitSelectionMode]);
+    if (selectedIds.length === 0) return;
 
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+
+    const idsToArchive = [...selectedIds];
+
+    if (entityType === 'goal') {
+      batchSoftDeleteGoals(idsToArchive);
+    } else if (entityType === 'habit') {
+      batchSoftDeleteHabits(idsToArchive);
+    } else if (entityType === 'task') {
+      batchSoftDeleteTasks(idsToArchive);
+    }
+
+    // Archive does NOT schedule permanent deletion - items go to history and stay there
+    exitSelectionMode();
+  }, [
+    entityType,
+    selectedIds,
+    batchSoftDeleteGoals,
+    batchSoftDeleteHabits,
+    batchSoftDeleteTasks,
+    exitSelectionMode,
+  ]);
+
+  // Handle undo - restore items from snapshots
+  const handleUndo = useCallback(() => {
+    if (!pendingDeletion) return;
+
+    const { entityType: deletedEntityType, items } = pendingDeletion;
+
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+
+    if (deletedEntityType === 'goal') {
+      batchUndoDeleteGoals(items as Goal[]);
+    } else if (deletedEntityType === 'habit') {
+      batchUndoDeleteHabits(items as Habit[]);
+    } else if (deletedEntityType === 'task') {
+      batchUndoDeleteTasks(items as Task[]);
+    }
+  }, [pendingDeletion, batchUndoDeleteGoals, batchUndoDeleteHabits, batchUndoDeleteTasks]);
+
+  // Delete - two-step flow: soft delete immediately with undo, permanent delete after timeout
+  // In history mode, permanently delete immediately (items are already archived)
   const handleBatchDelete = useCallback(() => {
-    Alert.alert(
-      `Delete ${selectedIds.length} item(s)`,
-      'Are you sure you want to delete selected items?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-            if (entityType === 'goal') {
-              batchDeleteGoalsPermanently(selectedIds);
-            } else if (entityType === 'habit') {
-              batchDeleteHabitsPermanently(selectedIds);
-            } else if (entityType === 'task') {
-              batchDeleteTasksPermanently(selectedIds);
-            }
-            exitSelectionMode();
-          },
-        },
-      ]
+    if (selectedIds.length === 0) return;
+
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+
+    const idsToDelete = [...selectedIds];
+
+    if (isHistoryMode) {
+      // In history mode, items are already archived - permanently delete them
+      if (entityType === 'goal') {
+        batchDeleteGoalsPermanently(idsToDelete);
+      } else if (entityType === 'habit') {
+        batchDeleteHabitsPermanently(idsToDelete);
+      } else if (entityType === 'task') {
+        batchDeleteTasksPermanently(idsToDelete);
+      }
+      exitSelectionMode();
+      return;
+    }
+
+    // In normal mode: soft delete with undo option
+    let snapshots: unknown[] = [];
+    let undoEntityType: 'goal' | 'habit' | 'task' = 'task';
+
+    if (entityType === 'goal') {
+      undoEntityType = 'goal';
+      snapshots = batchSoftDeleteGoals(idsToDelete);
+    } else if (entityType === 'habit') {
+      undoEntityType = 'habit';
+      snapshots = batchSoftDeleteHabits(idsToDelete);
+    } else if (entityType === 'task') {
+      undoEntityType = 'task';
+      snapshots = batchSoftDeleteTasks(idsToDelete);
+    }
+
+    // Schedule permanent deletion with undo option
+    scheduleDeletion(
+      undoEntityType,
+      snapshots,
+      idsToDelete,
+      () => {
+        // This runs after timeout - permanently delete
+        if (undoEntityType === 'goal') {
+          batchDeleteGoalsPermanently(idsToDelete);
+        } else if (undoEntityType === 'habit') {
+          batchDeleteHabitsPermanently(idsToDelete);
+        } else if (undoEntityType === 'task') {
+          batchDeleteTasksPermanently(idsToDelete);
+        }
+      },
+      5 // 5 seconds timeout
     );
-  }, [entityType, selectedIds, batchDeleteGoalsPermanently, batchDeleteHabitsPermanently, batchDeleteTasksPermanently, exitSelectionMode]);
+
+    exitSelectionMode();
+  }, [
+    entityType,
+    selectedIds,
+    isHistoryMode,
+    batchSoftDeleteGoals,
+    batchSoftDeleteHabits,
+    batchSoftDeleteTasks,
+    batchDeleteGoalsPermanently,
+    batchDeleteHabitsPermanently,
+    batchDeleteTasksPermanently,
+    scheduleDeletion,
+    exitSelectionMode,
+  ]);
 
   const handleBatchRestore = useCallback(() => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -224,26 +314,31 @@ const PlannerTabsLayout = () => {
   );
 
   return (
-    <PlannerTopTabs
-      style={styles.container}
-      screenOptions={{
-        tabBarStyle: isSelectionMode ? { display: 'none' } : styles.tabBar,
-        tabBarIndicatorStyle: styles.indicator,
-        tabBarLabelStyle: styles.label,
-        tabBarActiveTintColor: theme.colors.textPrimary,
-        tabBarInactiveTintColor: theme.colors.textMuted,
-        tabBarScrollEnabled: false,
-        // Disable tab swiping when selection mode is active
-        swipeEnabled: !isSelectionMode,
-      }}
-      tabBar={(props) => (
-        isSelectionMode ? renderSelectionHeader() : <MaterialTopTabBar {...props} />
-      )}
-    >
-      <PlannerTopTabs.Screen name="index" options={{ title: tabTitles.tasks }} />
-      <PlannerTopTabs.Screen name="goals" options={{ title: tabTitles.goals }} />
-      <PlannerTopTabs.Screen name="habits" options={{ title: tabTitles.habits }} />
-    </PlannerTopTabs>
+    <>
+      <PlannerTopTabs
+        style={styles.container}
+        screenOptions={{
+          tabBarStyle: isSelectionMode ? { display: 'none' } : styles.tabBar,
+          tabBarIndicatorStyle: styles.indicator,
+          tabBarLabelStyle: styles.label,
+          tabBarActiveTintColor: theme.colors.textPrimary,
+          tabBarInactiveTintColor: theme.colors.textMuted,
+          tabBarScrollEnabled: false,
+          // Disable tab swiping when selection mode is active
+          swipeEnabled: !isSelectionMode,
+        }}
+        tabBar={(props) => (
+          isSelectionMode ? renderSelectionHeader() : <MaterialTopTabBar {...props} />
+        )}
+      >
+        <PlannerTopTabs.Screen name="index" options={{ title: tabTitles.tasks }} />
+        <PlannerTopTabs.Screen name="goals" options={{ title: tabTitles.goals }} />
+        <PlannerTopTabs.Screen name="habits" options={{ title: tabTitles.habits }} />
+      </PlannerTopTabs>
+
+      {/* Telegram-style undo snackbar */}
+      <UndoSnackbar onUndo={handleUndo} />
+    </>
   );
 };
 

@@ -19,6 +19,7 @@ import { useRouter } from 'expo-router';
 import { Theme, useAppTheme } from '@/constants/theme';
 import { useLockStore } from '@/stores/useLockStore';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { useLocalization } from '@/localization/useLocalization';
 
 const keypadLayout: (string | null)[][] = [
   ['1', '2', '3'],
@@ -70,6 +71,8 @@ const generateRecoveryCode = () => {
 
 export default function LockScreen() {
   const router = useRouter();
+  const { strings } = useLocalization();
+  const lockStrings = strings.modals.lock;
   const isLocked = useLockStore((state) => state.isLocked);
   const setLocked = useLockStore((state) => state.setLocked);
   const updateLastActive = useLockStore((state) => state.updateLastActive);
@@ -161,7 +164,7 @@ export default function LockScreen() {
   const handleSendRecoveryCode = () => {
     const contact = selectedContact ?? contactOptions[0] ?? null;
     if (!contact) {
-      setRecoveryError('No contact method available. Update your profile to add one.');
+      setRecoveryError(lockStrings.noContactMethod);
       return;
     }
 
@@ -174,8 +177,7 @@ export default function LockScreen() {
     setRecoveryError('');
     setRecoveryCodeInput('');
     setRecoveryInfo(
-      `Enter the ${RECOVERY_CODE_LENGTH}-digit code sent to ${contact.type === 'email' ? 'your email' : 'your phone'
-      } (${contact.masked}).`
+      lockStrings.enterDigitCode.replace('{n}', String(RECOVERY_CODE_LENGTH)).replace('{contact}', contact.masked)
     );
     setResendCountdown(RECOVERY_RESEND_DELAY);
     console.log(`[AppLock] Recovery code for ${contact.type}: ${code}`);
@@ -184,28 +186,28 @@ export default function LockScreen() {
   const handleVerifyRecoveryCode = () => {
     const sanitizedInput = recoveryCodeInput.replace(/\D/g, '');
     if (sanitizedInput.length !== RECOVERY_CODE_LENGTH) {
-      setRecoveryError(`Enter the full ${RECOVERY_CODE_LENGTH}-digit code.`);
+      setRecoveryError(lockStrings.passcodeMustBe4Digits);
       return;
     }
 
     if (!recoveryCodeRef.current) {
-      setRecoveryError('Request a new code to continue.');
+      setRecoveryError(lockStrings.requestNewCode);
       return;
     }
 
     if (recoveryExpiryRef.current && Date.now() > recoveryExpiryRef.current) {
-      setRecoveryError('Code expired. Request a new one.');
+      setRecoveryError(lockStrings.codeExpired);
       return;
     }
 
     if (sanitizedInput !== recoveryCodeRef.current) {
-      setRecoveryError('Incorrect code. Try again.');
+      setRecoveryError(lockStrings.incorrectCode);
       return;
     }
 
     setRecoveryStep('new-pin');
     setRecoveryError('');
-    setRecoveryInfo('Create a new 4-digit passcode for App Lock.');
+    setRecoveryInfo(lockStrings.createPasscodeHint);
     setRecoveryCodeInput('');
     recoveryCodeRef.current = null;
     recoveryExpiryRef.current = null;
@@ -221,12 +223,12 @@ export default function LockScreen() {
     const sanitizedConfirm = sanitizePasscode(recoveryConfirmPin);
 
     if (sanitizedNew.length !== 4) {
-      setRecoveryError('Passcode must be 4 digits.');
+      setRecoveryError(lockStrings.passcodeMustBe4Digits);
       return;
     }
 
     if (sanitizedNew !== sanitizedConfirm) {
-      setRecoveryError('Passcodes do not match.');
+      setRecoveryError(lockStrings.passcodesDoNotMatch);
       return;
     }
 
@@ -235,7 +237,7 @@ export default function LockScreen() {
     setRecoveryError('');
     closeRecoveryFlow();
     handleUnlock();
-    Alert.alert('Passcode updated', 'Your App Lock passcode has been reset.');
+    Alert.alert(lockStrings.passcodeUpdated, lockStrings.passcodeResetMessage);
   };
 
   useEffect(() => {
@@ -420,9 +422,9 @@ export default function LockScreen() {
 
     try {
       const result = await LocalAuthentication.authenticateAsync({
-        promptMessage: 'Unlock Leora',
-        cancelLabel: 'Cancel',
-        fallbackLabel: 'Use Passcode',
+        promptMessage: lockStrings.unlockLeora,
+        cancelLabel: lockStrings.cancel,
+        fallbackLabel: lockStrings.usePasscode,
         disableDeviceFallback: false,
       });
 
@@ -462,7 +464,7 @@ export default function LockScreen() {
         >
           <Image source={require('@assets/images/icon.png')} style={styles.logo} />
 
-          <Text style={styles.prompt}>Enter passcode</Text>
+          <Text style={styles.prompt}>{lockStrings.enterPasscode}</Text>
 
           <View style={styles.pinRow}>{[0, 1, 2, 3].map(renderCircle)}</View>
 
@@ -527,7 +529,7 @@ export default function LockScreen() {
             ))}
           </View>
           <TouchableOpacity style={styles.forgotButton} onPress={openRecoveryFlow}>
-            <Text style={styles.forgotButtonText}>Forgot passcode?</Text>
+            <Text style={styles.forgotButtonText}>{lockStrings.forgotPasscode}</Text>
           </TouchableOpacity>
         </Animated.View>
       </Animated.View>
@@ -543,10 +545,10 @@ export default function LockScreen() {
             <View style={styles.recoveryHeader}>
               <Text style={styles.recoveryTitle}>
                 {recoveryStep === 'select'
-                  ? 'Reset app lock'
+                  ? lockStrings.resetAppLock
                   : recoveryStep === 'verify'
-                    ? 'Verify code'
-                    : 'Create new passcode'}
+                    ? lockStrings.verifyCode
+                    : lockStrings.createNewPasscode}
               </Text>
               <TouchableOpacity style={styles.recoveryClose} onPress={closeRecoveryFlow}>
                 <Text style={styles.recoveryCloseText}>✕</Text>
@@ -554,8 +556,8 @@ export default function LockScreen() {
             </View>
             <Text style={styles.recoverySubtitle}>
               {recoveryStep === 'select'
-                ? 'Choose where we should send a verification code.'
-                : recoveryInfo || 'Follow the steps to reset your passcode.'}
+                ? lockStrings.chooseMethod
+                : recoveryInfo || lockStrings.createPasscodeHint}
             </Text>
 
             {recoveryStep === 'select' && (
@@ -563,7 +565,7 @@ export default function LockScreen() {
                 <View style={styles.recoveryOptions}>
                   {contactOptions.length === 0 ? (
                     <Text style={styles.recoveryEmptyText}>
-                      Add an email address or phone number in your profile to reset the passcode remotely.
+                      {lockStrings.addContact}
                     </Text>
                   ) : (
                     contactOptions.map((option) => (
@@ -579,7 +581,7 @@ export default function LockScreen() {
                         }}
                       >
                         <Text style={styles.recoveryOptionLabel}>
-                          {option.type === 'email' ? 'Email' : 'Phone'}
+                          {option.type === 'email' ? lockStrings.email : lockStrings.phone}
                         </Text>
                         <Text style={styles.recoveryOptionValue}>{option.masked}</Text>
                       </Pressable>
@@ -594,7 +596,7 @@ export default function LockScreen() {
                   onPress={handleSendRecoveryCode}
                   disabled={contactOptions.length === 0}
                 >
-                  <Text style={styles.recoveryPrimaryButtonText}>Send code</Text>
+                  <Text style={styles.recoveryPrimaryButtonText}>{lockStrings.sendCode}</Text>
                 </TouchableOpacity>
               </>
             )}
@@ -611,7 +613,7 @@ export default function LockScreen() {
                   inputMode="numeric"
                   maxLength={RECOVERY_CODE_LENGTH}
                   style={styles.recoveryInput}
-                  placeholder="Enter verification code"
+                  placeholder={lockStrings.enterVerificationCode}
                   placeholderTextColor={colors.textTertiary}
                 />
 
@@ -627,7 +629,7 @@ export default function LockScreen() {
                       recoveryExpiryRef.current = null;
                     }}
                   >
-                    <Text style={styles.recoverySecondaryAction}>Change method</Text>
+                    <Text style={styles.recoverySecondaryAction}>{lockStrings.changeMethod}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={handleResendRecoveryCode}
@@ -639,13 +641,13 @@ export default function LockScreen() {
                         resendCountdown > 0 && styles.recoverySecondaryActionDisabled,
                       ]}
                     >
-                      {resendCountdown > 0 ? `Resend in ${resendCountdown}s` : 'Resend code'}
+                      {resendCountdown > 0 ? lockStrings.resendIn.replace('{n}', String(resendCountdown)) : lockStrings.resendCode}
                     </Text>
                   </TouchableOpacity>
                 </View>
 
                 <TouchableOpacity style={styles.recoveryPrimaryButton} onPress={handleVerifyRecoveryCode}>
-                  <Text style={styles.recoveryPrimaryButtonText}>Continue</Text>
+                  <Text style={styles.recoveryPrimaryButtonText}>{lockStrings.continue}</Text>
                 </TouchableOpacity>
               </>
             )}
@@ -662,7 +664,7 @@ export default function LockScreen() {
                   inputMode="numeric"
                   maxLength={4}
                   style={styles.recoveryInput}
-                  placeholder="New passcode"
+                  placeholder={lockStrings.newPasscode}
                   placeholderTextColor={colors.textTertiary}
                   secureTextEntry
                 />
@@ -676,7 +678,7 @@ export default function LockScreen() {
                   inputMode="numeric"
                   maxLength={4}
                   style={styles.recoveryInput}
-                  placeholder="Confirm passcode"
+                  placeholder={lockStrings.confirmPasscode}
                   placeholderTextColor={colors.textTertiary}
                   secureTextEntry
                 />
@@ -685,7 +687,7 @@ export default function LockScreen() {
                   style={styles.recoveryPrimaryButton}
                   onPress={handleSubmitRecoveryPasscode}
                 >
-                  <Text style={styles.recoveryPrimaryButtonText}>Save new passcode</Text>
+                  <Text style={styles.recoveryPrimaryButtonText}>{lockStrings.saveNewPasscode}</Text>
                 </TouchableOpacity>
               </>
             )}

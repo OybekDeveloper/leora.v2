@@ -13,6 +13,7 @@ export const SAMPLE_TRANSACTION_GROUPS: TransactionGroupData[] = [
         account: 'Plastik 1 ****4589',
         time: '10:05',
         amount: -188_000,
+        currency: 'UZS',
         type: 'outcome',
       },
       {
@@ -22,6 +23,7 @@ export const SAMPLE_TRANSACTION_GROUPS: TransactionGroupData[] = [
         account: 'Cash',
         time: '14:00',
         amount: -120_000,
+        currency: 'UZS',
         type: 'outcome',
       },
       {
@@ -31,6 +33,7 @@ export const SAMPLE_TRANSACTION_GROUPS: TransactionGroupData[] = [
         account: 'Cash',
         time: '18:45',
         amount: -80_000,
+        currency: 'UZS',
         type: 'outcome',
       },
     ],
@@ -43,10 +46,11 @@ export const SAMPLE_TRANSACTION_GROUPS: TransactionGroupData[] = [
       {
         id: 'txn-4',
         category: 'Salary',
-        description: 'OOO “TECHCORP”',
+        description: 'OOO "TECHCORP"',
         account: 'Plastik 1 ****4589',
         time: '09:05',
         amount: 8_420_000,
+        currency: 'UZS',
         type: 'income',
       },
     ],
@@ -63,6 +67,7 @@ export const SAMPLE_TRANSACTION_GROUPS: TransactionGroupData[] = [
         account: 'USD Balance',
         time: '19:00',
         amount: 3_250_000,
+        currency: 'UZS',
         type: 'income',
       },
       {
@@ -72,6 +77,7 @@ export const SAMPLE_TRANSACTION_GROUPS: TransactionGroupData[] = [
         account: 'Plastik 1 ****4589',
         time: '21:45',
         amount: -132_000,
+        currency: 'UZS',
         type: 'outcome',
       },
     ],

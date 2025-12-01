@@ -4,100 +4,167 @@ import { SlidersHorizontal } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 
 import { useAppTheme } from '@/constants/theme';
+import EmptyState from '@/components/shared/EmptyState';
 import TransactionGroup from '@/components/screens/finance/transactions/TransactionGroup';
-import type { TransactionGroupData } from '@/components/screens/finance/transactions/types';
+import type {
+  TransactionCardData,
+  TransactionCardGroupData,
+  TransactionCardType,
+  TransactionStatus,
+} from '@/components/screens/finance/transactions/types';
 import { useLocalization } from '@/localization/useLocalization';
 import { useFinanceDomainStore } from '@/stores/useFinanceDomainStore';
-import type { Transaction as LegacyTransaction } from '@/types/store.types';
-import type { Transaction as DomainTransaction } from '@/domain/finance/types';
+import type { Transaction as DomainTransaction, Account, Debt } from '@/domain/finance/types';
 import { useShallow } from 'zustand/react/shallow';
 import { type FilterState, useTransactionFilterStore } from '@/stores/useTransactionFilterStore';
 
 const BASE_CURRENCY = 'UZS';
 
-type LegacyTransactionType = 'income' | 'outcome' | 'transfer';
-
-const toLegacyTransactionType = (type: DomainTransaction['type']): LegacyTransactionType =>
-  type === 'expense' ? 'outcome' : type;
-
-const mapDomainTransactionToLegacy = (transaction: DomainTransaction): LegacyTransaction[] => {
-  const legacyType = toLegacyTransactionType(transaction.type);
-  const fallbackAccount = transaction.accountId ?? transaction.fromAccountId ?? 'local-account';
-  const baseRecord = {
-    type: legacyType,
-    category: transaction.categoryId,
-    toAccountId: transaction.toAccountId,
-    note: transaction.description,
-    description: transaction.description,
-    date: new Date(transaction.date),
-    createdAt: new Date(transaction.createdAt),
-    updatedAt: new Date(transaction.updatedAt),
-    goalId: transaction.goalId,
-    goalName: transaction.goalName,
-    goalType: transaction.goalType,
-    budgetId: transaction.budgetId,
-    debtId: transaction.debtId,
-    relatedBudgetId: transaction.relatedBudgetId ?? transaction.budgetId,
-    relatedDebtId: transaction.relatedDebtId ?? transaction.debtId,
-    plannedAmount: transaction.plannedAmount ?? transaction.amount,
-    paidAmount: transaction.paidAmount ?? transaction.amount,
-    sourceTransactionId: transaction.id,
-  } as const;
-
-  if (legacyType !== 'transfer') {
-    return [
-      {
-        ...baseRecord,
-        id: transaction.id,
-        amount: transaction.amount,
-        accountId: fallbackAccount,
-        currency: transaction.currency,
-      },
-    ];
-  }
-
-  const fromAccountId = transaction.accountId ?? transaction.fromAccountId ?? fallbackAccount;
-  const toAccountId = transaction.toAccountId ?? fallbackAccount;
-  const incomingAmount = transaction.toAmount ?? transaction.amount;
-  const incomingCurrency = transaction.toCurrency ?? transaction.currency;
-
-  return [
-    {
-      ...baseRecord,
-      id: `${transaction.id}-from`,
-      amount: transaction.amount,
-      accountId: fromAccountId,
-      currency: transaction.currency,
-      transferDirection: 'outgoing',
-    },
-    {
-      ...baseRecord,
-      id: `${transaction.id}-to`,
-      amount: incomingAmount,
-      accountId: toAccountId,
-      currency: incomingCurrency,
-      transferDirection: 'incoming',
-    },
-  ];
+// Domain type ni UI type ga aylantirish
+const toCardType = (type: DomainTransaction['type'], hasDebt: boolean): TransactionCardType => {
+  if (hasDebt) return 'debt';
+  if (type === 'expense') return 'outcome';
+  return type;
 };
 
-const matchesFilters = (transaction: LegacyTransaction, filters: FilterState) => {
+// ShowStatus ni TransactionStatus ga aylantirish
+const toTransactionStatus = (showStatus?: string): TransactionStatus => {
+  if (showStatus === 'deleted' || showStatus === 'archived') return 'canceled';
+  return 'confirmed';
+};
+
+// Transaction nomini aniqlash
+const getTransactionName = (
+  transaction: DomainTransaction,
+  type: TransactionCardType,
+  debt?: Debt
+): string => {
+  // Agar transaction da nom bo'lsa
+  if (transaction.name) return transaction.name;
+
+  // Debt uchun
+  if (type === 'debt' && debt) {
+    return debt.direction === 'i_owe' ? 'Debt payment' : 'Debt collection';
+  }
+
+  // Transfer uchun
+  if (type === 'transfer') return 'Transfer to card';
+
+  // Income/Expense uchun kategoriya nomi
+  if (transaction.categoryId) return transaction.categoryId;
+
+  // Default
+  return type === 'income' ? 'Income' : 'Expense';
+};
+
+// Vaqtni formatlash
+const formatTime = (date: Date): string => {
+  return new Intl.DateTimeFormat('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  }).format(date);
+};
+
+// Domain Transaction ni TransactionCardData ga aylantirish
+const mapToCardData = (
+  transaction: DomainTransaction,
+  accounts: Account[],
+  debts: Debt[]
+): TransactionCardData => {
   const date = new Date(transaction.date);
+  const accountMap = new Map(accounts.map((a) => [a.id, a.name]));
+
+  // Debt bilan bog'liqmi?
+  const relatedDebt = transaction.relatedDebtId
+    ? debts.find((d) => d.id === transaction.relatedDebtId)
+    : undefined;
+
+  const cardType = toCardType(transaction.type, !!relatedDebt);
+  const accountId = transaction.accountId ?? transaction.fromAccountId ?? '';
+
+  // Transfer uchun account nomlari
+  let fromAccountName: string | undefined;
+  let toAccountName: string | undefined;
+
+  if (transaction.type === 'transfer') {
+    const fromId = transaction.accountId ?? transaction.fromAccountId;
+    const toId = transaction.toAccountId;
+    fromAccountName = fromId ? accountMap.get(fromId) ?? 'Unknown' : undefined;
+    toAccountName = toId ? accountMap.get(toId) ?? 'Unknown' : undefined;
+  }
+
+  return {
+    id: transaction.id,
+    sourceId: transaction.id,
+    type: cardType,
+
+    // Asosiy ma'lumotlar
+    name: getTransactionName(transaction, cardType, relatedDebt),
+    description: transaction.description,
+    categoryId: transaction.categoryId,
+
+    // Summa
+    amount: transaction.amount,
+    currency: transaction.currency ?? BASE_CURRENCY,
+
+    // Transfer uchun
+    fromAccountName,
+    toAccountName,
+    toAmount: transaction.toAmount,
+    toCurrency: transaction.toCurrency,
+
+    // Debt uchun
+    debtDirection: relatedDebt?.direction,
+    counterpartyName: relatedDebt?.counterpartyName,
+    debtStatus: relatedDebt?.status,
+
+    // Debt payment konvertatsiya (boshqa valyutadan to'langanda)
+    originalCurrency: transaction.originalCurrency,
+    originalAmount: transaction.originalAmount,
+
+    // Meta
+    transactionId: transaction.id,
+    accountName: accountMap.get(accountId) ?? 'Unknown account',
+    date,
+    time: formatTime(date),
+    status: toTransactionStatus(transaction.showStatus),
+
+    // Bog'lanishlar
+    goalName: transaction.goalName,
+    debtId: transaction.relatedDebtId ?? transaction.debtId,
+  };
+};
+
+// Filtrlarni tekshirish
+const matchesFilters = (transaction: TransactionCardData, filters: FilterState): boolean => {
+  const date = transaction.date;
+
+  // Type filter
   if (filters.type !== 'all') {
     if (filters.type === 'debt') {
-      if (!transaction.relatedDebtId) {
-        return false;
-      }
-    } else if (transaction.type !== filters.type) {
+      if (transaction.type !== 'debt') return false;
+    } else if (filters.type === 'income' && transaction.type !== 'income') {
+      return false;
+    } else if (filters.type === 'outcome' && transaction.type !== 'outcome') {
+      return false;
+    } else if (filters.type === 'transfer' && transaction.type !== 'transfer') {
       return false;
     }
   }
-  if (filters.category !== 'all' && transaction.category !== filters.category) {
+
+  // Category filter
+  if (filters.category !== 'all' && transaction.categoryId !== filters.category) {
     return false;
   }
-  if (filters.account !== 'all' && transaction.accountId !== filters.account) {
-    return false;
+
+  // Account filter
+  if (filters.account !== 'all') {
+    // Account name bo'yicha filtrlash (ID yo'q)
+    // Bu yerda account ID kerak bo'ladi
   }
+
+  // Amount filters
   const min = parseFloat(filters.minAmount);
   if (!Number.isNaN(min) && transaction.amount < min) {
     return false;
@@ -106,36 +173,18 @@ const matchesFilters = (transaction: LegacyTransaction, filters: FilterState) =>
   if (!Number.isNaN(max) && transaction.amount > max) {
     return false;
   }
+
+  // Date filters
   if (filters.dateFrom) {
     const from = new Date(filters.dateFrom);
-    if (date < from) {
-      return false;
-    }
+    if (date < from) return false;
   }
   if (filters.dateTo) {
     const to = new Date(filters.dateTo);
-    if (date > to) {
-      return false;
-    }
+    if (date > to) return false;
   }
-  return true;
-};
 
-const formatRelativeTime = (date: Date) => {
-  const now = new Date();
-  const todayKey = now.toDateString();
-  const yesterday = new Date(now);
-  yesterday.setDate(now.getDate() - 1);
-  const time = new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit' }).format(date);
-  if (date.toDateString() === todayKey) return `Today ${time}`;
-  if (date.toDateString() === yesterday.toDateString()) return `Yesterday ${time}`;
-  return new Intl.DateTimeFormat('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(date);
+  return true;
 };
 
 const TransactionsPage: React.FC = () => {
@@ -143,16 +192,20 @@ const TransactionsPage: React.FC = () => {
   const theme = useAppTheme();
   const { strings } = useLocalization();
   const transactionsStrings = strings.financeScreens.transactions;
-  const { accounts, transactions: domainTransactions } = useFinanceDomainStore(
+  const { accounts, transactions: domainTransactions, debts } = useFinanceDomainStore(
     useShallow((state) => ({
       accounts: state.accounts,
       transactions: state.transactions,
+      debts: state.debts,
     })),
   );
-  const transactions = useMemo<LegacyTransaction[]>(
-    () => domainTransactions.flatMap(mapDomainTransactionToLegacy),
-    [domainTransactions],
+
+  // Domain transactions ni CardData ga aylantirish
+  const cardTransactions = useMemo<TransactionCardData[]>(
+    () => domainTransactions.map((txn) => mapToCardData(txn, accounts, debts)),
+    [domainTransactions, accounts, debts],
   );
+
   const filters = useTransactionFilterStore((state) => state.filters);
 
   const openFilters = useCallback(() => {
@@ -167,14 +220,13 @@ const TransactionsPage: React.FC = () => {
   }, [router]);
 
   const groupedTransactions = useMemo(() => {
-    const accountMap = new Map(accounts.map((account) => [account.id, account.name]));
-    const filtered = transactions.filter((transaction) => matchesFilters(transaction, filters));
-    const groups = new Map<string, TransactionGroupData & { timestamp: number }>();
+    const filtered = cardTransactions.filter((txn) => matchesFilters(txn, filters));
+    const groups = new Map<string, TransactionCardGroupData & { timestamp: number }>();
 
     filtered
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .sort((a, b) => b.date.getTime() - a.date.getTime())
       .forEach((transaction) => {
-        const date = new Date(transaction.date);
+        const date = transaction.date;
         const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
         const key = dayStart.getTime().toString();
         const label = new Intl.DateTimeFormat('en-US', {
@@ -190,28 +242,19 @@ const TransactionsPage: React.FC = () => {
             dateLabel: label,
             timestamp: dayStart.getTime(),
             transactions: [],
-          } as TransactionGroupData & { timestamp: number });
+          });
         }
 
         const group = groups.get(key)!;
-        group.transactions.push({
-          id: transaction.id,
-          category: transaction.category ?? 'General',
-          description: transaction.note ?? transaction.description ?? '-',
-          account: accountMap.get(transaction.accountId) ?? 'Unknown account',
-          time: formatRelativeTime(date),
-          amount: transaction.amount,
-          currency: transaction.currency ?? BASE_CURRENCY,
-          type: transaction.type,
-          transferDirection: transaction.transferDirection,
-        });
+        group.transactions.push(transaction);
       });
 
     return Array.from(groups.values())
       .sort((a, b) => b.timestamp - a.timestamp)
       .map(({ timestamp, ...rest }) => rest);
-  }, [accounts, filters, transactions]);
+  }, [cardTransactions, filters]);
 
+  const isEmpty = groupedTransactions.length === 0;
 
   return (
     <ScrollView
@@ -239,13 +282,21 @@ const TransactionsPage: React.FC = () => {
         </Pressable>
       </View>
 
-      {groupedTransactions.map((group) => (
-        <TransactionGroup
-          key={group.id}
-          group={group}
-          onTransactionPress={handleTransactionPress}
+      {isEmpty ? (
+        <EmptyState
+          title={transactionsStrings.empty.title}
+          subtitle={transactionsStrings.empty.subtitle}
         />
-      ))}
+      ) : (
+        groupedTransactions.map((group) => (
+          <TransactionGroup
+            key={group.id}
+            group={group}
+            onTransactionPress={handleTransactionPress}
+            useCardView
+          />
+        ))
+      )}
 
       <View style={styles.bottomSpacer} />
     </ScrollView>

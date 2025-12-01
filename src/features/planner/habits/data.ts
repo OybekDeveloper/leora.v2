@@ -1,4 +1,4 @@
-import type { Habit as PlannerDomainHabit } from '@/domain/planner/types';
+import type { Habit as PlannerDomainHabit, HabitCompletionEntry } from '@/domain/planner/types';
 import { addDays, buildCalendarDays, startOfDay, startOfMonth, startOfWeek } from '@/utils/calendar';
 
 export type HabitDayStatus = 'done' | 'miss' | 'none';
@@ -45,8 +45,8 @@ export interface HabitLegendSummary {
   total: number;
 }
 
-const getStatus = (value: PlannerDomainHabit['completionHistory'] extends Record<string, infer V> ? V : never) =>
-  typeof value === 'string' ? value : value?.status;
+const getStatus = (value: HabitCompletionEntry | undefined) =>
+  value?.status;
 
 const chunk = <T,>(items: T[], size: number): T[][] => {
   const chunks: T[][] = [];

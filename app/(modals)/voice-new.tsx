@@ -1,7 +1,6 @@
 import React, {
   useCallback,
   useEffect,
-  useId,
   useMemo,
   useRef,
   useState,
@@ -17,16 +16,6 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, {
-  Circle,
-  ClipPath,
-  Defs,
-  G,
-  LinearGradient as SvgLinearGradient,
-  Path,
-  RadialGradient,
-  Stop,
-} from 'react-native-svg';
 import {
   Activity,
   ArrowDownRight,
@@ -54,8 +43,10 @@ import type { RecordingOptions } from 'expo-audio/build/Audio.types';
 
 import { AdaptiveGlassView } from '@/components/ui/AdaptiveGlassView';
 import { Theme, useAppTheme } from '@/constants/theme';
-import { executePlannerVoiceIntent } from '@/features/planner/voiceIntentHandler';
+import { VoiceSphereStable, VoiceSphereStage } from './_components/VoiceSphereStable';
+import { useLocalization } from '@/localization/useLocalization';
 
+// ==================== TYPES ====================
 type VoiceStage = 'idle' | 'listening' | 'analyzing';
 
 type RecognizedRequest = {
@@ -76,20 +67,7 @@ type RecordingClip = {
   waveform: number[];
 };
 
-const HEADLINES: Record<VoiceStage, { title: string; subtitle: string }> = {
-  idle: {
-    title: 'Voice assistant',
-    subtitle: 'Speak naturally, as if you are talking to a friend.',
-  },
-  listening: {
-    title: 'Listening',
-    subtitle: 'Mention sums, tasks, or context — we pick up every detail.',
-  },
-  analyzing: {
-    title: 'Analyzing',
-    subtitle: 'Data processing and AI matching in progress.',
-  },
-};
+// ==================== CONSTANTS ====================
 
 const RECOGNIZED_REQUESTS: RecognizedRequest[] = [
   {
@@ -145,10 +123,11 @@ const RECORDER_OPTIONS: RecordingOptions = {
   },
 };
 
-const ANALYSIS_DURATION = 2000;
+const ANALYSIS_DURATION = 3000;
 
-const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+// ==================== UTILITIES ====================
 const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
+
 const formatDurationMs = (value?: number | null) => {
   if (!value || Number.isNaN(value)) {
     return '--:--';
@@ -171,370 +150,7 @@ const generateWaveformSamples = (bars: number, variance = 0.6) => {
   return values;
 };
 
-/**
- * =====================================================================
- *  PORT OF HTML CANVAS WAVE LOGIC → react-native-svg
- * =====================================================================
- */
-
-const NUM_LINES = 16;
-const NUM_POINTS = 60;
-const PI = Math.PI;
-
-type LineConfig = {
-  t: number;
-  phase: number;
-  ampVar: number;
-  vSpread: number;
-  speed: number;
-  alpha: number;
-};
-
-type PointConfig = {
-  t: number;
-  env: number;
-};
-
-const LINE_CONFIGS: LineConfig[] = (() => {
-  const arr: LineConfig[] = [];
-  for (let i = 0; i < NUM_LINES; i += 1) {
-    const t = i / (NUM_LINES - 1);
-    arr.push({
-      t,
-      phase: t * PI * 2.2 + Math.sin(t * PI * 2.5) * 0.6,
-      ampVar: 0.5 + Math.sin(t * PI * 2 + 0.3) * 0.5,
-      vSpread: (t - 0.5) * 50,
-      speed: 0.8 + t * 0.4,
-      alpha: 0.15 + Math.sin(t * PI) * 0.45,
-    });
-  }
-  return arr;
-})();
-
-const POINT_CONFIGS: PointConfig[] = (() => {
-  const arr: PointConfig[] = [];
-  for (let i = 0; i <= NUM_POINTS; i += 1) {
-    const t = i / NUM_POINTS;
-    const nodes = Math.abs(Math.cos(t * PI * 3));
-    arr.push({
-      t,
-      env: 0.15 + nodes * 0.85,
-    });
-  }
-  return arr;
-})();
-
-type WavePath = {
-  d: string;
-  opacity: number;
-  width: number;
-  gradient: 'top' | 'bottom';
-  dashed?: number[];
-};
-
-const computeWavePaths = (
-  radius: number,
-  time: number,
-  intensity: number,
-): WavePath[] => {
-  if (radius <= 0 || intensity <= 0) return [];
-
-  const cx = radius;
-  const cy = radius;
-  const r = radius * 0.94;
-
-  const waveWidth = r * 2.1;
-  const startX = cx - r * 1.05;
-
-  const paths: WavePath[] = [];
-
-  for (let ribbon = 0; ribbon < 2; ribbon += 1) {
-    const vDir = ribbon === 0 ? -1 : 1;
-    const baseOff = ribbon === 0 ? -25 : 25;
-    const tDir = ribbon === 0 ? 1 : -1;
-    const gradient: 'top' | 'bottom' = ribbon === 0 ? 'top' : 'bottom';
-
-    for (let li = 0; li < LINE_CONFIGS.length; li += 1) {
-      const ld = LINE_CONFIGS[li];
-
-      let d = '';
-      for (let pi = 0; pi < POINT_CONFIGS.length; pi += 1) {
-        const pd = POINT_CONFIGS[pi];
-        const t = pd.t;
-
-        const w1 = Math.sin(
-          t * PI * 3 + time * ld.speed * tDir + ld.phase,
-        ) * 70 * ld.ampVar;
-        const w2 = Math.sin(
-          t * PI * 2 + time * 0.7 * tDir + ld.phase * 0.6,
-        ) * 35 * ld.ampVar;
-        const w3 = Math.sin(
-          t * PI * 5 + time * 1.2 * tDir + ld.t * PI * 1.5,
-        ) * 18;
-
-        const waveY = (w1 + w2 + w3) * pd.env;
-
-        const wx = startX + t * waveWidth;
-        const wy =
-          cy +
-          waveY * intensity * vDir +
-          (baseOff + ld.vSpread) * intensity * pd.env;
-
-        if (pi === 0) {
-          d += `M${wx.toFixed(2)},${wy.toFixed(2)} `;
-        } else {
-          d += `L${wx.toFixed(2)},${wy.toFixed(2)} `;
-        }
-      }
-
-      const alpha = ld.alpha * (0.4 + intensity * 0.6);
-      const lineWidth = lerp(0.8, 1.6, intensity);
-
-      const dashed =
-        intensity > 0.45 && li % 5 === 0 ? [5, 10] : undefined;
-
-      paths.push({
-        d: d.trim(),
-        opacity: alpha,
-        width: lineWidth,
-        gradient,
-        dashed,
-      });
-    }
-  }
-
-  return paths;
-};
-
-/**
- * Сфера + волны (портированная логика из HTML)
- */
-const VoiceSphere: React.FC<{
-  stage: VoiceStage;
-  size?: number;
-  intensityTarget?: number; // 0..1
-  accentColor?: string;
-}> = ({ stage, size = 280, intensityTarget = 0, accentColor = '#ffffff' }) => {
-  const gradientId = useId();
-  const radius = size / 2;
-
-  const showWave = stage !== 'idle';
-
-  const ampRef = useRef(0);
-  const timeRef = useRef(0);
-  const speedRef = useRef(0.7);
-  const frameRef = useRef(0);
-  const [, setFrame] = useState(0);
-
-  const stageRef = useRef<VoiceStage>(stage);
-  const intensityRef = useRef<number>(intensityTarget);
-
-  useEffect(() => {
-    stageRef.current = stage;
-  }, [stage]);
-
-  useEffect(() => {
-    intensityRef.current = intensityTarget ?? 0;
-  }, [intensityTarget]);
-
-  useEffect(() => {
-    let mounted = true;
-    let lastTs: number | null = null;
-
-    const loop = (ts: number) => {
-      if (!mounted) return;
-
-      if (lastTs == null) {
-        lastTs = ts;
-      }
-      const dt = ts - lastTs;
-      lastTs = ts;
-
-      const stageNow = stageRef.current;
-      const intensityNow = clamp01(intensityRef.current || 0);
-
-      let targetAmp = ampRef.current;
-      let targetSpeed = speedRef.current;
-
-      if (stageNow === 'listening') {
-        const lvl = intensityNow;
-        targetAmp = 0.135 + lvl * 0.85;
-        targetSpeed = 0.7 + lvl * 1.3;
-      } else if (stageNow === 'analyzing') {
-        const breathe = (Math.sin(ts / 600) + 1) / 2;
-        targetAmp = 0.3 + breathe * 0.3;
-        targetSpeed = 0.6 + breathe * 0.5;
-      } else {
-        targetAmp = 0;
-        targetSpeed = 0.5;
-      }
-
-      const ampLerp = targetAmp > ampRef.current ? 0.18 : 0.1;
-      const speedLerp = 0.14;
-
-      ampRef.current += (targetAmp - ampRef.current) * ampLerp;
-      speedRef.current += (targetSpeed - speedRef.current) * speedLerp;
-
-      const speed = Number.isFinite(speedRef.current)
-        ? speedRef.current
-        : 0.7;
-      timeRef.current += (speed * dt) / 1000;
-
-      frameRef.current += 1;
-      setFrame(frameRef.current);
-
-      requestAnimationFrame(loop);
-    };
-
-    const id = requestAnimationFrame(loop);
-    return () => {
-      mounted = false;
-      cancelAnimationFrame(id);
-    };
-  }, []);
-
-  const wavePaths = useMemo(() => {
-    if (!showWave) return [];
-    return computeWavePaths(radius, timeRef.current, ampRef.current);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [radius, showWave, ampRef.current]);
-
-  return (
-    <View
-      style={{
-        width: '100%',
-        height: size,
-        justifyContent: 'center',
-        alignItems: 'center',
-      }}
-    >
-      <Svg width={size} height={size}>
-        <Defs>
-          {/* BAZA SFERA – ANCHA QORAROQ */}
-          <RadialGradient
-            id={`${gradientId}-base`}
-            cx="50%"
-            cy="50%"
-            r="60%"
-            fx="50%"
-            fy="40%"
-          >
-            {/* markaz ham qoraroq bo‘ldi */}
-            <Stop offset="0%" stopColor="#05070b" />
-            <Stop offset="55%" stopColor="#05070b" />
-            <Stop offset="85%" stopColor="#03040a" />
-            <Stop offset="100%" stopColor="#020308" />
-          </RadialGradient>
-
-          {/* Yuqori lentlar: cyan → purple → cyan */}
-          <SvgLinearGradient
-            id={`${gradientId}-waves-top`}
-            x1="0%"
-            y1="0%"
-            x2="100%"
-            y2="0%"
-          >
-            <Stop offset="0%" stopColor="#4dd0ff" />
-            <Stop offset="35%" stopColor="#a45bff" />
-            <Stop offset="65%" stopColor="#a45bff" />
-            <Stop offset="100%" stopColor="#4dd0ff" />
-          </SvgLinearGradient>
-
-          {/* Pastki lentlar: pink → purple → pink */}
-          <SvgLinearGradient
-            id={`${gradientId}-waves-bottom`}
-            x1="0%"
-            y1="0%"
-            x2="100%"
-            y2="0%"
-          >
-            <Stop offset="0%" stopColor="#ff65e6" />
-            <Stop offset="35%" stopColor="#a45bff" />
-            <Stop offset="65%" stopColor="#a45bff" />
-            <Stop offset="100%" stopColor="#ff65e6" />
-          </SvgLinearGradient>
-
-          {/* Katta klip – sfera ichida */}
-          <ClipPath id={`${gradientId}-clip`}>
-            <Circle cx={radius} cy={radius} r={radius * 0.94} />
-          </ClipPath>
-
-          {/* Highlight – biroz kichikroq va kamroq oq */}
-          <RadialGradient
-            id={`${gradientId}-highlight`}
-            cx="36%"
-            cy="26%"
-            r="40%"
-          >
-            <Stop offset="0%" stopColor="rgba(38, 36, 36, 0.1)" />
-            <Stop offset="40%" stopColor="rgba(55, 53, 53, 0.03)" />
-            <Stop offset="100%" stopColor="rgba(44, 42, 42, 0)" />
-          </RadialGradient>
-        </Defs>
-
-        {/* Sfera bazasi */}
-        <Circle
-          cx={radius}
-          cy={radius}
-          r={radius * 0.94}
-          fill={`url(#${gradientId}-base)`}
-        />
-
-        {/* WAVES */}
-        <G clipPath={`url(#${gradientId}-clip)`}>
-          {wavePaths.map((wave, index) => (
-            <Path
-              key={index}
-              d={wave.d}
-              stroke={
-                wave.gradient === 'top'
-                  ? `url(#${gradientId}-waves-top)`
-                  : `url(#${gradientId}-waves-bottom)`
-              }
-              strokeWidth={wave.width}
-              strokeDasharray={wave.dashed}
-              opacity={wave.opacity}
-              fill="none"
-              strokeLinecap="round"
-            />
-          ))}
-        </G>
-
-        {/* Yumshoq highlight tepada */}
-        <Circle
-          cx={radius}
-          cy={radius}
-          r={radius * 0.94}
-          fill={`url(#${gradientId}-highlight)`}
-          opacity={0.42}
-        />
-
-        {/* Chegarasi ham biroz qoraroq */}
-        <Circle
-          cx={radius}
-          cy={radius}
-          r={radius * 0.94}
-          stroke="rgba(70,84,120,0.7)"
-          strokeWidth={1.2}
-          fill="none"
-        />
-      </Svg>
-
-      {!showWave && (
-        <View style={styles.iconOverlay}>
-          <Mic size={38} color={accentColor} />
-        </View>
-      )}
-    </View>
-  );
-};
-
-/**
- * =====================================================================
- *  ОСТАЛЬНОЙ КОД — БЕЗ ИЗМЕНЕНИЙ
- * =====================================================================
- */
-
+// ==================== SUB-COMPONENTS ====================
 const ActionIconButton = ({
   icon: Icon,
   label,
@@ -564,9 +180,11 @@ const ActionIconButton = ({
 const RecognizedCard = ({
   item,
   theme,
+  strings,
 }: {
   item: RecognizedRequest;
   theme: Theme;
+  strings: { category: string; account: string; edit: string; confirm: string };
 }) => {
   const Icon = item.intent === 'Income' ? ArrowUpRight : ArrowDownRight;
   const intentColor =
@@ -614,7 +232,7 @@ const RecognizedCard = ({
         <Text
           style={[
             styles.intentAmount,
-            { color: theme.colors.textPrimary },
+            { color: intentColor },
           ]}
         >
           {item.amount}
@@ -628,7 +246,7 @@ const RecognizedCard = ({
               { color: theme.colors.textSecondary },
             ]}
           >
-            Category
+            {strings.category}
           </Text>
           <Text
             style={[
@@ -646,7 +264,7 @@ const RecognizedCard = ({
               { color: theme.colors.textSecondary },
             ]}
           >
-            Balance
+            {strings.account}
           </Text>
           <Text
             style={[
@@ -660,23 +278,16 @@ const RecognizedCard = ({
       </View>
       <View style={styles.cardActions}>
         <ActionIconButton
-          icon={Check}
-          label="Approve request"
-          color={theme.colors.textPrimary}
-          backgroundColor={theme.colors.cardItem}
-          borderColor={theme.colors.border}
-        />
-        <ActionIconButton
           icon={Edit3}
-          label="Edit details"
+          label={strings.edit}
           color={theme.colors.textPrimary}
           backgroundColor={theme.colors.cardItem}
           borderColor={theme.colors.border}
         />
         <ActionIconButton
-          icon={Repeat2}
-          label="Repeat action"
-          color={theme.colors.textPrimary}
+          icon={Check}
+          label={strings.confirm}
+          color={theme.colors.success}
           backgroundColor={theme.colors.cardItem}
           borderColor={theme.colors.border}
         />
@@ -685,21 +296,21 @@ const RecognizedCard = ({
   );
 };
 
-const HistoryCard = ({ theme }: { theme: Theme }) => (
+const HistorySection = ({
+  theme,
+  strings,
+}: {
+  theme: Theme;
+  strings: { requestsHistory: string; repeatRequest: string };
+}) => (
   <View style={styles.historySection}>
-    <View
-      style={[
-        styles.sheetHandle,
-        { backgroundColor: theme.colors.border },
-      ]}
-    />
     <Text
       style={[
         styles.sectionTitle,
         { color: theme.colors.textSecondary },
       ]}
     >
-      Requests history
+      {strings.requestsHistory}
     </Text>
     <AdaptiveGlassView
       style={[
@@ -746,7 +357,7 @@ const HistoryCard = ({ theme }: { theme: Theme }) => (
             { color: theme.colors.textPrimary },
           ]}
         >
-          Repeat request
+          {strings.repeatRequest}
         </Text>
       </TouchableOpacity>
     </AdaptiveGlassView>
@@ -756,9 +367,17 @@ const HistoryCard = ({ theme }: { theme: Theme }) => (
 const SummaryCard = ({
   theme,
   analyzing = false,
+  strings,
 }: {
   theme: Theme;
   analyzing?: boolean;
+  strings: {
+    analyzing: string;
+    recognized: string;
+    dataProcessing: string;
+    latestStatement: string;
+    aiMatching: string;
+  };
 }) => (
   <AdaptiveGlassView
     style={[
@@ -775,7 +394,7 @@ const SummaryCard = ({
         { color: theme.colors.textSecondary },
       ]}
     >
-      {analyzing ? 'Analyzing' : 'Recognized'}
+      {analyzing ? strings.analyzing : strings.recognized}
     </Text>
     <Text
       style={[
@@ -783,7 +402,7 @@ const SummaryCard = ({
         { color: theme.colors.textPrimary },
       ]}
     >
-      {analyzing ? 'Data processing...' : 'Latest statement'}
+      {analyzing ? strings.dataProcessing : strings.latestStatement}
     </Text>
     {!analyzing && (
       <Text
@@ -804,7 +423,7 @@ const SummaryCard = ({
             { color: theme.colors.textSecondary },
           ]}
         >
-          AI is matching entities
+          {strings.aiMatching}
         </Text>
       </View>
     )}
@@ -814,11 +433,9 @@ const SummaryCard = ({
 const RecordingPlaybackRow = ({
   clip,
   theme,
-  styles: stylesWithTheme,
 }: {
   clip: RecordingClip;
   theme: Theme;
-  styles: ReturnType<typeof createStyles>;
 }) => {
   const player = useAudioPlayer(clip.uri);
   const status = useAudioPlayerStatus(player);
@@ -867,7 +484,7 @@ const RecordingPlaybackRow = ({
   return (
     <AdaptiveGlassView
       style={[
-        stylesWithTheme.recordingCard,
+        styles.recordingCard,
         {
           borderColor: theme.colors.border,
           backgroundColor: theme.colors.card,
@@ -878,7 +495,7 @@ const RecordingPlaybackRow = ({
         onPress={togglePlayback}
         activeOpacity={0.85}
         style={[
-          stylesWithTheme.playButton,
+          styles.playButton,
           {
             borderColor: theme.colors.border,
             backgroundColor: theme.colors.cardItem,
@@ -891,10 +508,10 @@ const RecordingPlaybackRow = ({
           <Play size={16} color={theme.colors.textPrimary} />
         )}
       </TouchableOpacity>
-      <View style={stylesWithTheme.recordingInfo}>
+      <View style={styles.recordingInfo}>
         <Text
           style={[
-            stylesWithTheme.recordingTitle,
+            styles.recordingTitle,
             { color: theme.colors.textPrimary },
           ]}
         >
@@ -902,7 +519,7 @@ const RecordingPlaybackRow = ({
         </Text>
         <Text
           style={[
-            stylesWithTheme.recordingMeta,
+            styles.recordingMeta,
             { color: theme.colors.textSecondary },
           ]}
         >
@@ -913,12 +530,11 @@ const RecordingPlaybackRow = ({
           progress={progress}
           waveform={clip.waveform}
           theme={theme}
-          styles={stylesWithTheme}
         />
       </View>
       <Text
         style={[
-          stylesWithTheme.recordingDuration,
+          styles.recordingDuration,
           { color: theme.colors.textSecondary },
         ]}
       >
@@ -935,13 +551,11 @@ const PlaybackWaveform = ({
   progress,
   waveform,
   theme,
-  styles: stylesWithTheme,
 }: {
   active: boolean;
   progress: number;
   waveform: number[];
   theme: Theme;
-  styles: ReturnType<typeof createStyles>;
 }) => {
   const [bars, setBars] = useState<number[]>(
     waveform.length ? waveform : generateWaveformSamples(32),
@@ -977,7 +591,7 @@ const PlaybackWaveform = ({
   }, [active, waveform]);
 
   return (
-    <View style={stylesWithTheme.waveformRow}>
+    <View style={styles.waveformRow}>
       {bars.map((value, index) => {
         const ratio =
           bars.length > 1 ? index / (bars.length - 1) : 0;
@@ -986,7 +600,7 @@ const PlaybackWaveform = ({
           <View
             key={`wave-${index}`}
             style={[
-              stylesWithTheme.waveformBar,
+              styles.waveformBar,
               {
                 height: 6 + value * 18,
                 backgroundColor: isPlayed
@@ -1002,15 +616,15 @@ const PlaybackWaveform = ({
   );
 };
 
+// ==================== MAIN COMPONENT ====================
 const VoiceMode = () => {
   const router = useRouter();
   const theme = useAppTheme();
+  const { strings } = useLocalization();
+  const voiceStrings = strings.modals.voice;
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const stylesWithTheme = useMemo(
-    () => createStyles(theme),
-    [theme],
-  );
+
   const [stage, setStage] = useState<VoiceStage>('idle');
   const [inputLevel, setInputLevel] = useState(0);
   const [micStatus, setMicStatus] = useState<
@@ -1018,53 +632,35 @@ const VoiceMode = () => {
   >('unknown');
   const [hasAnalysis, setHasAnalysis] = useState(false);
   const [recordings, setRecordings] = useState<RecordingClip[]>([]);
+
   const recorder = useAudioRecorder(RECORDER_OPTIONS);
   const recorderState = useAudioRecorderState(recorder, 80);
-  const analyzingTimerRef =
-    useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const scrollRef = useRef<ScrollView>(null);
   const resultsAnchorY = useRef(0);
   const recordingDurationRef = useRef(0);
-  const plannerCommands = useMemo(
-    () => [
-      {
-        id: 'task',
-        label: 'Add task "Write brief" tomorrow at 15:00',
-        command:
-          'Add task "Write brief" tomorrow at 15:00 at @work',
-      },
-      {
-        id: 'habit',
-        label: 'Add habit "Drink water" every morning',
-        command: 'Add habit "Drink water" every morning',
-      },
-      {
-        id: 'focus',
-        label: 'Start focus on "Prototype review"',
-        command: 'Start focus on "Prototype review" pomodoro',
-      },
-    ],
-    [],
-  );
-  const [plannerLogs, setPlannerLogs] = useState<string[]>([]);
-  const handlePlannerCommand = useCallback((command: string) => {
-    const result = executePlannerVoiceIntent(command);
-    setPlannerLogs((prev) => [result.message, ...prev].slice(0, 3));
-  }, []);
 
   const sphereSize = Math.min(width - 64, 320);
 
-  const clearAnalyzingTimer = useCallback(() => {
-    if (analyzingTimerRef.current) {
-      clearTimeout(analyzingTimerRef.current);
-      analyzingTimerRef.current = null;
+  // Convert VoiceStage to VoiceSphereStage
+  const sphereStage: VoiceSphereStage = useMemo(() => {
+    // Analiz tugagandan keyin galochka ko'rinishida qolishi kerak
+    if (hasAnalysis && stage === 'idle') {
+      return 'complete';
     }
-  }, []);
+    switch (stage) {
+      case 'idle':
+        return 'idle';
+      case 'listening':
+        return 'listening';
+      case 'analyzing':
+        return 'analyzing';
+      default:
+        return 'idle';
+    }
+  }, [stage]);
 
-  const clearAllTimers = useCallback(() => {
-    clearAnalyzingTimer();
-  }, [clearAnalyzingTimer]);
-
+  // Permission handling
   const ensurePermission = useCallback(async () => {
     if (micStatus === 'granted') return true;
     try {
@@ -1096,6 +692,7 @@ const VoiceMode = () => {
     }
   }, [micStatus]);
 
+  // Input level processing from metering
   const ambientLevelRef = useRef(0.02);
   const updateInputLevelFromMetering = useCallback(
     (metering: number | undefined, isListening: boolean) => {
@@ -1143,6 +740,7 @@ const VoiceMode = () => {
     }
   }, [recorderState.durationMillis, stage]);
 
+  // Microphone control
   const stopMic = useCallback(async () => {
     let uri: string | null = null;
     try {
@@ -1188,6 +786,7 @@ const VoiceMode = () => {
     recordingDurationRef.current = 0;
   }, []);
 
+  // Stage transitions
   const transitionToAnalyzing = useCallback(async () => {
     const uri = await stopMic();
     if (uri) {
@@ -1204,29 +803,22 @@ const VoiceMode = () => {
   }, [startMic]);
 
   const resetSession = useCallback(async () => {
-    clearAllTimers();
     await stopMic();
     setHasAnalysis(false);
     setStage('idle');
-  }, [clearAllTimers, stopMic]);
+  }, [stopMic]);
 
-  useEffect(() => {
-    if (stage !== 'analyzing') return;
-    analyzingTimerRef.current = setTimeout(() => {
-      setStage('idle');
-      setHasAnalysis(true);
-    }, ANALYSIS_DURATION);
-    return () => {
-      clearAnalyzingTimer();
-    };
-  }, [clearAnalyzingTimer, stage]);
+  // Handle analysis completion from sphere
+  const handleAnalysisComplete = useCallback(() => {
+    setStage('idle');
+    setHasAnalysis(true);
+  }, []);
 
   useEffect(() => {
     return () => {
-      clearAllTimers();
       void stopMic();
     };
-  }, [clearAllTimers, stopMic]);
+  }, [stopMic]);
 
   useEffect(() => {
     if (stage === 'idle' && hasAnalysis && scrollRef.current) {
@@ -1249,35 +841,32 @@ const VoiceMode = () => {
 
   const buttonLabel =
     stage === 'idle'
-      ? 'Start talking'
+      ? voiceStrings.startTalking
       : stage === 'listening'
-        ? 'Stop & analyze'
-        : 'Analyzing...';
+        ? voiceStrings.stopAnalyze
+        : voiceStrings.analyzingDots;
 
   const buttonDisabled = stage === 'analyzing';
-  const recordingsArchive =
-    recordings.length > 0 ? (
-      <View style={stylesWithTheme.recordingsSection}>
-        <Text style={stylesWithTheme.sectionTitle}>
-          Captured audio
-        </Text>
-        {recordings.map((clip) => (
-          <RecordingPlaybackRow
-            key={clip.id}
-            clip={clip}
-            theme={theme}
-            styles={stylesWithTheme}
-          />
-        ))}
-      </View>
-    ) : null;
+
+  const headline = useMemo(() => {
+    switch (stage) {
+      case 'idle':
+        return { title: voiceStrings.title, subtitle: voiceStrings.speakNaturally };
+      case 'listening':
+        return { title: voiceStrings.listening, subtitle: voiceStrings.mentionDetails };
+      case 'analyzing':
+        return { title: voiceStrings.analyzing, subtitle: voiceStrings.dataProcessing };
+      default:
+        return { title: voiceStrings.title, subtitle: voiceStrings.speakNaturally };
+    }
+  }, [stage, voiceStrings]);
 
   return (
-    <SafeAreaView style={stylesWithTheme.safeArea} edges={['top']}>
-      <View style={stylesWithTheme.header}>
-        <Text style={stylesWithTheme.headerTitle}>LEORA VOICE</Text>
+    <SafeAreaView style={dynamicStyles(theme).safeArea} edges={['top']}>
+      <View style={dynamicStyles(theme).header}>
+        <Text style={dynamicStyles(theme).headerTitle}>{voiceStrings.leoraVoice}</Text>
         <TouchableOpacity
-          style={stylesWithTheme.closeButton}
+          style={dynamicStyles(theme).closeButton}
           onPress={() => router.back()}
           accessibilityRole="button"
           accessibilityLabel="Close voice modal"
@@ -1289,9 +878,10 @@ const VoiceMode = () => {
       <ScrollView
         ref={scrollRef}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={stylesWithTheme.scrollContent}
+        contentContainerStyle={dynamicStyles(theme).scrollContent}
       >
-        <View style={stylesWithTheme.heroSection}>
+        {/* Hero Section with Sphere */}
+        <View style={dynamicStyles(theme).heroSection}>
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={() => {
@@ -1300,136 +890,113 @@ const VoiceMode = () => {
               }
             }}
           >
-            <VoiceSphere
-              stage={stage}
+            <VoiceSphereStable
+              stage={sphereStage}
               size={sphereSize}
+              inputLevel={inputLevel}
               accentColor={theme.colors.textPrimary}
-              intensityTarget={
-                stage === 'listening'
-                  ? Math.max(0, Math.min(1, 0.12 + inputLevel * 0.6))
-                  : stage === 'analyzing'
-                    ? 0.16
-                    : 0
-              }
+              analysisDuration={ANALYSIS_DURATION}
+              onAnalysisComplete={handleAnalysisComplete}
             />
           </TouchableOpacity>
-          <View style={stylesWithTheme.stageCopy}>
-            <Text style={stylesWithTheme.stageLabel}>
-              {stage.toUpperCase()}
-            </Text>
-            <Text style={stylesWithTheme.stageTitle}>
-              {HEADLINES[stage].title}
-            </Text>
-            <Text style={stylesWithTheme.stageSubtitle}>
-              {HEADLINES[stage].subtitle}
-            </Text>
+
+          <View style={dynamicStyles(theme).labels}>
+            <Text style={dynamicStyles(theme).title}>{headline.title}</Text>
+            <Text style={dynamicStyles(theme).subtitle}>{headline.subtitle}</Text>
           </View>
         </View>
 
-        {stage === 'analyzing' && (
-          <>
-            <SummaryCard theme={theme} analyzing />
-            {recordingsArchive}
-          </>
-        )}
-
-        {stage === 'idle' && hasAnalysis && (
+        {/* Analysis Results */}
+        {hasAnalysis && (
           <View
-            onLayout={(event) => {
-              resultsAnchorY.current =
-                event.nativeEvent.layout.y;
+            onLayout={(e) => {
+              resultsAnchorY.current = e.nativeEvent.layout.y;
             }}
           >
-            <SummaryCard theme={theme} />
-            {recordingsArchive}
-            <Text style={stylesWithTheme.sectionTitle}>
-              Recognized requests
-            </Text>
+            <SummaryCard
+              theme={theme}
+              analyzing={false}
+              strings={{
+                analyzing: voiceStrings.analyzing,
+                recognized: voiceStrings.recognized,
+                dataProcessing: voiceStrings.dataProcessing,
+                latestStatement: voiceStrings.latestStatement,
+                aiMatching: voiceStrings.aiMatching,
+              }}
+            />
             {RECOGNIZED_REQUESTS.map((item) => (
               <RecognizedCard
                 key={item.id}
                 item={item}
                 theme={theme}
+                strings={{
+                  category: voiceStrings.category,
+                  account: voiceStrings.account,
+                  edit: voiceStrings.edit,
+                  confirm: voiceStrings.confirm,
+                }}
+              />
+            ))}
+            <HistorySection
+              theme={theme}
+              strings={{
+                requestsHistory: voiceStrings.requestsHistory,
+                repeatRequest: voiceStrings.repeatRequest,
+              }}
+            />
+          </View>
+        )}
+
+        {/* Analyzing state indicator */}
+        {stage === 'analyzing' && (
+          <SummaryCard
+            theme={theme}
+            analyzing={true}
+            strings={{
+              analyzing: voiceStrings.analyzing,
+              recognized: voiceStrings.recognized,
+              dataProcessing: voiceStrings.dataProcessing,
+              latestStatement: voiceStrings.latestStatement,
+              aiMatching: voiceStrings.aiMatching,
+            }}
+          />
+        )}
+
+        {/* Recordings Archive */}
+        {recordings.length > 0 && (
+          <View style={dynamicStyles(theme).recordingsSection}>
+            <Text style={dynamicStyles(theme).sectionTitle}>
+              {voiceStrings.capturedAudio}
+            </Text>
+            {recordings.map((clip) => (
+              <RecordingPlaybackRow
+                key={clip.id}
+                clip={clip}
+                theme={theme}
               />
             ))}
           </View>
         )}
-
-        {stage === 'idle' && !hasAnalysis && (
-          <HistoryCard theme={theme} />
-        )}
-
-        <View style={stylesWithTheme.plannerSection}>
-          <Text style={stylesWithTheme.sectionTitle}>
-            Planner quick commands
-          </Text>
-          {plannerCommands.map((cmd) => (
-            <TouchableOpacity
-              key={cmd.id}
-              style={stylesWithTheme.plannerCommand}
-              onPress={() => handlePlannerCommand(cmd.command)}
-              activeOpacity={0.9}
-            >
-              <Text style={stylesWithTheme.plannerCommandText}>
-                {cmd.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-          {plannerLogs.length > 0 && (
-            <View style={stylesWithTheme.plannerLog}>
-              {plannerLogs.map((log, index) => (
-                <Text
-                  key={`${log}-${index}`}
-                  style={stylesWithTheme.plannerLogText}
-                >
-                  {log}
-                </Text>
-              ))}
-            </View>
-          )}
-        </View>
       </ScrollView>
 
-      <View
-        style={[
-          stylesWithTheme.footer,
-          {
-            paddingBottom: Math.max(insets.bottom, 20),
-            marginHorizontal: 20,
-            paddingTop: 12,
-          },
-        ]}
-      >
+      {/* Footer with action button */}
+      <View style={[dynamicStyles(theme).footer, { paddingBottom: insets.bottom + 16 }]}>
         <TouchableOpacity
-          activeOpacity={0.9}
-          disabled={buttonDisabled}
-          onPress={handlePrimaryAction}
           style={[
-            stylesWithTheme.primaryButton,
-            buttonDisabled &&
-            stylesWithTheme.primaryButtonDisabled,
-            { borderColor: theme.colors.border, borderWidth: 1 },
+            dynamicStyles(theme).primaryButton,
+            buttonDisabled && dynamicStyles(theme).primaryButtonDisabled,
           ]}
+          onPress={handlePrimaryAction}
+          disabled={buttonDisabled}
+          activeOpacity={0.85}
         >
-          <View
-            style={[
-              stylesWithTheme.primaryButtonFill,
-              {
-                backgroundColor:
-                  stage === 'listening'
-                    ? theme.colors.cardItem
-                    : theme.colors.card,
-              },
-            ]}
-          >
-            {stage === 'analyzing' ? (
-              <ActivityIndicator
-                color={theme.colors.textPrimary}
-              />
-            ) : (
-              <Mic size={18} color={theme.colors.textPrimary} />
+          <View style={dynamicStyles(theme).primaryButtonFill}>
+            {stage === 'idle' && <Mic size={18} color={theme.colors.textPrimary} />}
+            {stage === 'listening' && <Square size={18} color={theme.colors.textPrimary} />}
+            {stage === 'analyzing' && (
+              <ActivityIndicator size="small" color={theme.colors.textPrimary} />
             )}
-            <Text style={stylesWithTheme.primaryButtonLabel}>
+            <Text style={dynamicStyles(theme).primaryButtonLabel}>
               {buttonLabel}
             </Text>
           </View>
@@ -1437,41 +1004,17 @@ const VoiceMode = () => {
 
         {stage === 'listening' && (
           <TouchableOpacity
-            style={stylesWithTheme.secondaryButton}
-            onPress={() => {
-              void transitionToAnalyzing();
-            }}
-            activeOpacity={0.8}
+            style={dynamicStyles(theme).secondaryButton}
+            onPress={resetSession}
           >
-            <Square size={16} color={theme.colors.textPrimary} />
-            <Text style={stylesWithTheme.secondaryLabel}>
-              Stop talking
-            </Text>
-          </TouchableOpacity>
-        )}
-
-        {stage === 'idle' && hasAnalysis && (
-          <TouchableOpacity
-            style={stylesWithTheme.secondaryButton}
-            onPress={() => {
-              void resetSession();
-            }}
-            activeOpacity={0.8}
-          >
-            <Repeat2
-              size={16}
-              color={theme.colors.textPrimary}
-            />
-            <Text style={stylesWithTheme.secondaryLabel}>
-              Reset session
-            </Text>
+            <X size={14} color={theme.colors.textSecondary} />
+            <Text style={dynamicStyles(theme).secondaryLabel}>{voiceStrings.cancel}</Text>
           </TouchableOpacity>
         )}
 
         {micStatus === 'denied' && (
-          <Text style={stylesWithTheme.permissionText}>
-            Microphone access is required. Enable it in system
-            settings to use Leora Voice.
+          <Text style={dynamicStyles(theme).permissionText}>
+            {voiceStrings.microphoneRequired}
           </Text>
         )}
       </View>
@@ -1479,226 +1022,85 @@ const VoiceMode = () => {
   );
 };
 
-const createStyles = (theme: Theme) =>
+// ==================== STYLES ====================
+const dynamicStyles = (theme: Theme) =>
   StyleSheet.create({
     safeArea: {
       flex: 1,
-      paddingTop: 32,
+      backgroundColor: theme.colors.background,
     },
     header: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      marginBottom: 12,
-      marginHorizontal: 20,
+      paddingHorizontal: 20,
+      paddingVertical: 12,
     },
     headerTitle: {
-      fontSize: 14,
-      letterSpacing: 4,
+      fontSize: 13,
+      letterSpacing: 2,
       color: theme.colors.textSecondary,
       fontWeight: '600',
     },
     closeButton: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      backgroundColor: theme.colors.cardItem,
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: theme.colors.card,
       alignItems: 'center',
       justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: theme.colors.border,
     },
     scrollContent: {
-      paddingBottom: 32,
-      marginHorizontal: 20,
+      paddingHorizontal: 20,
+      paddingBottom: 100,
     },
     heroSection: {
       alignItems: 'center',
-      gap: 16,
-      marginBottom: 24,
+      paddingTop: 20,
+      paddingBottom: 32,
     },
-    stageCopy: {
+    labels: {
+      marginTop: 26,
       alignItems: 'center',
-      gap: 6,
     },
-    stageLabel: {
-      fontSize: 12,
-      letterSpacing: 3,
-      color: theme.colors.textSecondary,
-    },
-    stageTitle: {
-      fontSize: 26,
-      color: theme.colors.textPrimary,
-      fontWeight: '600',
-      textAlign: 'center',
-    },
-    stageSubtitle: {
+    title: {
       fontSize: 14,
+      letterSpacing: 2,
+      textTransform: 'uppercase',
+      color: theme.colors.textPrimary,
+      marginBottom: 6,
+    },
+    subtitle: {
+      fontSize: 13,
       color: theme.colors.textSecondary,
       textAlign: 'center',
+      maxWidth: 280,
     },
     sectionTitle: {
       fontSize: 14,
       letterSpacing: 1.8,
-      color: theme.colors.textSecondary,
       marginBottom: 12,
       marginTop: 16,
+      color: theme.colors.textSecondary,
+      textTransform: 'uppercase',
     },
-    recognitionCard: {
-      borderRadius: 18,
-      padding: 18,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      backgroundColor: theme.colors.cardItem,
-      marginBottom: 14,
-    },
-    cardHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginBottom: 12,
+    recordingsSection: {
+      marginTop: 12,
       gap: 12,
     },
-    intentBadge: {
-      width: 42,
-      height: 42,
-      borderRadius: 21,
-      borderWidth: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: theme.colors.card,
-      borderColor: theme.colors.border,
-    },
-    intentInfo: {
-      flex: 1,
-    },
-    intentTitle: {
-      fontSize: 16,
-      color: theme.colors.textPrimary,
-      fontWeight: '600',
-    },
-    intentSubtitle: {
-      fontSize: 13,
-      color: theme.colors.textSecondary,
-    },
-    intentAmount: {
-      fontSize: 20,
-      fontWeight: '600',
-      color: theme.colors.textPrimary,
-    },
-    cardMetaRow: {
-      flexDirection: 'row',
-      gap: 20,
-      marginBottom: 16,
-    },
-    metaColumn: {
-      flex: 1,
-    },
-    metaLabel: {
-      fontSize: 12,
-      color: theme.colors.textSecondary,
-      marginBottom: 4,
-      textTransform: 'uppercase',
-      letterSpacing: 1,
-    },
-    metaValue: {
-      fontSize: 15,
-      color: theme.colors.textPrimary,
-    },
-    cardActions: {
-      flexDirection: 'row',
-      gap: 10,
-      justifyContent: 'flex-end',
-    },
-    historySection: {
-      marginTop: 8,
-      paddingBottom: 16,
-    },
-    sheetHandle: {
-      alignSelf: 'center',
-      width: 46,
-      height: 5,
-      borderRadius: 3,
-      backgroundColor: theme.colors.border,
-      marginBottom: 18,
-    },
-    historyCard: {
-      borderRadius: 18,
-      padding: 18,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      backgroundColor: theme.colors.cardItem,
-    },
-    historyHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      marginBottom: 12,
-    },
-    historyTitle: {
-      fontSize: 16,
-      color: theme.colors.textPrimary,
-      fontWeight: '600',
-    },
-    historyMeta: {
-      fontSize: 13,
-      color: theme.colors.textSecondary,
-      marginTop: 4,
-    },
-    historyTime: {
-      fontSize: 13,
-      color: theme.colors.textSecondary,
-    },
-    repeatButton: {
-      flexDirection: 'row',
-      gap: 8,
-      alignItems: 'center',
-      paddingVertical: 8,
-    },
-    repeatLabel: {
-      fontSize: 13,
-      color: theme.colors.textPrimary,
-      fontWeight: '500',
-    },
-    summaryCard: {
-      borderRadius: 18,
-      padding: 20,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      backgroundColor: theme.colors.cardItem,
-      marginBottom: 18,
-    },
-    summaryLabel: {
-      fontSize: 12,
-      color: theme.colors.textSecondary,
-      letterSpacing: 2,
-      marginBottom: 6,
-    },
-    summaryTitle: {
-      fontSize: 18,
-      fontWeight: '600',
-      color: theme.colors.textPrimary,
-      marginBottom: 8,
-    },
-    summaryBody: {
-      fontSize: 15,
-      color: theme.colors.textSecondary,
-      lineHeight: 22,
-    },
-    processingRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-      marginTop: 6,
-    },
-    processingText: {
-      fontSize: 13,
-      color: theme.colors.textSecondary,
-    },
     footer: {
+      paddingHorizontal: 20,
+      paddingTop: 12,
       gap: 12,
     },
     primaryButton: {
       borderRadius: 999,
       overflow: 'hidden',
+      backgroundColor: theme.colors.card,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
     },
     primaryButtonDisabled: {
       opacity: 0.6,
@@ -1734,100 +1136,9 @@ const createStyles = (theme: Theme) =>
       textAlign: 'center',
       marginTop: 4,
     },
-    recordingsSection: {
-      marginTop: 12,
-      gap: 12,
-    },
-    recordingCard: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12,
-      borderRadius: 16,
-      paddingVertical: 12,
-      paddingHorizontal: 14,
-      borderWidth: 1,
-    },
-    playButton: {
-      width: 42,
-      height: 42,
-      borderRadius: 21,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderWidth: 1,
-    },
-    recordingInfo: {
-      flex: 1,
-      gap: 2,
-    },
-    recordingTitle: {
-      fontSize: 14,
-      fontWeight: '600',
-      color: theme.colors.textPrimary,
-    },
-    recordingMeta: {
-      fontSize: 12,
-      color: theme.colors.textSecondary,
-    },
-    recordingDuration: {
-      fontSize: 12,
-      fontWeight: '500',
-      color: theme.colors.textSecondary,
-    },
-    waveformRow: {
-      flexDirection: 'row',
-      alignItems: 'flex-end',
-      gap: 2,
-      marginTop: 6,
-      height: 24,
-    },
-    waveformBar: {
-      width: 2,
-      borderRadius: 999,
-    },
-    plannerSection: {
-      marginTop: 24,
-      borderRadius: 18,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      backgroundColor: theme.colors.cardItem,
-      padding: 18,
-      gap: 12,
-    },
-    plannerCommand: {
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      paddingVertical: 10,
-      paddingHorizontal: 12,
-    },
-    plannerCommandText: {
-      fontSize: 13,
-      fontWeight: '600',
-      color: theme.colors.textPrimary,
-    },
-    plannerLog: {
-      marginTop: 8,
-      borderRadius: 12,
-      backgroundColor: theme.colors.card,
-      padding: 10,
-      gap: 4,
-    },
-    plannerLogText: {
-      fontSize: 12,
-      color: theme.colors.textSecondary,
-    },
   });
 
 const styles = StyleSheet.create({
-  iconOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logoLetter: {
-    fontSize: 48,
-    fontWeight: '700',
-  },
   actionIcon: {
     width: 42,
     height: 42,
@@ -1895,16 +1206,10 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingBottom: 16,
   },
-  sheetHandle: {
-    alignSelf: 'center',
-    width: 46,
-    height: 5,
-    borderRadius: 3,
-    marginBottom: 18,
-  },
   historyCard: {
     borderRadius: 18,
     padding: 18,
+    borderWidth: 1,
   },
   historyHeader: {
     flexDirection: 'row',
@@ -1937,11 +1242,13 @@ const styles = StyleSheet.create({
     letterSpacing: 1.8,
     marginBottom: 12,
     marginTop: 16,
+    textTransform: 'uppercase',
   },
   summaryCard: {
     borderRadius: 18,
     padding: 20,
     marginBottom: 18,
+    borderWidth: 1,
   },
   summaryLabel: {
     fontSize: 12,
@@ -1965,6 +1272,49 @@ const styles = StyleSheet.create({
   },
   processingText: {
     fontSize: 13,
+  },
+  recordingCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+  },
+  playButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  recordingInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  recordingTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  recordingMeta: {
+    fontSize: 12,
+  },
+  recordingDuration: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  waveformRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 2,
+    marginTop: 6,
+    height: 24,
+  },
+  waveformBar: {
+    width: 2,
+    borderRadius: 999,
   },
 });
 

@@ -1,0 +1,93 @@
+{
+  "focusMode": {
+    "header": {
+      "title": "РЕЖИМ ФОКУСА",
+      "settings": "Настройки"
+    },
+    "status": {
+      "ready": "Готов",
+      "inProgress": "В процессе",
+      "paused": "Пауза"
+    },
+    "timer": {
+      "start": "Начало",
+      "end": "Конец"
+    },
+    "task": {
+      "cardLabel": "Сейчас в фокусе",
+      "goalTag": "Цель: {goal}"
+    },
+    "toggles": {
+      "notifications": "Отключить уведомления",
+      "backgroundMusic": "Фоновая музыка",
+      "appBlock": "Блокировка приложений",
+      "dynamicIsland": "Dynamic Island"
+    },
+    "statistics": {
+      "title": "Статистика за сегодня",
+      "focusTime": "Время фокуса:",
+      "sessionsCompleted": "Сессий завершено:",
+      "productivity": "Продуктивность:"
+    },
+    "buttons": {
+      "reset": "Сбросить",
+      "finish": "Завершить"
+    },
+    "alerts": {
+      "resetTitle": "Сбросить таймер?",
+      "resetMessage": "Это сбросит таймер и удалит текущий прогресс.",
+      "cancel": "Отмена",
+      "resetConfirm": "Сбросить"
+    },
+    "time": {
+      "hours": "ч",
+      "minutes": "м"
+    }
+  },
+  "focusSettings": {
+    "header": {
+      "title": "Настройки фокуса",
+      "close": "Закрыть"
+    },
+    "technique": {
+      "label": "Техника",
+      "pomodoro": "Помодоро",
+      "pomodoroSummary": "25м + 5м",
+      "blocs": "Блоки",
+      "blocsSummary": "50м + 10м",
+      "free": "Свободный",
+      "freeSummary": "Без ограничений"
+    },
+    "session": {
+      "label": "Длительность сессии",
+      "workTime": "Время работы (м)",
+      "breakTime": "Время перерыва (м)",
+      "sessionsUntilBigBreak": "Сессий до большого перерыва",
+      "bigBreakTime": "Большой перерыв (м)"
+    },
+    "locks": {
+      "label": "Блокировки",
+      "notifications": "Уведомления",
+      "social": "Блокировать соцсети",
+      "apps": "Блокировать все приложения",
+      "autoReply": "Автоответ на сообщения"
+    },
+    "motivation": {
+      "label": "Мотивация",
+      "progress": "Показывать прогресс",
+      "sound": "Звук завершения",
+      "vibration": "Вибрация",
+      "music": "Музыка для концентрации"
+    },
+    "buttons": {
+      "reset": "Сбросить",
+      "confirm": "Подтвердить"
+    },
+    "alerts": {
+      "resetTitle": "Сбросить настройки фокуса?",
+      "resetMessage": "Это восстановит настройки по умолчанию.",
+      "cancel": "Отмена",
+      "resetConfirm": "Сбросить"
+    }
+  }
+}

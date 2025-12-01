@@ -127,7 +127,7 @@ const RegisterScreen = () => {
   }, [currencyOptions, currencyQuery]);
 
   const registerErrorMap = useMemo(
-    () => ({
+    (): Record<string, string> => ({
       'Please fill in all fields': registerStrings.errors.missingFields,
       'Please select your region': registerStrings.errors.selectRegion,
       'Passwords do not match': registerStrings.errors.passwordMismatch,
@@ -253,7 +253,7 @@ const RegisterScreen = () => {
 
     const latestError = useAuthStore.getState().error;
     const message =
-      (latestError ? registerErrorMap[latestError] ?? latestError : undefined) ??
+      (latestError ? (registerErrorMap[latestError] ?? latestError) : undefined) ??
       registerStrings.errors.generic;
     Alert.alert(registerStrings.alerts.failureTitle, message);
   };

@@ -1,10 +1,11 @@
 import { addDays, startOfDay } from '@/utils/calendar';
-import type { AddTaskPayload, PlannerTask, PlannerTaskSection, PlannerTaskStatus, TaskEnergyLevel, TaskPriorityLevel } from '@/types/planner';
+import type { AddTaskPayload, AddTaskDateMode, PlannerTask, PlannerTaskCategoryId, PlannerTaskSection, PlannerTaskStatus, TaskEnergyLevel, TaskPriorityLevel } from '@/types/planner';
 import type { Task, TaskStatus, TaskChecklistItem } from '@/domain/planner/types';
 import type { PlannerHistoryItem } from '@/stores/usePlannerDomainStore';
 import type { AppTranslations } from '@/localization/strings';
+import type { ShowStatus } from '@/domain/shared/showStatus';
 
-export type PlannerTaskCard = PlannerTask & { historyId?: string };
+export type PlannerTaskCard = PlannerTask & { historyId?: string; showStatus?: ShowStatus };
 
 const minutesToLabel = (minutes?: number) => {
   if (minutes == null) {
@@ -74,7 +75,8 @@ export const mapDomainTaskToPlannerTask = (
   options?: { expandedMap?: Record<string, boolean>; historyId?: string; deletedAt?: number | null },
 ): PlannerTaskCard => {
   const expandedMap = options?.expandedMap ?? {};
-  const dueAtTs = task.dueDate ? new Date(task.dueDate).getTime() : options?.deletedAt ?? null;
+  const createdAtTs = new Date(task.createdAt).getTime();
+  const dueAtTs = task.dueDate ? new Date(task.dueDate).getTime() : null;
   const needFocus = task.needFocus ?? Boolean(task.focusTotalMinutes && task.focusTotalMinutes > 0);
   return {
     id: task.id,
@@ -85,7 +87,7 @@ export const mapDomainTaskToPlannerTask = (
     context: task.context ?? '@inbox',
     energy: mapEnergy(task.energyLevel),
     projectHeart: task.focusTotalMinutes != null ? task.focusTotalMinutes > 0 : false,
-    section: deriveSectionFromTimestamp(task.dueDate, dueAtTs),
+    section: deriveSectionFromTimestamp(task.dueDate ?? task.createdAt, dueAtTs ?? createdAtTs),
     status: mapStatusToPlannerStatus(task.status),
     goalId: task.goalId ?? undefined,
     linkedHabitId: task.habitId ?? undefined,
@@ -106,6 +108,7 @@ export const mapDomainTaskToPlannerTask = (
       : undefined,
     metadata: needFocus ? { needFocus } : undefined,
     historyId: options?.historyId,
+    showStatus: task.showStatus,
   };
 };
 

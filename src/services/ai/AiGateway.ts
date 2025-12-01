@@ -1,7 +1,6 @@
 import type {
   AiActionCommandMap,
   AiActionDto,
-  AiActionType,
   AiGatewayConfig,
   AiGatewayRequestOptions,
   AiGatewayVoiceResult,

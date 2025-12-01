@@ -17,6 +17,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { AdaptiveGlassView } from '@/components/ui/AdaptiveGlassView';
+import CounterpartyPicker from '@/components/shared/CounterpartyPicker';
 import { useAppTheme } from '@/constants/theme';
 import { useLocalization } from '@/localization/useLocalization';
 import { useFinanceDomainStore } from '@/stores/useFinanceDomainStore';
@@ -27,6 +28,8 @@ import {
 } from '@/stores/useFinancePreferencesStore';
 import { useShallow } from 'zustand/react/shallow';
 import { usePlannerDomainStore } from '@/stores/usePlannerDomainStore';
+import { FxService } from '@/services/fx/FxService';
+import type { Counterparty } from '@/domain/finance/types';
 
 const ensureCurrency = (value?: string): FinanceCurrency => {
   if (!value) return 'USD';
@@ -87,6 +90,7 @@ export default function DebtModal() {
 
   const [debtType, setDebtType] = useState<DebtType>('borrowed');
   const [person, setPerson] = useState('');
+  const [selectedCounterpartyId, setSelectedCounterpartyId] = useState<string | null>(null);
   const [amount, setAmount] = useState('');
   const [currency, setCurrency] = useState<FinanceCurrency>('USD');
   const [startDate, setStartDate] = useState(new Date());
@@ -96,10 +100,27 @@ export default function DebtModal() {
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(accounts[0]?.id ?? null);
   const [pickerState, setPickerState] = useState<{ target: 'start' | 'expected'; value: Date } | null>(null);
 
+  // Multi-currency repayment
+  const [useDifferentRepaymentCurrency, setUseDifferentRepaymentCurrency] = useState(false);
+  const [repaymentCurrency, setRepaymentCurrency] = useState<FinanceCurrency>('USD');
+  const [customRepaymentRate, setCustomRepaymentRate] = useState('');
+  const [isFixedRepaymentAmount, setIsFixedRepaymentAmount] = useState(false);
+
+  const handleCounterpartySelect = useCallback((counterparty: Counterparty | null) => {
+    if (counterparty) {
+      setPerson(counterparty.displayName);
+      setSelectedCounterpartyId(counterparty.id);
+    } else {
+      setPerson('');
+      setSelectedCounterpartyId(null);
+    }
+  }, []);
+
   useEffect(() => {
     if (!editingDebt) return;
     setDebtType(mapDirectionToDebtType(editingDebt.direction));
     setPerson(editingDebt.counterpartyName);
+    setSelectedCounterpartyId(editingDebt.counterpartyId ?? null);
     setAmount(String(editingDebt.principalOriginalAmount ?? editingDebt.principalAmount ?? ''));
     setCurrency(ensureCurrency(editingDebt.principalCurrency));
     setStartDate(new Date(editingDebt.startDate));
@@ -107,6 +128,17 @@ export default function DebtModal() {
     setNote(editingDebt.description ?? '');
     setReminderEnabled(Boolean(editingDebt.reminderEnabled));
     setSelectedAccountId(editingDebt.fundingAccountId ?? null);
+    // Multi-currency repayment
+    if (editingDebt.repaymentCurrency) {
+      setUseDifferentRepaymentCurrency(true);
+      setRepaymentCurrency(ensureCurrency(editingDebt.repaymentCurrency));
+      if (editingDebt.repaymentRateOnStart) {
+        setCustomRepaymentRate(String(editingDebt.repaymentRateOnStart));
+      }
+      setIsFixedRepaymentAmount(Boolean(editingDebt.isFixedRepaymentAmount));
+    } else {
+      setUseDifferentRepaymentCurrency(false);
+    }
   }, [editingDebt]);
 
   useEffect(() => {
@@ -179,10 +211,24 @@ export default function DebtModal() {
     if (isSaveDisabled) return;
 
     const direction = mapDebtTypeToDirection(debtType);
+
+    // Calculate repayment rate
+    let repaymentRateOnStart: number | undefined;
+    if (useDifferentRepaymentCurrency) {
+      const customRate = parseFloat(customRepaymentRate.replace(/,/g, '.'));
+      if (Number.isFinite(customRate) && customRate > 0) {
+        repaymentRateOnStart = customRate;
+      } else {
+        // Get current FX rate
+        repaymentRateOnStart = FxService.getInstance().getRate(currency, repaymentCurrency) ?? 1;
+      }
+    }
+
     const payload = {
       userId: 'local-user',
       direction,
       counterpartyName: person.trim(),
+      counterpartyId: selectedCounterpartyId ?? undefined,
       principalAmount: amountNumber,
       principalOriginalAmount: amountNumber,
       principalCurrency: currency,
@@ -195,12 +241,34 @@ export default function DebtModal() {
       fundingAccountId: selectedAccountId ?? undefined,
       description: note.trim() || undefined,
       linkedGoalId: editingDebt?.linkedGoalId ?? linkedGoalId ?? undefined,
+      // Multi-currency repayment fields
+      repaymentCurrency: useDifferentRepaymentCurrency ? repaymentCurrency : undefined,
+      repaymentAmount: useDifferentRepaymentCurrency && repaymentRateOnStart
+        ? amountNumber * repaymentRateOnStart
+        : undefined,
+      repaymentRateOnStart: useDifferentRepaymentCurrency ? repaymentRateOnStart : undefined,
+      isFixedRepaymentAmount: useDifferentRepaymentCurrency ? isFixedRepaymentAmount : undefined,
     } satisfies Parameters<typeof createDebt>[0];
+
+    // Debug: Log the payload to verify amount is being passed correctly
+    console.log('[DebtModal] Creating/updating debt with payload:', {
+      amountNumber,
+      principalAmount: payload.principalAmount,
+      principalOriginalAmount: payload.principalOriginalAmount,
+      direction: payload.direction,
+      person: payload.counterpartyName,
+      fundingAccountId: payload.fundingAccountId,
+    });
 
     if (editingDebt) {
       updateDebt(editingDebt.id, payload);
     } else {
-      createDebt(payload);
+      const created = createDebt(payload);
+      console.log('[DebtModal] Debt created:', {
+        id: created.id,
+        principalAmount: created.principalAmount,
+        principalOriginalAmount: created.principalOriginalAmount,
+      });
     }
 
     handleClose();
@@ -209,34 +277,42 @@ export default function DebtModal() {
     baseCurrency,
     createDebt,
     currency,
+    customRepaymentRate,
     debtType,
     editingDebt,
     expectedReturnDate,
     handleClose,
+    isFixedRepaymentAmount,
     isSaveDisabled,
+    linkedGoalId,
     note,
     person,
     reminderEnabled,
+    repaymentCurrency,
     selectedAccountId,
+    selectedCounterpartyId,
     startDate,
     updateDebt,
+    useDifferentRepaymentCurrency,
   ]);
+
+  const debtAlerts = debtStrings.alerts ?? { linkedTitle: 'Debt is linked', linkedSingle: 'This debt is linked to a goal. Unlink it before deleting.', linkedMultiple: 'This debt is linked to multiple goals. Unlink them before deleting.' };
 
   const handleDelete = useCallback(() => {
     if (!editingDebt) return;
     const linkedGoals = goals.filter((goal) => goal.linkedDebtId === editingDebt.id);
     if (linkedGoals.length > 0) {
       Alert.alert(
-        'Debt is linked',
+        debtAlerts.linkedTitle,
         linkedGoals.length === 1
-          ? 'This debt is linked to a goal. Unlink it before deleting.'
-          : 'This debt is linked to multiple goals. Unlink them before deleting.',
+          ? debtAlerts.linkedSingle
+          : debtAlerts.linkedMultiple,
       );
       return;
     }
     deleteDebt(editingDebt.id);
     handleClose();
-  }, [deleteDebt, editingDebt, goals, handleClose]);
+  }, [debtAlerts, deleteDebt, editingDebt, goals, handleClose]);
 
   return (
     <>
@@ -275,16 +351,13 @@ export default function DebtModal() {
           </View>
 
             <View style={styles.section}>
-              <Text style={[styles.label, { color: theme.colors.textSecondary }]}>{debtStrings.person ?? 'Name'}</Text>
-              <AdaptiveGlassView style={[styles.glassSurface, styles.inputContainer]}>
-                <TextInput
-                  value={person}
-                  onChangeText={setPerson}
-                  placeholder={debtStrings.personPlaceholder ?? 'Person'}
-                  placeholderTextColor={theme.colors.textMuted}
-                  style={[styles.textInput, { color: theme.colors.textPrimary }]}
-                />
-              </AdaptiveGlassView>
+              <CounterpartyPicker
+                value={person}
+                onSelect={handleCounterpartySelect}
+                selectedCounterpartyId={selectedCounterpartyId}
+                placeholder={debtStrings.personPlaceholder ?? 'Enter name...'}
+                label={debtStrings.person ?? 'Name'}
+              />
             </View>
 
             <View style={styles.section}>
@@ -316,6 +389,79 @@ export default function DebtModal() {
                 })}
               </ScrollView>
             </View>
+
+            {/* Multi-currency repayment */}
+            <View style={styles.section}>
+              <AdaptiveGlassView style={[styles.glassSurface, styles.reminderRow]}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.reminderLabel}>{debtStrings.differentCurrency ?? 'Repay in different currency'}</Text>
+                  <Text style={styles.reminderSubtext}>
+                    {useDifferentRepaymentCurrency
+                      ? `${debtStrings.repayIn ?? 'Repay in'} ${repaymentCurrency}`
+                      : debtStrings.sameCurrency ?? 'Same currency'}
+                  </Text>
+                </View>
+                <Switch value={useDifferentRepaymentCurrency} onValueChange={setUseDifferentRepaymentCurrency} />
+              </AdaptiveGlassView>
+            </View>
+
+            {useDifferentRepaymentCurrency && (
+              <>
+                <View style={styles.section}>
+                  <Text style={[styles.label, { color: theme.colors.textSecondary }]}>
+                    {debtStrings.repaymentCurrency ?? 'Repayment Currency'}
+                  </Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.currencyScroll}>
+                    {AVAILABLE_FINANCE_CURRENCIES.filter((c) => c !== currency).map((code) => {
+                      const active = repaymentCurrency === code;
+                      return (
+                        <Pressable
+                          key={code}
+                          onPress={() => setRepaymentCurrency(code)}
+                          style={({ pressed }) => [
+                            styles.currencyPill,
+                            active && styles.currencyPillActive,
+                            pressed && styles.pressed,
+                          ]}
+                        >
+                          <Text style={[styles.currencyLabel, { color: active ? '#0E0E0E' : '#FFFFFF' }]}>{code}</Text>
+                        </Pressable>
+                      );
+                    })}
+                  </ScrollView>
+                </View>
+
+                <View style={styles.section}>
+                  <Text style={[styles.label, { color: theme.colors.textSecondary }]}>
+                    {debtStrings.exchangeRate ?? 'Exchange Rate'} ({currency} → {repaymentCurrency})
+                  </Text>
+                  <AdaptiveGlassView style={[styles.glassSurface, styles.inputContainer]}>
+                    <TextInput
+                      value={customRepaymentRate}
+                      onChangeText={setCustomRepaymentRate}
+                      keyboardType="numeric"
+                      placeholder={debtStrings.autoRate ?? 'Auto (current rate)'}
+                      placeholderTextColor={theme.colors.textMuted}
+                      style={[styles.textInput, { color: theme.colors.textPrimary }]}
+                    />
+                  </AdaptiveGlassView>
+                </View>
+
+                <View style={styles.section}>
+                  <AdaptiveGlassView style={[styles.glassSurface, styles.reminderRow]}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.reminderLabel}>{debtStrings.fixedAmount ?? 'Fixed repayment amount'}</Text>
+                      <Text style={styles.reminderSubtext}>
+                        {isFixedRepaymentAmount
+                          ? debtStrings.fixedAmountEnabled ?? 'Amount locked at start rate'
+                          : debtStrings.fixedAmountDisabled ?? 'Uses current exchange rate'}
+                      </Text>
+                    </View>
+                    <Switch value={isFixedRepaymentAmount} onValueChange={setIsFixedRepaymentAmount} />
+                  </AdaptiveGlassView>
+                </View>
+              </>
+            )}
 
             <View style={styles.section}>
               <Text style={[styles.label, { color: theme.colors.textSecondary }]}>{debtStrings.date ?? 'Date'}</Text>

@@ -33,9 +33,56 @@ type GoalModalMetricOption = 'amount' | 'count' | 'duration' | 'custom';
 
 export type GoalModalStrings = {
   title: string;
+  editTitle: string;
   subtitle: string;
+  close: string;
   scenarioSection: { title: string; subtitle: string };
   scenarios: Record<GoalModalScenarioKey, { title: string; subtitle: string }>;
+  wizardSteps: {
+    basics: string;
+    measure: string;
+    timeline: string;
+    connect: string;
+  };
+  step1: {
+    title: string;
+    categoryLabel: string;
+    whyLabel: string;
+    placeholder: string;
+    motivationPlaceholder: string;
+    hint: string;
+    characterCount: string;
+  };
+  step2: {
+    title: string;
+    goalTypeLabel: string;
+    currencyInherited: string;
+    progressHint: string;
+  };
+  step3: {
+    title: string;
+    deadlineHint: string;
+    quickSelect: string;
+  };
+  step4: {
+    title: string;
+    subtitle: string;
+    livePreview: string;
+    budgetBalance: string;
+    goalProgress: string;
+    debtRemaining: string;
+    savingsLink: string;
+    debtLink: string;
+    budgetCategoryLink: string;
+    noBudget: string;
+    noDebt: string;
+    addBudget: string;
+    createDebt: string;
+    noBudgetsHint: string;
+    noDebtsHint: string;
+    autoPaymentHint: string;
+    nonFinanceHint: string;
+  };
   detailsSection: {
     title: string;
     titleLabel: string;
@@ -74,19 +121,65 @@ export type GoalModalStrings = {
     empty: string;
     delete: string;
   };
+  goalTypes: {
+    financial: { label: string; examples: string[] };
+    career: { label: string; examples: string[] };
+    personal: { label: string; examples: string[] };
+  };
+  financeModes: {
+    save: { label: string; description: string };
+    spend: { label: string; description: string };
+    debt_close: { label: string; description: string };
+  };
+  metricKinds: {
+    amount: { label: string; description: string };
+    count: { label: string; description: string };
+    duration: { label: string; description: string };
+    weight: { label: string; description: string };
+    custom: { label: string; description: string };
+  };
+  deadlinePresets: {
+    week1: string;
+    month1: string;
+    month3: string;
+    month6: string;
+    year1: string;
+  };
   actions: {
     cancel: string;
+    back: string;
+    next: string;
     create: string;
     createMore: string;
     update: string;
+    done: string;
   };
   alerts: {
     missingTitle: string;
+    titleTooShort: string;
     invalidTarget: string;
+    targetSameAsCurrent: string;
+    selectBudget: string;
+    selectDebt: string;
   };
 };
 
 export type AppTranslations = {
+  common: {
+    close: string;
+    cancel: string;
+    save: string;
+    add: string;
+    delete: string;
+    apply: string;
+    reset: string;
+    done: string;
+    select: string;
+    task?: string;
+    goal?: string;
+    habit?: string;
+    budget?: string;
+  };
   auth: {
     common: {
       socialDivider: string;
@@ -309,8 +402,15 @@ export type AppTranslations = {
   };
   addTask: {
     title: string;
+    editTitle: string;
+    createTitle: string;
+    close: string;
+    cancel: string;
+    update: string;
+    create: string;
     nameLabel: string;
     namePlaceholder: string;
+    titleRequired: string;
     whenLabel: string;
     whenOptions: Record<'today' | 'tomorrow' | 'pick', string>;
     timePlaceholder: string;
@@ -319,13 +419,17 @@ export type AppTranslations = {
     time: string;
     notes: string;
     notesPlaceholder: string;
+    descriptionLabel: string;
+    descriptionPlaceholder: string;
     project: string;
     projectPlaceholder: string;
     context: string;
     energy: string;
+    energyOptions: Record<'low' | 'medium' | 'high', string>;
     priority: string;
     additional: string;
     reminder: string;
+    reminderBefore: string;
     repeat: string;
     needFocus: string;
     subtasks: string;
@@ -337,6 +441,20 @@ export type AppTranslations = {
     goalLabel: string;
     goalUnset: string;
     goalHelper: string;
+    financeAction: string;
+    financeOptions: {
+      recordExpenses: string;
+      payDebt: string;
+      reviewBudget: string;
+      transferMoney: string;
+      none: string;
+    };
+    validation: {
+      selectDate: string;
+      pastDate: string;
+      futureTime: string;
+    };
+    done: string;
   };
   universalFab: {
     planner: {
@@ -381,6 +499,7 @@ export type AppTranslations = {
         subtitle: string;
         tip: string;
         deletedBadge: string;
+        archivedBadge: string;
       };
       defaults: {
         startToday: string;
@@ -388,6 +507,10 @@ export type AppTranslations = {
         startPick: string;
         newTaskTitle: string;
         defaultContext: string;
+      };
+      empty?: {
+        title: string;
+        subtitle: string;
       };
       aiPrefix: string;
       dailySummary: string;
@@ -531,6 +654,122 @@ export type AppTranslations = {
   };
   plannerModals: {
     goal: GoalModalStrings;
+    habit: {
+      editTitle: string;
+      createTitle: string;
+      close: string;
+      cancel: string;
+      create: string;
+      update: string;
+      nameLabel: string;
+      nameRequired: string;
+      namePlaceholder: string;
+      descriptionLabel: string;
+      descriptionPlaceholder: string;
+      habitTypeLabel: string;
+      habitTypes: {
+        health: string;
+        finance: string;
+        productivity: string;
+        education: string;
+        personal: string;
+        custom: string;
+      };
+      frequencyLabel: string;
+      frequencyTypes: {
+        daily: string;
+        weekly: string;
+        custom: string;
+      };
+      timesPerWeek: string;
+      timesPerPeriod: string;
+      timesOptions: {
+        once: string;
+        twice: string;
+        times3: string;
+        times4: string;
+        times5: string;
+      };
+      completionModeLabel: string;
+      completionModes: {
+        boolean: string;
+        numeric: string;
+      };
+      targetPerDay: string;
+      targetPlaceholder: string;
+      unitLabel: string;
+      unitPlaceholder: string;
+      timeOfDayLabel: string;
+      setTime: string;
+      linkToGoalLabel: string;
+      none: string;
+      financeRuleLabel: string;
+      ruleTypeLabel: string;
+      ruleTypes: {
+        noSpendInCategories: string;
+        spendInCategories: string;
+        hasAnyTransactions: string;
+        dailySpendUnder: string;
+      };
+      selectCategories: string;
+      selectAccounts: string;
+      minAmount: string;
+      dailyLimitAmount: string;
+      currency: string;
+      done: string;
+      // New fields for enhanced habit modal
+      popularHabitsLabel: string;
+      popularHabits: {
+        morningWorkout: { title: string; time: string };
+        meditation: { title: string; time: string };
+        drinkWater: { title: string; time: string };
+        quitSmoking: { title: string; time: string };
+      };
+      countingTypeLabel: string;
+      countingTypes: {
+        create: string;
+        quit: string;
+      };
+      categoriesLabel: string;
+      difficultyLabel: string;
+      difficultyLevels: {
+        easy: string;
+        medium: string;
+        hard: string;
+      };
+      priorityLabel: string;
+      priorityLevels: {
+        low: string;
+        medium: string;
+        high: string;
+      };
+      selectDaysLabel: string;
+      selectDatesLabel: string;
+      weekdays: {
+        mon: string;
+        tue: string;
+        wed: string;
+        thu: string;
+        fri: string;
+        sat: string;
+        sun: string;
+      };
+      reminderLabel: string;
+      reminderTimeLabel: string;
+      addReminder: string;
+      streakLabel: string;
+      streakOptions: {
+        days7: string;
+        days21: string;
+        days30: string;
+        days66: string;
+        days100: string;
+      };
+      streakMotivation: string;
+      aiTipLabel: string;
+      createAndMore: string;
+      iconPickerLabel: string;
+    };
   };
   widgets: {
     budgetProgress: {
@@ -695,7 +934,7 @@ export type AppTranslations = {
       fxTitle: string;
       fxDescription: string;
       fxProviderLabel: string;
-      fxProviders: Record<'central_bank_stub' | 'market_stub', string>;
+      fxProviders: Record<'central_bank' | 'market', string>;
       fxSyncButton: string;
       fxSyncing: string;
       fxSyncSuccess: string;
@@ -744,6 +983,11 @@ export type AppTranslations = {
       analytics: string;
       debts: string;
     };
+    goalActions: {
+      connectFinance: string;
+      createBudget: string;
+      addContribution: string;
+    };
     review: {
       totalBalance: string;
       income: string;
@@ -752,6 +996,7 @@ export type AppTranslations = {
       used: string;
       progress: string;
       expenseStructure: string;
+      noExpenseData: string;
       recentTransactions: string;
       seeAll: string;
       importantEvents: string;
@@ -759,7 +1004,7 @@ export type AppTranslations = {
       fxQuick: {
         title: string;
         providerLabel: string;
-        providers: Record<'central_bank_stub' | 'market_stub', string>;
+        providers: Record<'central_bank' | 'market', string>;
         syncButton: string;
         syncDescription: string;
         syncing: string;
@@ -794,6 +1039,7 @@ export type AppTranslations = {
       monitorEmpty: string;
       monitorApply: string;
       monitorReset: string;
+      empty: { title: string; subtitle: string };
     };
     accounts: {
       header: string;
@@ -803,6 +1049,8 @@ export type AppTranslations = {
       historyTitle: string;
       historyHeaders: { type: string; amount: string; time: string };
       actions: { edit: string; archive: string; delete: string };
+      modal?: Record<string, unknown>;
+      empty: { title: string; subtitle: string };
     };
     transactions: {
       header: string;
@@ -816,6 +1064,10 @@ export type AppTranslations = {
         note: string;
         relatedDebt: string;
         close: string;
+        linkedData: string;
+        linkedGoal: string;
+        linkedBudget: string;
+        notFound: string;
       };
       filterSheet: {
         title: string;
@@ -830,8 +1082,13 @@ export type AppTranslations = {
         reset: string;
         apply: string;
         all: string;
+        close?: string;
+        clearHint?: string;
         typeOptions: Record<'income' | 'expense' | 'transfer' | 'debt', string>;
       };
+      quick?: Record<string, unknown>;
+      transferForm?: Record<string, unknown>;
+      empty: { title: string; subtitle: string };
     };
     budgets: {
       today: string;
@@ -894,7 +1151,13 @@ export type AppTranslations = {
         };
         limitAmount: string;
         targetAmount: string;
+        alerts: {
+          linkedTitle: string;
+          linkedSingle: string;
+          linkedMultiple: string;
+        };
       };
+      empty: { title: string; subtitle: string };
     };
     analytics: {
       header: string;
@@ -904,8 +1167,10 @@ export type AppTranslations = {
       aiInsights: string;
       stats: { peak: string; average: string; trend: string };
       comparisonRows: { income: string; outcome: string; savings: string };
+      empty: { title: string; subtitle: string };
     };
     debts: {
+      empty: { title: string; subtitle: string };
       sections: { incoming: string; outgoing: string };
       timeline: {
         incoming: string;
@@ -917,6 +1182,84 @@ export type AppTranslations = {
       actions: {
         incoming: { notify: string; cancel: string };
         outgoing: { plan: string; partial: string };
+        // Debt Actions Modal
+        title: string;
+        notFound: string;
+        paidBanner: string;
+        summary: {
+          youOwe: string;
+          theyOwe: string;
+        };
+        partialPayment: {
+          titleIOwe: string;
+          titleTheyOwe: string;
+          subtitle: string;
+        };
+        fullPayment: {
+          titleIOwe: string;
+          titleTheyOwe: string;
+          subtitle: string;
+        };
+        extendDate: {
+          title: string;
+          subtitle: string;
+          currentDue: string;
+          noDueDate: string;
+          customDateLabel: string;
+        };
+        markSettled: {
+          title: string;
+          subtitle: string;
+          descriptionIOwe: string;
+          descriptionTheyOwe: string;
+          warning: string;
+        };
+        quickOptions: {
+          tomorrow: string;
+          nextWeek: string;
+          nextMonth: string;
+          threeMonths: string;
+        };
+        fields: {
+          amount: string;
+          remaining: string;
+          paymentDate: string;
+          account: string;
+          selectAccount: string;
+          note: string;
+          optionalNote: string;
+        };
+        paymentInfo: {
+          expense: string;
+          income: string;
+        };
+        buttons: {
+          cancel: string;
+          confirm: string;
+          done: string;
+          setDueDate: string;
+          markSettled: string;
+        };
+        errors: {
+          error: string;
+          invalidAmount: string;
+          enterValidAmount: string;
+          amountTooHigh: string;
+          maxAmount: string;
+          paymentFailed: string;
+          dueDateFailed: string;
+          settleFailed: string;
+        };
+        success: {
+          paymentRecorded: string;
+          repayment: string;
+          collection: string;
+          hasBeenRecorded: string;
+          dueDateUpdated: string;
+          dueDateSetTo: string;
+          debtSettled: string;
+          markedAsSettled: string;
+        };
       };
       summary: {
         balanceLabel: string;
@@ -1014,6 +1357,209 @@ export type AppTranslations = {
         fullPaymentTitle: string;
         fullPaymentDescription: string;
         fullPaymentSubmit: string;
+        typeLabel?: string;
+        borrowedLabel?: string;
+        lentLabel?: string;
+        alerts: {
+          linkedTitle: string;
+          linkedSingle: string;
+          linkedMultiple: string;
+        };
+        differentCurrency?: string;
+        repayIn?: string;
+        sameCurrency?: string;
+        repaymentCurrency?: string;
+        exchangeRate?: string;
+        autoRate?: string;
+        fixedAmount?: string;
+        fixedAmountEnabled?: string;
+        fixedAmountDisabled?: string;
+      };
+    };
+  };
+  modals: {
+    lock: {
+      enterPasscode: string;
+      forgotPasscode: string;
+      resetAppLock: string;
+      verifyCode: string;
+      createNewPasscode: string;
+      chooseMethod: string;
+      addContact: string;
+      email: string;
+      phone: string;
+      sendCode: string;
+      continue: string;
+      changeMethod: string;
+      resendCode: string;
+      resendIn: string;
+      enterVerificationCode: string;
+      newPasscode: string;
+      confirmPasscode: string;
+      saveNewPasscode: string;
+      noContactMethod: string;
+      enterDigitCode: string;
+      requestNewCode: string;
+      codeExpired: string;
+      incorrectCode: string;
+      createPasscodeHint: string;
+      passcodeMustBe4Digits: string;
+      passcodesDoNotMatch: string;
+      passcodeUpdated: string;
+      passcodeResetMessage: string;
+      unlockLeora: string;
+      cancel: string;
+      usePasscode: string;
+    };
+    search: {
+      placeholder: string;
+      noResults: string;
+      startTyping: string;
+      suggestions: {
+        improveFocus: string;
+        createTask: string;
+        budgetTips: string;
+        planGoals: string;
+        aiFinance: string;
+        quickExpenses: string;
+        upcomingInvoices: string;
+        trackDebts: string;
+      };
+    };
+    notifications: {
+      title: string;
+      markAllAsRead: string;
+      noNewNotifications: string;
+      justNow: string;
+      minutesAgo: string;
+      hoursAgo: string;
+      daysAgo: string;
+    };
+    financeExport: {
+      title: string;
+      dateRange: string;
+      from: string;
+      to: string;
+      format: string;
+      exportExcel: string;
+      exportPdf: string;
+      exportQueued: string;
+      preparingReport: string;
+    };
+    financeCurrency: {
+      title: string;
+      displayCurrency: string;
+      baseCurrency: string;
+      convertTo: string;
+      exchangeRates: string;
+      fixedReference: string;
+      oneEquals: string;
+      apply: string;
+    };
+    financeSearch: {
+      title: string;
+      placeholder: string;
+      noResults: string;
+      startTyping: string;
+    };
+    voice: {
+      title: string;
+      speakNaturally: string;
+      listening: string;
+      mentionDetails: string;
+      analyzing: string;
+      dataProcessing: string;
+      startTalking: string;
+      stopAnalyze: string;
+      analyzingDots: string;
+      leoraVoice: string;
+      requestsHistory: string;
+      repeatRequest: string;
+      recognized: string;
+      latestStatement: string;
+      aiMatching: string;
+      capturedAudio: string;
+      category: string;
+      account: string;
+      edit: string;
+      confirm: string;
+      microphoneRequired: string;
+      cancel: string;
+    };
+    changePassword: {
+      createPin: string;
+      changePin: string;
+      close: string;
+      secureYourSpace: string;
+      updatePin: string;
+      createYour4DigitPin: string;
+      changeYour4DigitPin: string;
+      pinDescription: string;
+      pinUsageHint: string;
+      currentPin: string;
+      forgotPin: string;
+      newPin: string;
+      confirmPin: string;
+      pinHint: string;
+      pinMustBe4Digits: string;
+      pinsDoNotMatch: string;
+      helperText: string;
+      pinProtectsAccess: string;
+      saveNewPin: string;
+      currentPinIncorrect: string;
+      tips: string;
+      tipsContent: string;
+      lostAccessHint: string;
+      footerHint: string;
+    };
+    forgotPasscode: {
+      title: string;
+      subtitle: string;
+      close: string;
+      recoverAccess: string;
+      contact: string;
+      contactHelper: string;
+      emailOrPhone: string;
+      useVerifiedContact: string;
+      verificationCode: string;
+      enterCode: string;
+      codeHelper: string;
+      codeSentMessage: string;
+      checkInbox: string;
+      cancel: string;
+      sendCode: string;
+      verify: string;
+    };
+    manageWidget: {
+      title: string;
+      loadingWidgets: string;
+      availableWidgets: string;
+      tapToAdd: string;
+      allWidgetsActive: string;
+      noWidgetsInCategory: string;
+      activeWidgets: string;
+      dragToReorder: string;
+      noActiveWidgets: string;
+      addWidgetsFromAbove: string;
+      categories: {
+        planner: string;
+        finance: string;
+        ai: string;
+        health: string;
+        insights: string;
+      };
+      widgetTitles: {
+        'daily-tasks': { title: string; description: string };
+        'goals': { title: string; description: string };
+        'habits': { title: string; description: string };
+        'weekly-review': { title: string; description: string };
+        'focus-sessions': { title: string; description: string };
+        'transactions': { title: string; description: string };
+        'spending-summary': { title: string; description: string };
+        'budget-progress': { title: string; description: string };
+        'cash-flow': { title: string; description: string };
+        'productivity-insights': { title: string; description: string };
+        'wellness-overview': { title: string; description: string };
       };
     };
   };
@@ -1279,10 +1825,11 @@ const t = {
           delete: 'DELETE TASK',
         },
         history: {
-          title: 'Tasks History',
+          title: 'Delete History',
           subtitle: 'Swipe to restore or remove',
           tip: 'Hold briefly, swipe right to restore a task or swipe left to remove it permanently.',
-          deletedBadge: 'Moved',
+          deletedBadge: 'Deleted',
+          archivedBadge: 'Archived',
         },
         defaults: {
           startToday: 'Today',
@@ -1290,6 +1837,10 @@ const t = {
           startPick: 'Pick',
           newTaskTitle: 'New task',
           defaultContext: '@work',
+        },
+        empty: {
+          title: 'No tasks yet',
+          subtitle: 'Add your first task to start planning your day.',
         },
         aiPrefix: 'AI:',
         dailySummary: 'Today: {tasks} tasks • {habits} habits • {goals} goal steps',
@@ -1545,6 +2096,122 @@ const t = {
     },
     plannerModals: {
       goal: enGoalModal as AppTranslations['plannerModals']['goal'],
+      habit: {
+        editTitle: 'Edit Habit',
+        createTitle: 'New Habit',
+        close: 'Close',
+        cancel: 'Cancel',
+        create: 'Create Habit',
+        update: 'Update Habit',
+        nameLabel: 'Habit Name',
+        nameRequired: '*',
+        namePlaceholder: 'E.g., Morning meditation, Exercise, Read',
+        descriptionLabel: 'Description',
+        descriptionPlaceholder: 'Why is this habit important to you?',
+        habitTypeLabel: 'Habit Type',
+        habitTypes: {
+          health: 'Health',
+          finance: 'Finance',
+          productivity: 'Productivity',
+          education: 'Education',
+          personal: 'Personal',
+          custom: 'Custom',
+        },
+        frequencyLabel: 'Frequency',
+        frequencyTypes: {
+          daily: 'Daily',
+          weekly: 'Weekly',
+          custom: 'Custom',
+        },
+        timesPerWeek: 'Times per week',
+        timesPerPeriod: 'Times per period',
+        timesOptions: {
+          once: 'Once',
+          twice: 'Twice',
+          times3: '3 times',
+          times4: '4 times',
+          times5: '5 times',
+        },
+        completionModeLabel: 'Completion Mode',
+        completionModes: {
+          boolean: 'Boolean (Done/Miss)',
+          numeric: 'Numeric (Track Value)',
+        },
+        targetPerDay: 'Target per Day',
+        targetPlaceholder: 'E.g., 8, 10000, 30',
+        unitLabel: 'Unit',
+        unitPlaceholder: 'E.g., km, glasses, minutes',
+        timeOfDayLabel: 'Time of Day (Optional)',
+        setTime: 'Set time',
+        linkToGoalLabel: 'Link to Goal (Optional)',
+        none: 'None',
+        financeRuleLabel: 'Finance Rule (Auto-evaluate)',
+        ruleTypeLabel: 'Rule Type',
+        ruleTypes: {
+          noSpendInCategories: 'No Spend in Categories',
+          spendInCategories: 'Spend in Categories',
+          hasAnyTransactions: 'Has Any Transactions',
+          dailySpendUnder: 'Daily Spend Under',
+        },
+        selectCategories: 'Select Categories',
+        selectAccounts: 'Select Accounts (Optional)',
+        minAmount: 'Minimum Amount (Optional)',
+        dailyLimitAmount: 'Daily Limit Amount',
+        currency: 'Currency',
+        done: 'Done',
+        // New fields for enhanced habit modal
+        popularHabitsLabel: 'Popular habits',
+        popularHabits: {
+          morningWorkout: { title: 'Morning workout', time: '07:00' },
+          meditation: { title: 'Meditation', time: '06:30' },
+          drinkWater: { title: 'Drink water', time: '08:00' },
+          quitSmoking: { title: 'Quit smoking', time: '' },
+        },
+        countingTypeLabel: 'Counting type',
+        countingTypes: {
+          create: 'Create',
+          quit: 'Quit',
+        },
+        categoriesLabel: 'Categories',
+        difficultyLabel: 'Difficulty',
+        difficultyLevels: {
+          easy: 'Easy',
+          medium: 'Medium',
+          hard: 'Hard',
+        },
+        priorityLabel: 'Priority',
+        priorityLevels: {
+          low: 'Low',
+          medium: 'Medium',
+          high: 'High',
+        },
+        selectDaysLabel: 'Select days',
+        selectDatesLabel: 'Select dates',
+        weekdays: {
+          mon: 'Mon',
+          tue: 'Tue',
+          wed: 'Wed',
+          thu: 'Thu',
+          fri: 'Fri',
+          sat: 'Sat',
+          sun: 'Sun',
+        },
+        reminderLabel: 'Reminder',
+        reminderTimeLabel: 'Reminder time',
+        addReminder: '+ Add reminder',
+        streakLabel: 'Streak',
+        streakOptions: {
+          days7: '7 Days',
+          days21: '21 Days',
+          days30: '30 Days',
+          days66: '66 Days',
+          days100: '100 Days',
+        },
+        streakMotivation: 'Complete habit {days} days straight to pin',
+        aiTipLabel: 'AI Tip',
+        createAndMore: 'Create and more',
+        iconPickerLabel: 'Choose icon',
+      },
     },
     widgets: {
       budgetProgress: {
@@ -1732,8 +2399,8 @@ const t = {
         fxDescription: 'Sync provider data or override a specific currency.',
         fxProviderLabel: 'FX provider',
         fxProviders: {
-          central_bank_stub: 'Central bank',
-          market_stub: 'Market',
+          central_bank: 'Central Bank',
+          market: 'Market API',
         },
         fxSyncButton: 'Sync rates',
         fxSyncing: 'Syncing...',
@@ -1796,6 +2463,7 @@ const t = {
         used: 'Used',
         progress: 'Progress',
         expenseStructure: 'Expense structure',
+        noExpenseData: 'No expense data yet',
         recentTransactions: 'Recent transactions',
         seeAll: 'See all',
         importantEvents: 'Important events',
@@ -1804,8 +2472,8 @@ const t = {
           title: 'Currency controls',
           providerLabel: 'Provider',
           providers: {
-            central_bank_stub: 'Central bank',
-            market_stub: 'Market',
+            central_bank: 'Central Bank',
+            market: 'Market API',
           },
           syncButton: 'Sync rates',
           syncDescription: 'Fetch latest provider rates',
@@ -1845,6 +2513,10 @@ const t = {
       monitorEmpty: 'No transactions match the filters',
       monitorApply: 'Done',
       monitorReset: 'Reset filters',
+      empty: {
+        title: 'No financial data yet',
+        subtitle: 'Add accounts and transactions to see your overview.',
+      },
     },
       accounts: {
         header: 'My accounts',
@@ -1903,6 +2575,10 @@ const t = {
           RUB: 'Russian Ruble',
         },
       },
+      empty: {
+        title: 'No accounts yet',
+        subtitle: 'Create your first account to start tracking.',
+      },
     },
       transactions: {
         header: 'Transactions history',
@@ -1916,6 +2592,10 @@ const t = {
           note: 'Note',
           relatedDebt: 'Linked debt',
           close: 'Close',
+          linkedData: 'Linked data',
+          linkedGoal: 'Linked goal',
+          linkedBudget: 'Linked budget',
+          notFound: 'Transaction not found',
         },
         filterSheet: {
           title: 'Filter transactions',
@@ -1970,6 +2650,10 @@ const t = {
           selectAccount: 'Select account',
           rateInfoTemplate:
             'Exchange rate: 1 {toCurrency} = {rate} {fromCurrency}. Received: {amount}',
+        },
+        empty: {
+          title: 'No transactions yet',
+          subtitle: 'Your transactions will appear here.',
         },
       },
       budgets: {
@@ -2038,6 +2722,15 @@ const t = {
         },
         limitAmount: 'Limit amount',
         targetAmount: 'Target amount',
+        alerts: {
+          linkedTitle: 'Budget is linked',
+          linkedSingle: 'This budget is linked to a goal. Unlink it before deleting.',
+          linkedMultiple: 'This budget is linked to multiple goals. Unlink them before deleting.',
+        },
+      },
+      empty: {
+        title: 'No budgets yet',
+        subtitle: 'Set spending limits for your categories.',
       },
     },
       analytics: {
@@ -2048,8 +2741,16 @@ const t = {
         aiInsights: 'AI insights',
         stats: { peak: 'Peak', average: 'Average', trend: 'Trend' },
         comparisonRows: { income: 'Income:', outcome: 'Outcome:', savings: 'Savings:' },
+        empty: {
+          title: 'No analytics data',
+          subtitle: 'Add transactions to see insights.',
+        },
       },
       debts: {
+        empty: {
+          title: 'No debts tracked',
+          subtitle: 'Track who owes you or whom you owe.',
+        },
         sections: { incoming: 'Debts', outgoing: 'My debts' },
         timeline: {
           incoming: 'Gives back in',
@@ -2061,6 +2762,83 @@ const t = {
         actions: {
           incoming: { notify: 'Notify', cancel: 'Cancel debt' },
           outgoing: { plan: 'Plan', partial: 'Pay partly' },
+          title: 'Debt Actions',
+          notFound: 'Debt not found',
+          paidBanner: 'This debt has been fully settled',
+          summary: {
+            youOwe: 'You owe',
+            theyOwe: 'They owe you',
+          },
+          partialPayment: {
+            titleIOwe: 'Partial Repayment',
+            titleTheyOwe: 'Partial Collection',
+            subtitle: 'Record a partial payment towards this debt',
+          },
+          fullPayment: {
+            titleIOwe: 'Full Repayment',
+            titleTheyOwe: 'Full Collection',
+            subtitle: 'Pay off the full remaining amount of',
+          },
+          extendDate: {
+            title: 'Extend Due Date',
+            subtitle: 'Set a new due date for this debt',
+            currentDue: 'Currently due',
+            noDueDate: 'No due date set',
+            customDateLabel: 'Or select a custom date',
+          },
+          markSettled: {
+            title: 'Mark as Settled',
+            subtitle: 'Mark this debt as settled without recording a payment',
+            descriptionIOwe: 'This will mark your debt as fully settled.',
+            descriptionTheyOwe: 'This will mark the debt owed to you as fully settled.',
+            warning: 'This action cannot be undone. No transaction will be created.',
+          },
+          quickOptions: {
+            tomorrow: 'Tomorrow',
+            nextWeek: 'Next Week',
+            nextMonth: 'Next Month',
+            threeMonths: '3 Months',
+          },
+          fields: {
+            amount: 'Amount',
+            remaining: 'Remaining',
+            paymentDate: 'Payment Date',
+            account: 'Account',
+            selectAccount: 'Select account...',
+            note: 'Note',
+            optionalNote: 'Optional note...',
+          },
+          paymentInfo: {
+            expense: 'This payment will be recorded as an expense from your account',
+            income: 'This payment will be recorded as income to your account',
+          },
+          buttons: {
+            cancel: 'Cancel',
+            confirm: 'Confirm',
+            done: 'Done',
+            setDueDate: 'Set Due Date',
+            markSettled: 'Mark Settled',
+          },
+          errors: {
+            error: 'Error',
+            invalidAmount: 'Invalid amount',
+            enterValidAmount: 'Please enter a valid amount',
+            amountTooHigh: 'Amount too high',
+            maxAmount: 'Maximum amount is',
+            paymentFailed: 'Failed to record payment. Please try again.',
+            dueDateFailed: 'Failed to update due date. Please try again.',
+            settleFailed: 'Failed to mark debt as settled. Please try again.',
+          },
+          success: {
+            paymentRecorded: 'Payment Recorded',
+            repayment: 'repayment',
+            collection: 'collection',
+            hasBeenRecorded: 'has been recorded.',
+            dueDateUpdated: 'Due Date Updated',
+            dueDateSetTo: 'Due date set to',
+            debtSettled: 'Debt Settled',
+            markedAsSettled: 'The debt has been marked as fully settled.',
+          },
         },
         summary: {
           balanceLabel: 'Total balance',
@@ -2174,7 +2952,207 @@ const t = {
         fullPaymentTitle: 'Pay debt in full',
         fullPaymentDescription: 'You will settle the entire remaining balance of {amount}.',
         fullPaymentSubmit: 'Pay in full',
+        alerts: {
+          linkedTitle: 'Debt is linked',
+          linkedSingle: 'This debt is linked to a goal. Unlink it before deleting.',
+          linkedMultiple: 'This debt is linked to multiple goals. Unlink them before deleting.',
+        },
+        differentCurrency: 'Repay in different currency',
+        repayIn: 'Repay in',
+        sameCurrency: 'Same currency',
+        repaymentCurrency: 'Repayment Currency',
+        exchangeRate: 'Exchange Rate',
+        autoRate: 'Auto (current rate)',
+        fixedAmount: 'Fixed repayment amount',
+        fixedAmountEnabled: 'Amount locked at start rate',
+        fixedAmountDisabled: 'Uses current exchange rate',
       },
+      },
+    },
+    modals: {
+      lock: {
+        enterPasscode: 'Enter passcode',
+        forgotPasscode: 'Forgot passcode?',
+        resetAppLock: 'Reset app lock',
+        verifyCode: 'Verify code',
+        createNewPasscode: 'Create new passcode',
+        chooseMethod: 'Choose where we should send a verification code.',
+        addContact: 'Add an email address or phone number in your profile to reset the passcode remotely.',
+        email: 'Email',
+        phone: 'Phone',
+        sendCode: 'Send code',
+        continue: 'Continue',
+        changeMethod: 'Change method',
+        resendCode: 'Resend code',
+        resendIn: 'Resend in {n}s',
+        enterVerificationCode: 'Enter verification code',
+        newPasscode: 'New passcode',
+        confirmPasscode: 'Confirm passcode',
+        saveNewPasscode: 'Save new passcode',
+        noContactMethod: 'No contact method available. Update your profile to add one.',
+        enterDigitCode: 'Enter the {n}-digit code sent to {contact}.',
+        requestNewCode: 'Request a new code to continue.',
+        codeExpired: 'Code expired. Request a new one.',
+        incorrectCode: 'Incorrect code. Try again.',
+        createPasscodeHint: 'Create a new 4-digit passcode for App Lock.',
+        passcodeMustBe4Digits: 'Passcode must be 4 digits.',
+        passcodesDoNotMatch: 'Passcodes do not match.',
+        passcodeUpdated: 'Passcode updated',
+        passcodeResetMessage: 'Your App Lock passcode has been reset.',
+        unlockLeora: 'Unlock Leora',
+        cancel: 'Cancel',
+        usePasscode: 'Use Passcode',
+      },
+      search: {
+        placeholder: 'Search...',
+        noResults: 'No results found',
+        startTyping: 'Start typing to search',
+        suggestions: {
+          improveFocus: 'How to improve focus',
+          createTask: 'Create a new task',
+          budgetTips: 'Budget tips 2025',
+          planGoals: 'Plan my goals',
+          aiFinance: 'AI suggestions for finance',
+          quickExpenses: 'Quick expenses list',
+          upcomingInvoices: 'Upcoming invoices',
+          trackDebts: 'Track my debts',
+        },
+      },
+      notifications: {
+        title: 'Notifications',
+        markAllAsRead: 'Mark all as read',
+        noNewNotifications: 'No new notifications',
+        justNow: 'just now',
+        minutesAgo: '{n}m ago',
+        hoursAgo: '{n}h ago',
+        daysAgo: '{n}d ago',
+      },
+      financeExport: {
+        title: 'Export statistics',
+        dateRange: 'Date range',
+        from: 'From',
+        to: 'To',
+        format: 'Format',
+        exportExcel: 'Export as Excel',
+        exportPdf: 'Export as PDF',
+        exportQueued: 'Export queued',
+        preparingReport: 'Preparing {format} report',
+      },
+      financeCurrency: {
+        title: 'Global currency',
+        displayCurrency: 'Display currency',
+        baseCurrency: 'Base currency',
+        convertTo: 'Convert to this currency',
+        exchangeRates: 'Exchange rates (1 unit)',
+        fixedReference: 'Fixed reference',
+        oneEquals: '1 {currency} =',
+        apply: 'Apply',
+      },
+      financeSearch: {
+        title: 'Search finance data',
+        placeholder: 'Search accounts, transactions, budgets…',
+        noResults: 'No results',
+        startTyping: 'Start typing to search',
+      },
+      voice: {
+        title: 'Voice assistant',
+        speakNaturally: 'Speak naturally, as if you are talking to a friend.',
+        listening: 'Listening',
+        mentionDetails: 'Mention sums, tasks, or context — we pick up every detail.',
+        analyzing: 'Analyzing',
+        dataProcessing: 'Data processing and AI matching in progress.',
+        startTalking: 'Start talking',
+        stopAnalyze: 'Stop & analyze',
+        analyzingDots: 'Analyzing...',
+        leoraVoice: 'LEORA VOICE',
+        requestsHistory: 'Requests history',
+        repeatRequest: 'Repeat request',
+        recognized: 'Recognized',
+        latestStatement: 'Latest statement',
+        aiMatching: 'AI is matching entities',
+        capturedAudio: 'Captured audio',
+        category: 'Category',
+        account: 'Account',
+        edit: 'Edit',
+        confirm: 'Confirm',
+        microphoneRequired: 'Microphone access is required. Enable it in system settings to use Leora Voice.',
+        cancel: 'CANCEL',
+      },
+      changePassword: {
+        createPin: 'Create PIN',
+        changePin: 'Change PIN',
+        close: 'Close',
+        secureYourSpace: 'Secure your space',
+        updatePin: 'Update PIN',
+        createYour4DigitPin: 'Create your 4-digit PIN',
+        changeYour4DigitPin: 'Change your 4-digit PIN',
+        pinDescription: 'We use this PIN to unlock LEORA on this device. Keep it private and avoid simple sequences.',
+        pinUsageHint: 'We use this PIN to unlock LEORA on this device. Keep it private and avoid simple sequences.',
+        currentPin: 'Current PIN',
+        forgotPin: 'Forgot PIN?',
+        newPin: 'New PIN',
+        confirmPin: 'Confirm PIN',
+        pinHint: 'PIN must contain exactly 4 digits. Avoid repeating the same digit.',
+        pinMustBe4Digits: 'PIN must contain exactly 4 digits. Avoid repeating the same digit.',
+        pinsDoNotMatch: 'PINs do not match.',
+        helperText: 'This PIN protects quick access to LEORA. When it\'s updated, your other devices will require the new PIN on next launch.',
+        pinProtectsAccess: 'This PIN protects quick access to LEORA. When it\'s updated, your other devices will require the new PIN on next launch.',
+        saveNewPin: 'Save new PIN',
+        currentPinIncorrect: 'Current PIN is incorrect.',
+        tips: 'Tips',
+        tipsContent: '• Use a sequence only you know. Avoid birthdays or obvious patterns.\n• Change your PIN if you suspect anyone else saw it.',
+        lostAccessHint: 'Lost access? Choose "Forgot passcode" on the lock screen to reset securely.',
+        footerHint: 'Lost access? Choose "Forgot passcode" on the lock screen to reset securely.',
+      },
+      forgotPasscode: {
+        title: 'Forgot passcode',
+        subtitle: 'Recover access by confirming a trusted contact and entering the one-time code we send you.',
+        close: 'Close',
+        recoverAccess: 'Recover access by confirming a trusted contact and entering the one-time code we send you.',
+        contact: 'Contact',
+        contactHelper: 'Use a verified email or phone so we can securely deliver the recovery code.',
+        emailOrPhone: 'Email or phone number',
+        useVerifiedContact: 'Use a verified email or phone so we can securely deliver the recovery code.',
+        verificationCode: 'Verification code',
+        enterCode: 'Enter code',
+        codeHelper: 'Check your inbox for the recovery code. Codes expire after 10 minutes.',
+        codeSentMessage: 'A recovery code has been sent to {contact}.',
+        checkInbox: 'Check your inbox for the recovery code. Codes expire after 10 minutes.',
+        cancel: 'Cancel',
+        sendCode: 'Send code',
+        verify: 'Verify',
+      },
+      manageWidget: {
+        title: 'Manage Widgets',
+        loadingWidgets: 'Loading widgets...',
+        availableWidgets: 'AVAILABLE WIDGETS',
+        tapToAdd: 'Tap plus to add',
+        allWidgetsActive: 'All widgets are active',
+        noWidgetsInCategory: 'No widgets available in this category',
+        activeWidgets: 'ACTIVE WIDGETS',
+        dragToReorder: 'Drag to reorder • Swipe left to remove',
+        noActiveWidgets: 'No active widgets',
+        addWidgetsFromAbove: 'Add widgets from above',
+        categories: {
+          planner: 'Planner',
+          finance: 'Finance',
+          ai: 'AI',
+          health: 'Health',
+          insights: 'Insights',
+        },
+        widgetTitles: {
+          'daily-tasks': { title: 'Daily Tasks', description: "Today's task list" },
+          'goals': { title: 'Goals', description: 'Track your goals' },
+          'habits': { title: 'Habits', description: 'Daily habits tracker' },
+          'weekly-review': { title: 'Weekly Review', description: 'Week progress overview' },
+          'focus-sessions': { title: 'Focus Sessions', description: 'Pomodoro timer & tracking' },
+          'transactions': { title: 'Transactions', description: 'Recent financial activity' },
+          'spending-summary': { title: 'Spending Summary', description: 'Top categories this month' },
+          'budget-progress': { title: 'Budget Progress', description: 'Actual vs planned spending' },
+          'cash-flow': { title: 'Cash Flow', description: 'Weekly income vs expenses' },
+          'productivity-insights': { title: 'Productivity Insights', description: 'Focus trend & completion' },
+          'wellness-overview': { title: 'Wellness Overview', description: 'Energy & mood snapshot' },
+        },
       },
     },
   },
@@ -2437,10 +3415,11 @@ const t = {
           delete: 'УДАЛИТЬ ЗАДАЧУ',
         },
         history: {
-          title: 'История задач',
+          title: 'История удалений',
           subtitle: 'Смахните, чтобы восстановить или удалить',
           tip: 'Удерживайте и смахните вправо, чтобы восстановить задачу, или влево — чтобы удалить навсегда.',
-          deletedBadge: 'Перенесено',
+          deletedBadge: 'Удалено',
+          archivedBadge: 'В архиве',
         },
         defaults: {
           startToday: 'Сегодня',
@@ -2448,6 +3427,10 @@ const t = {
           startPick: 'Выбрать',
           newTaskTitle: 'Новая задача',
           defaultContext: '@work',
+        },
+        empty: {
+          title: 'Задач пока нет',
+          subtitle: 'Добавьте первую задачу, чтобы начать планировать день.',
         },
         aiPrefix: 'ИИ:',
         dailySummary: 'Сегодня: {tasks} задач • {habits} привычек • {goals} шага по целям',
@@ -2703,6 +3686,122 @@ const t = {
     },
     plannerModals: {
       goal: ruGoalModal as AppTranslations['plannerModals']['goal'],
+      habit: {
+        editTitle: 'Редактировать привычку',
+        createTitle: 'Новая привычка',
+        close: 'Закрыть',
+        cancel: 'Отмена',
+        create: 'Создать привычку',
+        update: 'Обновить привычку',
+        nameLabel: 'Название привычки',
+        nameRequired: '*',
+        namePlaceholder: 'Например: Утренняя медитация, Упражнения, Чтение',
+        descriptionLabel: 'Описание',
+        descriptionPlaceholder: 'Почему эта привычка важна для вас?',
+        habitTypeLabel: 'Тип привычки',
+        habitTypes: {
+          health: 'Здоровье',
+          finance: 'Финансы',
+          productivity: 'Продуктивность',
+          education: 'Образование',
+          personal: 'Личное',
+          custom: 'Другое',
+        },
+        frequencyLabel: 'Частота',
+        frequencyTypes: {
+          daily: 'Ежедневно',
+          weekly: 'Еженедельно',
+          custom: 'Своя',
+        },
+        timesPerWeek: 'Раз в неделю',
+        timesPerPeriod: 'Раз за период',
+        timesOptions: {
+          once: 'Один раз',
+          twice: 'Два раза',
+          times3: '3 раза',
+          times4: '4 раза',
+          times5: '5 раз',
+        },
+        completionModeLabel: 'Режим выполнения',
+        completionModes: {
+          boolean: 'Да/Нет (Выполнено/Пропущено)',
+          numeric: 'Числовой (Отслеживание значения)',
+        },
+        targetPerDay: 'Цель в день',
+        targetPlaceholder: 'Например: 8, 10000, 30',
+        unitLabel: 'Единица измерения',
+        unitPlaceholder: 'Например: км, стаканы, минуты',
+        timeOfDayLabel: 'Время дня (необязательно)',
+        setTime: 'Выбрать время',
+        linkToGoalLabel: 'Привязать к цели (необязательно)',
+        none: 'Нет',
+        financeRuleLabel: 'Финансовое правило (автооценка)',
+        ruleTypeLabel: 'Тип правила',
+        ruleTypes: {
+          noSpendInCategories: 'Без трат в категориях',
+          spendInCategories: 'Траты в категориях',
+          hasAnyTransactions: 'Есть любые транзакции',
+          dailySpendUnder: 'Дневные траты ниже',
+        },
+        selectCategories: 'Выберите категории',
+        selectAccounts: 'Выберите счета (необязательно)',
+        minAmount: 'Минимальная сумма (необязательно)',
+        dailyLimitAmount: 'Дневной лимит',
+        currency: 'Валюта',
+        done: 'Готово',
+        // New fields for enhanced habit modal
+        popularHabitsLabel: 'Популярные привычки',
+        popularHabits: {
+          morningWorkout: { title: 'Утренняя тренировка', time: '07:00' },
+          meditation: { title: 'Медитация', time: '06:30' },
+          drinkWater: { title: 'Пить воду', time: '08:00' },
+          quitSmoking: { title: 'Бросить курить', time: '' },
+        },
+        countingTypeLabel: 'Тип подсчёта',
+        countingTypes: {
+          create: 'Создать',
+          quit: 'Бросить',
+        },
+        categoriesLabel: 'Категории',
+        difficultyLabel: 'Сложность',
+        difficultyLevels: {
+          easy: 'Легко',
+          medium: 'Средне',
+          hard: 'Сложно',
+        },
+        priorityLabel: 'Приоритет',
+        priorityLevels: {
+          low: 'Низкий',
+          medium: 'Средний',
+          high: 'Высокий',
+        },
+        selectDaysLabel: 'Выберите дни',
+        selectDatesLabel: 'Выберите даты',
+        weekdays: {
+          mon: 'Пн',
+          tue: 'Вт',
+          wed: 'Ср',
+          thu: 'Чт',
+          fri: 'Пт',
+          sat: 'Сб',
+          sun: 'Вс',
+        },
+        reminderLabel: 'Напоминание',
+        reminderTimeLabel: 'Время напоминания',
+        addReminder: '+ Добавить напоминание',
+        streakLabel: 'Серия',
+        streakOptions: {
+          days7: '7 дней',
+          days21: '21 день',
+          days30: '30 дней',
+          days66: '66 дней',
+          days100: '100 дней',
+        },
+        streakMotivation: 'Выполняйте привычку {days} дней подряд',
+        aiTipLabel: 'Совет ИИ',
+        createAndMore: 'Создать ещё',
+        iconPickerLabel: 'Выбрать иконку',
+      },
     },
     widgets: {
       budgetProgress: {
@@ -2890,8 +3989,8 @@ const t = {
         fxDescription: 'Синхронизируйте провайдера или задайте курс вручную.',
         fxProviderLabel: 'Поставщик курсов',
         fxProviders: {
-          central_bank_stub: 'ЦБ',
-          market_stub: 'Рынок',
+          central_bank: 'Центральный банк',
+          market: 'Биржевой курс',
         },
         fxSyncButton: 'Синхронизировать',
         fxSyncing: 'Синхронизация...',
@@ -2954,6 +4053,7 @@ const t = {
         used: 'Использовано',
         progress: 'Прогресс',
         expenseStructure: 'Структура расходов',
+        noExpenseData: 'Нет данных о расходах',
         recentTransactions: 'Последние транзакции',
         seeAll: 'Показать все',
         importantEvents: 'Важные события',
@@ -2962,8 +4062,8 @@ const t = {
           title: 'Курсы валют',
           providerLabel: 'Поставщик',
           providers: {
-            central_bank_stub: 'ЦБ',
-            market_stub: 'Рынок',
+            central_bank: 'Центральный банк',
+            market: 'Биржевой курс',
           },
           syncButton: 'Синхронизировать',
           syncDescription: 'Получить свежие курсы провайдера',
@@ -3003,6 +4103,10 @@ const t = {
       monitorEmpty: 'Нет транзакций по заданным фильтрам',
       monitorApply: 'Готово',
       monitorReset: 'Сбросить фильтры',
+      empty: {
+        title: 'Финансовых данных пока нет',
+        subtitle: 'Добавьте счета и транзакции для просмотра обзора.',
+      },
     },
       accounts: {
         header: 'Мои счета',
@@ -3061,6 +4165,10 @@ const t = {
             RUB: 'Российский рубль',
           },
         },
+        empty: {
+          title: 'Счетов пока нет',
+          subtitle: 'Создайте первый счёт для начала отслеживания.',
+        },
       },
       transactions: {
         header: 'История транзакций',
@@ -3074,6 +4182,10 @@ const t = {
           note: 'Заметка',
           relatedDebt: 'Связанный долг',
           close: 'Закрыть',
+          linkedData: 'Связанные данные',
+          linkedGoal: 'Связанная цель',
+          linkedBudget: 'Связанный бюджет',
+          notFound: 'Транзакция не найдена',
         },
         filterSheet: {
           title: 'Фильтр транзакций',
@@ -3128,6 +4240,10 @@ const t = {
           selectAccount: 'Выберите счёт',
           rateInfoTemplate:
             'Курс: 1 {toCurrency} = {rate} {fromCurrency}. Получено: {amount}',
+        },
+        empty: {
+          title: 'Транзакций пока нет',
+          subtitle: 'Ваши транзакции появятся здесь.',
         },
       },
       budgets: {
@@ -3200,6 +4316,15 @@ const t = {
         },
         limitAmount: 'Сумма лимита',
         targetAmount: 'Целевая сумма',
+        alerts: {
+          linkedTitle: 'Бюджет привязан',
+          linkedSingle: 'Этот бюджет связан с целью. Сначала отвяжите его.',
+          linkedMultiple: 'Этот бюджет связан с несколькими целями. Сначала отвяжите их.',
+        },
+      },
+      empty: {
+        title: 'Бюджетов пока нет',
+        subtitle: 'Установите лимиты расходов для категорий.',
       },
     },
       analytics: {
@@ -3210,8 +4335,16 @@ const t = {
         aiInsights: 'AI‑инсайты',
         stats: { peak: 'Пик', average: 'Среднее', trend: 'Тренд' },
         comparisonRows: { income: 'Доход:', outcome: 'Расход:', savings: 'Сбережения:' },
+        empty: {
+          title: 'Нет данных для аналитики',
+          subtitle: 'Добавьте транзакции для просмотра статистики.',
+        },
       },
       debts: {
+        empty: {
+          title: 'Нет долгов',
+          subtitle: 'Отслеживайте кто вам должен или кому вы должны.',
+        },
         sections: { incoming: 'Долги', outgoing: 'Мои долги' },
         timeline: {
           incoming: 'Вернёт через',
@@ -3223,6 +4356,83 @@ const t = {
         actions: {
           incoming: { notify: 'Напомнить', cancel: 'Отменить долг' },
           outgoing: { plan: 'Запланировать', partial: 'Оплатить частично' },
+          title: 'Действия с долгом',
+          notFound: 'Долг не найден',
+          paidBanner: 'Этот долг полностью погашен',
+          summary: {
+            youOwe: 'Вы должны',
+            theyOwe: 'Вам должны',
+          },
+          partialPayment: {
+            titleIOwe: 'Частичное погашение',
+            titleTheyOwe: 'Частичное получение',
+            subtitle: 'Записать частичный платёж по этому долгу',
+          },
+          fullPayment: {
+            titleIOwe: 'Полное погашение',
+            titleTheyOwe: 'Полное получение',
+            subtitle: 'Погасить оставшуюся сумму в размере',
+          },
+          extendDate: {
+            title: 'Продлить срок',
+            subtitle: 'Установить новую дату погашения',
+            currentDue: 'Текущий срок',
+            noDueDate: 'Срок не установлен',
+            customDateLabel: 'Или выберите дату',
+          },
+          markSettled: {
+            title: 'Отметить как погашенный',
+            subtitle: 'Отметить долг как погашенный без записи платежа',
+            descriptionIOwe: 'Ваш долг будет отмечен как полностью погашенный.',
+            descriptionTheyOwe: 'Долг перед вами будет отмечен как полностью погашенный.',
+            warning: 'Это действие нельзя отменить. Транзакция не будет создана.',
+          },
+          quickOptions: {
+            tomorrow: 'Завтра',
+            nextWeek: 'Через неделю',
+            nextMonth: 'Через месяц',
+            threeMonths: 'Через 3 месяца',
+          },
+          fields: {
+            amount: 'Сумма',
+            remaining: 'Остаток',
+            paymentDate: 'Дата платежа',
+            account: 'Счёт',
+            selectAccount: 'Выберите счёт...',
+            note: 'Заметка',
+            optionalNote: 'Необязательная заметка...',
+          },
+          paymentInfo: {
+            expense: 'Этот платёж будет записан как расход с вашего счёта',
+            income: 'Этот платёж будет записан как доход на ваш счёт',
+          },
+          buttons: {
+            cancel: 'Отмена',
+            confirm: 'Подтвердить',
+            done: 'Готово',
+            setDueDate: 'Установить срок',
+            markSettled: 'Отметить погашенным',
+          },
+          errors: {
+            error: 'Ошибка',
+            invalidAmount: 'Неверная сумма',
+            enterValidAmount: 'Пожалуйста, введите корректную сумму',
+            amountTooHigh: 'Сумма слишком большая',
+            maxAmount: 'Максимальная сумма',
+            paymentFailed: 'Не удалось записать платёж. Попробуйте ещё раз.',
+            dueDateFailed: 'Не удалось обновить срок. Попробуйте ещё раз.',
+            settleFailed: 'Не удалось отметить долг как погашенный. Попробуйте ещё раз.',
+          },
+          success: {
+            paymentRecorded: 'Платёж записан',
+            repayment: 'погашение',
+            collection: 'получение',
+            hasBeenRecorded: 'был записан.',
+            dueDateUpdated: 'Срок обновлён',
+            dueDateSetTo: 'Срок установлен на',
+            debtSettled: 'Долг погашен',
+            markedAsSettled: 'Долг был отмечен как полностью погашенный.',
+          },
         },
         summary: {
           balanceLabel: 'Общий баланс',
@@ -3336,7 +4546,207 @@ const t = {
         fullPaymentTitle: 'Полностью погасить долг',
         fullPaymentDescription: 'Вы погасите всю оставшуюся сумму {amount}.',
         fullPaymentSubmit: 'Оплатить полностью',
+        alerts: {
+          linkedTitle: 'Долг привязан',
+          linkedSingle: 'Этот долг связан с целью. Сначала отвяжите его.',
+          linkedMultiple: 'Этот долг связан с несколькими целями. Сначала отвяжите их.',
+        },
+        differentCurrency: 'Возврат в другой валюте',
+        repayIn: 'Вернуть в',
+        sameCurrency: 'Та же валюта',
+        repaymentCurrency: 'Валюта возврата',
+        exchangeRate: 'Курс обмена',
+        autoRate: 'Авто (текущий курс)',
+        fixedAmount: 'Фиксированная сумма возврата',
+        fixedAmountEnabled: 'Сумма зафиксирована по начальному курсу',
+        fixedAmountDisabled: 'Используется текущий курс',
       },
+      },
+    },
+    modals: {
+      lock: {
+        enterPasscode: 'Введите код доступа',
+        forgotPasscode: 'Забыли код?',
+        resetAppLock: 'Сброс блокировки',
+        verifyCode: 'Подтвердить код',
+        createNewPasscode: 'Создать новый код',
+        chooseMethod: 'Выберите, куда отправить код.',
+        addContact: 'Добавьте email или телефон в профиль для удалённого сброса.',
+        email: 'Email',
+        phone: 'Телефон',
+        sendCode: 'Отправить код',
+        continue: 'Продолжить',
+        changeMethod: 'Изменить способ',
+        resendCode: 'Отправить повторно',
+        resendIn: 'Повторить через {n}с',
+        enterVerificationCode: 'Введите код подтверждения',
+        newPasscode: 'Новый код',
+        confirmPasscode: 'Подтвердите код',
+        saveNewPasscode: 'Сохранить новый код',
+        noContactMethod: 'Нет контактных данных. Обновите профиль.',
+        enterDigitCode: 'Введите {n}-значный код, отправленный на {contact}.',
+        requestNewCode: 'Запросите новый код.',
+        codeExpired: 'Код устарел. Запросите новый.',
+        incorrectCode: 'Неверный код. Попробуйте снова.',
+        createPasscodeHint: 'Создайте новый 4-значный код для блокировки.',
+        passcodeMustBe4Digits: 'Код должен быть 4-значным.',
+        passcodesDoNotMatch: 'Коды не совпадают.',
+        passcodeUpdated: 'Код обновлён',
+        passcodeResetMessage: 'Код блокировки приложения сброшен.',
+        unlockLeora: 'Разблокировать Leora',
+        cancel: 'Отмена',
+        usePasscode: 'Использовать код',
+      },
+      search: {
+        placeholder: 'Поиск...',
+        noResults: 'Результатов не найдено',
+        startTyping: 'Начните вводить для поиска',
+        suggestions: {
+          improveFocus: 'Как улучшить концентрацию',
+          createTask: 'Создать новую задачу',
+          budgetTips: 'Советы по бюджету 2025',
+          planGoals: 'Планировать цели',
+          aiFinance: 'AI-предложения для финансов',
+          quickExpenses: 'Быстрый список расходов',
+          upcomingInvoices: 'Предстоящие счета',
+          trackDebts: 'Отслеживать долги',
+        },
+      },
+      notifications: {
+        title: 'Уведомления',
+        markAllAsRead: 'Отметить все как прочитанные',
+        noNewNotifications: 'Новых уведомлений нет',
+        justNow: 'только что',
+        minutesAgo: '{n}м назад',
+        hoursAgo: '{n}ч назад',
+        daysAgo: '{n}д назад',
+      },
+      financeExport: {
+        title: 'Экспорт статистики',
+        dateRange: 'Диапазон дат',
+        from: 'От',
+        to: 'До',
+        format: 'Формат',
+        exportExcel: 'Экспорт в Excel',
+        exportPdf: 'Экспорт в PDF',
+        exportQueued: 'Экспорт в очереди',
+        preparingReport: 'Подготовка отчёта {format}',
+      },
+      financeCurrency: {
+        title: 'Глобальная валюта',
+        displayCurrency: 'Валюта отображения',
+        baseCurrency: 'Базовая валюта',
+        convertTo: 'Конвертировать в эту валюту',
+        exchangeRates: 'Курсы обмена (1 единица)',
+        fixedReference: 'Фиксированная ссылка',
+        oneEquals: '1 {currency} =',
+        apply: 'Применить',
+      },
+      financeSearch: {
+        title: 'Поиск финансов',
+        placeholder: 'Поиск счетов, транзакций, бюджетов…',
+        noResults: 'Ничего не найдено',
+        startTyping: 'Начните вводить для поиска',
+      },
+      voice: {
+        title: 'Голосовой помощник',
+        speakNaturally: 'Говорите естественно, как с другом.',
+        listening: 'Слушаю',
+        mentionDetails: 'Укажите суммы, задачи или контекст — мы уловим все детали.',
+        analyzing: 'Анализирую',
+        dataProcessing: 'Обработка данных и сопоставление ИИ.',
+        startTalking: 'Начать говорить',
+        stopAnalyze: 'Остановить и анализировать',
+        analyzingDots: 'Анализирую...',
+        leoraVoice: 'LEORA ГОЛОС',
+        requestsHistory: 'История запросов',
+        repeatRequest: 'Повторить запрос',
+        recognized: 'Распознано',
+        latestStatement: 'Последнее высказывание',
+        aiMatching: 'ИИ сопоставляет сущности',
+        capturedAudio: 'Записанное аудио',
+        category: 'Категория',
+        account: 'Счёт',
+        edit: 'Редактировать',
+        confirm: 'Подтвердить',
+        microphoneRequired: 'Требуется доступ к микрофону. Включите его в настройках.',
+        cancel: 'ОТМЕНА',
+      },
+      changePassword: {
+        createPin: 'Создать PIN',
+        changePin: 'Изменить PIN',
+        close: 'Закрыть',
+        secureYourSpace: 'Защитите своё пространство',
+        updatePin: 'Обновить PIN',
+        createYour4DigitPin: 'Создайте 4-значный PIN',
+        changeYour4DigitPin: 'Измените 4-значный PIN',
+        pinDescription: 'Мы используем этот PIN для разблокировки LEORA. Храните его в тайне и избегайте простых комбинаций.',
+        pinUsageHint: 'Мы используем этот PIN для разблокировки LEORA. Храните его в тайне и избегайте простых комбинаций.',
+        currentPin: 'Текущий PIN',
+        forgotPin: 'Забыли PIN?',
+        newPin: 'Новый PIN',
+        confirmPin: 'Подтвердите PIN',
+        pinHint: 'PIN должен содержать ровно 4 цифры. Избегайте повторения одной цифры.',
+        pinMustBe4Digits: 'PIN должен содержать ровно 4 цифры. Избегайте повторения одной цифры.',
+        pinsDoNotMatch: 'PIN-коды не совпадают.',
+        helperText: 'Этот PIN защищает быстрый доступ к LEORA. При обновлении другие устройства потребуют новый PIN при запуске.',
+        pinProtectsAccess: 'Этот PIN защищает быстрый доступ к LEORA. При обновлении другие устройства потребуют новый PIN при запуске.',
+        saveNewPin: 'Сохранить новый PIN',
+        currentPinIncorrect: 'Текущий PIN неверен.',
+        tips: 'Советы',
+        tipsContent: '• Используйте последовательность, известную только вам. Избегайте дат рождения или очевидных паттернов.\n• Измените PIN, если подозреваете, что его видел кто-то другой.',
+        lostAccessHint: 'Потеряли доступ? Выберите "Забыли код" на экране блокировки для безопасного сброса.',
+        footerHint: 'Потеряли доступ? Выберите "Забыли код" на экране блокировки для безопасного сброса.',
+      },
+      forgotPasscode: {
+        title: 'Забыли код',
+        subtitle: 'Восстановите доступ, подтвердив контакт и введя одноразовый код.',
+        close: 'Закрыть',
+        recoverAccess: 'Восстановите доступ, подтвердив контакт и введя одноразовый код.',
+        contact: 'Контакт',
+        contactHelper: 'Используйте подтверждённый email или телефон для безопасной доставки кода.',
+        emailOrPhone: 'Email или номер телефона',
+        useVerifiedContact: 'Используйте подтверждённый email или телефон для безопасной доставки кода.',
+        verificationCode: 'Код подтверждения',
+        enterCode: 'Введите код',
+        codeHelper: 'Проверьте почту на наличие кода восстановления. Коды действительны 10 минут.',
+        codeSentMessage: 'Код восстановления отправлен на {contact}.',
+        checkInbox: 'Проверьте почту на наличие кода восстановления. Коды действительны 10 минут.',
+        cancel: 'Отмена',
+        sendCode: 'Отправить код',
+        verify: 'Подтвердить',
+      },
+      manageWidget: {
+        title: 'Управление виджетами',
+        loadingWidgets: 'Загрузка виджетов...',
+        availableWidgets: 'ДОСТУПНЫЕ ВИДЖЕТЫ',
+        tapToAdd: 'Нажмите плюс для добавления',
+        allWidgetsActive: 'Все виджеты активны',
+        noWidgetsInCategory: 'В этой категории нет виджетов',
+        activeWidgets: 'АКТИВНЫЕ ВИДЖЕТЫ',
+        dragToReorder: 'Перетащите для изменения порядка • Свайп влево для удаления',
+        noActiveWidgets: 'Нет активных виджетов',
+        addWidgetsFromAbove: 'Добавьте виджеты сверху',
+        categories: {
+          planner: 'Планировщик',
+          finance: 'Финансы',
+          ai: 'ИИ',
+          health: 'Здоровье',
+          insights: 'Аналитика',
+        },
+        widgetTitles: {
+          'daily-tasks': { title: 'Ежедневные задачи', description: 'Список задач на сегодня' },
+          'goals': { title: 'Цели', description: 'Отслеживайте свои цели' },
+          'habits': { title: 'Привычки', description: 'Трекер ежедневных привычек' },
+          'weekly-review': { title: 'Недельный обзор', description: 'Обзор прогресса за неделю' },
+          'focus-sessions': { title: 'Сессии фокуса', description: 'Помодоро таймер и отслеживание' },
+          'transactions': { title: 'Транзакции', description: 'Последние финансовые операции' },
+          'spending-summary': { title: 'Обзор расходов', description: 'Топ категории за месяц' },
+          'budget-progress': { title: 'Прогресс бюджета', description: 'Факт vs план расходов' },
+          'cash-flow': { title: 'Денежный поток', description: 'Доходы и расходы за неделю' },
+          'productivity-insights': { title: 'Продуктивность', description: 'Тренд фокуса и завершения' },
+          'wellness-overview': { title: 'Обзор здоровья', description: 'Энергия и настроение' },
+        },
       },
     },
   },
@@ -3362,16 +4772,16 @@ const t = {
       validation: {
         emailOrUsernameRequired: 'Email yoki foydalanuvchi nomini kiriting',
         emailRequired: 'Email talab qilinadi',
-        emailInvalid: 'To‘g‘ri email manzilini kiriting',
-        nameRequired: 'To‘liq ism talab qilinadi',
+        emailInvalid: 'To\'g\'ri email manzilini kiriting',
+        nameRequired: 'To\'liq ism talab qilinadi',
         passwordRequired: 'Parol talab qilinadi',
         passwordConfirmRequired: 'Parolni tasdiqlang',
         passwordMismatch: 'Parollar mos emas',
-        passwordMinLength: 'Kamida 8 ta belgi bo‘lsin',
-        passwordUppercase: 'Bitta katta harf qo‘shing',
-        passwordLowercase: 'Bitta kichik harf qo‘shing',
-        passwordNumber: 'Bitta raqam qo‘shing',
-        passwordSpecial: 'Bitta maxsus belgi qo‘shing',
+        passwordMinLength: 'Kamida 8 ta belgi bo\'lsin',
+        passwordUppercase: 'Bitta katta harf qo\'shing',
+        passwordLowercase: 'Bitta kichik harf qo\'shing',
+        passwordNumber: 'Bitta raqam qo\'shing',
+        passwordSpecial: 'Bitta maxsus belgi qo\'shing',
       },
       login: {
         title: 'Kirish',
@@ -3390,38 +4800,38 @@ const t = {
           submit: 'Kirish',
         },
         links: {
-          noAccount: 'Hali akkauntingiz yo‘qmi?',
-          signUp: 'Ro‘yxatdan o‘tish',
+          noAccount: 'Hali akkauntingiz yo\'qmi?',
+          signUp: 'Ro\'yxatdan o\'tish',
         },
         alerts: {
           failureTitle: 'Kirish amalga oshmadi',
-          failureMessage: 'Maʼlumotlarni tekshirib, yana urinib ko‘ring.',
+          failureMessage: 'Maʼlumotlarni tekshirib, yana urinib ko\'ring.',
           socialTitle: 'Tez orada',
-          socialMessage: '{provider} orqali kirish tez orada mavjud bo‘ladi.',
+          socialMessage: '{provider} orqali kirish tez orada mavjud bo\'ladi.',
         },
         errors: {
           missingCredentials: 'Email/foydalanuvchi nomi va parolni kiriting',
-          invalidCredentials: 'Email/foydalanuvchi nomi yoki parol noto‘g‘ri',
-          generic: 'Xatolik yuz berdi. Qayta urinib ko‘ring.',
+          invalidCredentials: 'Email/foydalanuvchi nomi yoki parol noto\'g\'ri',
+          generic: 'Xatolik yuz berdi. Qayta urinib ko\'ring.',
         },
       },
       register: {
-        title: 'Ro‘yxatdan o‘ting',
+        title: 'Ro\'yxatdan o\'ting',
         description: 'Davom etish uchun akkaunt yarating.',
         fields: {
           email: 'Email',
-          fullName: 'To‘liq ism',
+          fullName: 'To\'liq ism',
           password: 'Parol',
           confirmPassword: 'Parolni tasdiqlang',
         },
         placeholders: {
           email: 'ism@example.com',
-          fullName: 'To‘liq ismingizni kiriting',
+          fullName: 'To\'liq ismingizni kiriting',
           password: 'Parol yarating',
           confirmPassword: 'Parolni qayta kiriting',
         },
         buttons: {
-          submit: 'Ro‘yxatdan o‘tish',
+          submit: 'Ro\'yxatdan o\'tish',
           socialComingSoon: 'Tez orada',
         },
         links: {
@@ -3430,14 +4840,14 @@ const t = {
         },
         languageSelector: {
           label: 'Til',
-          helper: 'Ro‘yxatdan o‘tish uchun tilni tanlang.',
+          helper: 'Ro\'yxatdan o\'tish uchun tilni tanlang.',
         },
         selectors: {
           sectionTitle: 'Hudud va valyuta',
-          helper: 'Asosiy valyuta {currency} bo‘ladi',
+          helper: 'Asosiy valyuta {currency} bo\'ladi',
           regionLabel: 'Hudud',
           currencyLabel: 'Valyuta',
-          currencyHint: 'Bosib o‘zgartiring',
+          currencyHint: 'Bosib o\'zgartiring',
         },
         sheets: {
           regionTitle: 'Hududni tanlang',
@@ -3450,7 +4860,7 @@ const t = {
           successMessage: 'Xush kelibsiz! Akkaunt yaratildi.',
           failureTitle: 'Xatolik',
           socialTitle: 'Tez orada',
-          socialMessage: '{provider} orqali ro‘yxatdan o‘tish tez orada ochiladi.',
+          socialMessage: '{provider} orqali ro\'yxatdan o\'tish tez orada ochiladi.',
         },
         passwordGuide: {
           strengthLabel: 'Parol kuchi',
@@ -3458,25 +4868,25 @@ const t = {
           levels: {
             empty: 'Yozishni boshlang',
             weak: 'Zaif',
-            medium: 'O‘rtacha',
+            medium: 'O\'rtacha',
             strong: 'Kuchli',
           },
           requirementsTitle: 'Parol talablari',
           requirements: {
             length: 'Kamida {count} ta belgi',
-            uppercase: 'Hech bo‘lmaganda bitta katta harf',
-            lowercase: 'Hech bo‘lmaganda bitta kichik harf',
-            number: 'Hech bo‘lmaganda bitta raqam',
-            special: 'Hech bo‘lmaganda bitta maxsus belgi',
+            uppercase: 'Hech bo\'lmaganda bitta katta harf',
+            lowercase: 'Hech bo\'lmaganda bitta kichik harf',
+            number: 'Hech bo\'lmaganda bitta raqam',
+            special: 'Hech bo\'lmaganda bitta maxsus belgi',
           },
         },
         errors: {
-          missingFields: 'Majburiy maydonlarni to‘ldiring',
+          missingFields: 'Majburiy maydonlarni to\'ldiring',
           selectRegion: 'Hududni tanlang',
           passwordMismatch: 'Parollar mos emas',
-          emailInvalid: 'To‘g‘ri email kiriting',
+          emailInvalid: 'To\'g\'ri email kiriting',
           emailExists: 'Bu email uchun akkaunt mavjud',
-          generic: 'Ro‘yxatdan o‘tishda xatolik. Qayta urinib ko‘ring.',
+          generic: 'Ro\'yxatdan o\'tishda xatolik. Qayta urinib ko\'ring.',
         },
       },
       forgot: {
@@ -3586,7 +4996,7 @@ const t = {
         filter: 'Filtr',
         sectionCountLabel: 'vazifa',
         sectionTip:
-          'Qisqa bosib, o‘ngga suring — bajarildi, chapga suring — o‘chirib tashlash (hatto bajarilganlari ham).',
+          'Qisqa bosib, o\'ngga suring — bajarildi, chapga suring — o\'chirib tashlash (hatto bajarilganlari ham).',
         sections: {
           morning: { title: 'Tong', time: '(06:00 - 12:00)' },
           afternoon: { title: 'Kunduzi', time: '(12:00 - 18:00)' },
@@ -3595,14 +5005,15 @@ const t = {
         actions: {
           complete: 'BAJARILDI',
           restore: 'QAYTARISH',
-          remove: 'O‘CHIRISH',
-          delete: 'VAZIFANI O‘CHIRISH',
+          remove: 'O\'CHIRISH',
+          delete: 'VAZIFANI O\'CHIRISH',
         },
         history: {
-          title: 'Vazifalar tarixi',
-          subtitle: 'Qaytarish yoki o‘chirish uchun suring',
-          tip: 'Qisqa bosib, o‘ngga suring — vazifani qaytaring, chapga suring — butunlay o‘chiring.',
-          deletedBadge: 'Ko‘chirildi',
+          title: 'O\'chirish tarixi',
+          subtitle: 'Qaytarish yoki o\'chirish uchun suring',
+          tip: 'Qisqa bosib, o\'ngga suring — vazifani qaytaring, chapga suring — butunlay o\'chiring.',
+          deletedBadge: 'O\'chirildi',
+          archivedBadge: 'Arxivlangan',
         },
         defaults: {
           startToday: 'Bugun',
@@ -3610,6 +5021,10 @@ const t = {
           startPick: 'Tanlash',
           newTaskTitle: 'Yangi vazifa',
           defaultContext: '@work',
+        },
+        empty: {
+          title: 'Hali vazifalar yo\'q',
+          subtitle: 'Kuningizni rejalashtirish uchun birinchi vazifangizni qo\'shing.',
         },
         aiPrefix: 'AI:',
         dailySummary: 'Bugun: {tasks} ta vazifa • {habits} ta odat • {goals} ta maqsad qadami',
@@ -3625,9 +5040,9 @@ const t = {
           cardLabel: 'Hozir bajarilmoqda',
           goalTag: 'Maqsad: {goal}',
           finishTitle: '"{task}" yakunlansinmi?',
-          finishMessage: 'Bajarilgan deb belgilang yoki qoldiqni ertaga ko‘chiring.',
+          finishMessage: 'Bajarilgan deb belgilang yoki qoldiqni ertaga ko\'chiring.',
           done: 'Bajarildi',
-          move: 'Ertaga ko‘chir',
+          move: 'Ertaga ko\'chir',
           keep: 'Keyinga qoldir',
         },
         calendar: {
@@ -3636,11 +5051,11 @@ const t = {
           addQuickTask: 'Tezkor vazifa',
           quickTaskTitle: 'Tezkor vazifa',
           scheduledTitle: 'Ushbu kun rejalari',
-          empty: 'Bu kunda hech narsa yo‘q.',
-          moveTitle: 'Vazifalarni shu kunga ko‘chirish',
-          moveHere: 'Bu kunga ko‘chir',
-          moveTomorrow: 'Ertaga ko‘chir',
-          unscheduled: 'Sana yo‘q',
+          empty: 'Bu kunda hech narsa yo\'q.',
+          moveTitle: 'Vazifalarni shu kunga ko\'chirish',
+          moveHere: 'Bu kunga ko\'chir',
+          moveTomorrow: 'Ertaga ko\'chir',
+          unscheduled: 'Sana yo\'q',
           noOtherTasks: 'Boshqa vazifalar qolmadi.',
         },
         aiSuggestions: {
@@ -3649,23 +5064,23 @@ const t = {
           duration: 'Davomiylik: {value}',
           context: 'Kontekst: {value}',
           energy: 'Energiya: {value}',
-          apply: 'Tavsiyani qo‘llash',
+          apply: 'Tavsiyani qo\'llash',
         },
       },
       goals: {
         header: {
           title: 'Strategik maqsadlar',
-          subtitle: 'Moliya va shaxsiy g‘alabalar uchun barqaror harakat',
+          subtitle: 'Moliya va shaxsiy g\'alabalar uchun barqaror harakat',
         },
         empty: {
           title: 'Birinchi maqsadni yarating',
           subtitle:
-            'Maqsad qo‘shgach, bosqichlar, prognozlar va AI tavsiyalarini kuzatishingiz mumkin. Boshlash uchun qo‘shish tugmasidan foydalaning.',
+            'Maqsad qo\'shgach, bosqichlar, prognozlar va AI tavsiyalarini kuzatishingiz mumkin. Boshlash uchun qo\'shish tugmasidan foydalaning.',
         },
         sections: {
           financial: {
             title: 'Moliyaviy maqsadlar',
-            subtitle: 'Investitsiya va jamg‘arma ustuvorliklari',
+            subtitle: 'Investitsiya va jamg\'arma ustuvorliklari',
           },
           personal: {
             title: 'Shaxsiy maqsadlar',
@@ -3679,10 +5094,10 @@ const t = {
             prediction: 'Prognoz',
           },
           actions: {
-            addValue: 'Qiymat qo‘shish',
+            addValue: 'Qiymat qo\'shish',
             refresh: 'Yangilash',
             edit: 'Tahrirlash',
-            addValueA11y: 'Qiymat qo‘shish',
+            addValueA11y: 'Qiymat qo\'shish',
             refreshA11y: 'Maqsadni yangilash',
             editA11y: 'Maqsadni tahrirlash',
             openDetailsA11y: 'Maqsad tafsilotlarini ochish',
@@ -3691,19 +5106,19 @@ const t = {
         details: {
           milestones: 'Bosqichlar',
           history: 'Tarix',
-          showMore: 'Ko‘proq ko‘rsat',
+          showMore: 'Ko\'proq ko\'rsat',
         },
         nextStep: {
           title: 'Keyingi qadam',
-          empty: 'Bog‘langan vazifa yo‘q',
-          cta: 'Qadam qo‘shish',
+          empty: 'Bog\'langan vazifa yo\'q',
+          cta: 'Qadam qo\'shish',
         },
         linkedSummary: '{tasks} ta vazifa • {habits} ta odat',
         ai: {
           title: 'AI rejasi',
           milestones: 'Bosqichlar: boshlash → prototip → beta → chiqarish.',
-          duration: 'Baholangan muddat: 3–6 oy (haftalik ko‘rib chiqish).',
-          apply: 'Rejani qo‘llash',
+          duration: 'Baholangan muddat: 3–6 oy (haftalik ko\'rib chiqish).',
+          apply: 'Rejani qo\'llash',
         },
         data: {
           'dream-car': {
@@ -3722,10 +5137,10 @@ const t = {
               { label: 'Okt', delta: '+280 000 so‘m' },
             ],
             aiTip: 'Joriy surʼat bilan maqsad mart oyida bajariladi.',
-            aiTipHighlight: 'Fevralga ulgurish uchun oyiga yana 100 ming qo‘shing.',
+            aiTipHighlight: 'Fevralga ulgurish uchun oyiga yana 100 ming qo\'shing.',
           },
           'emergency-fund': {
-            title: 'Favqulodda jamg‘arma',
+            title: 'Favqulodda jamg\'arma',
             currentAmount: '3,5 mln so‘m',
             targetAmount: '6 mln so‘m',
             summary: {
@@ -3743,20 +5158,20 @@ const t = {
           },
           fitness: {
             title: 'Eng yuqori forma rejasi',
-            currentAmount: '92 / 210 mashg‘ulot',
-            targetAmount: '210 mashg‘ulot',
+            currentAmount: '92 / 210 mashg\'ulot',
+            targetAmount: '210 mashg\'ulot',
             summary: {
-              left: '118 mashg‘ulot qoldi',
-              pace: 'Haftasiga 4 ta mashg‘ulot',
+              left: '118 mashg\'ulot qoldi',
+              pace: 'Haftasiga 4 ta mashg\'ulot',
               prediction: 'Jadvalda · avgust 2025',
             },
             milestones: ['Noy 2024', 'Yan 2025', 'Apr 2025', 'Avg 2025'],
             history: [
-              { label: 'Hafta 48', delta: '+4 mashg‘ulot' },
-              { label: 'Hafta 47', delta: '+5 mashg‘ulot' },
-              { label: 'Hafta 46', delta: '+3 mashg‘ulot' },
+              { label: 'Hafta 48', delta: '+4 mashg\'ulot' },
+              { label: 'Hafta 47', delta: '+5 mashg\'ulot' },
+              { label: 'Hafta 46', delta: '+3 mashg\'ulot' },
             ],
-            aiTip: 'Barqarorlik oshmoqda. Natijani tezlashtirish uchun bir kun kardio qo‘shing.',
+            aiTip: 'Barqarorlik oshmoqda. Natijani tezlashtirish uchun bir kun kardio qo\'shing.',
           },
           language: {
             title: 'Ispan tili immersioni',
@@ -3781,10 +5196,10 @@ const t = {
       headerTitle: 'Odatlar',
       badgeSuffix: 'kun',
       calendarTitle: 'Oylik nazorat — {month}',
-      calendarLegend: { done: 'Bajarildi', miss: 'O‘tkazib yuborildi', none: 'Maʼlumot yo‘q' },
+      calendarLegend: { done: 'Bajarildi', miss: 'O\'tkazib yuborildi', none: 'Maʼlumot yo\'q' },
       calendarLegendHint: {
         done: '{count} kun bajarildi ({percent}%)',
-        miss: '{count} kun o‘tkazib yuborildi ({percent}%)',
+        miss: '{count} kun o\'tkazib yuborildi ({percent}%)',
         none: '{count} kun belgilanmagan ({percent}%)',
       },
       challenge: {
@@ -3799,12 +5214,12 @@ const t = {
         record: 'Rekord: {days} kun',
         completion: 'Bajarilish: {percent}% ({completed}/{target} haftalik)',
         },
-        supportsGoals: 'Qo‘llab-quvvatlaydi: {goals}',
+        supportsGoals: 'Qo\'llab-quvvatlaydi: {goals}',
         ai: {
           title: 'AI maslahatlari',
-          time: 'Eng yaxshi vaqt 06:30–07:00 oralig‘ida.',
+          time: 'Eng yaxshi vaqt 06:30–07:00 oralig\'ida.',
           stack: 'Suv ichish eslatmalari bilan birlashtiring.',
-          apply: 'Maslahatni qo‘llash',
+          apply: 'Maslahatni qo\'llash',
         },
         ctas: {
           checkIn: 'Bugun belgilash',
@@ -3812,7 +5227,7 @@ const t = {
           completed: 'Bajarildi',
           failed: 'Bajarilmadi',
           edit: 'Tahrirlash',
-          delete: 'O‘chirish',
+          delete: 'O\'chirish',
         },
         expand: {
           titles: {
@@ -3823,7 +5238,7 @@ const t = {
           lines: {
             overallCompletion: 'Umumiy bajarilish: 156',
             successPercentile: 'Muvaffaqiyat foizi: 78%',
-            averageStreak: 'O‘rtacha seriya: 8 kun',
+            averageStreak: 'O\'rtacha seriya: 8 kun',
             bestMonth: 'Eng yaxshi oy: noyabr (93%)',
             bestTime: 'Eng yaxshi vaqt: 7:00–7:30 (85% muvaffaqiyat)',
             worstTime: 'Eng yomon vaqt: dam olish kunlari (45%)',
@@ -3837,20 +5252,20 @@ const t = {
         },
       },
       empty: {
-        title: 'Hali odatlar yo‘q',
-        subtitle: 'Progressni kuzatish uchun rejalashtiruvchi menyusidan odat qo‘shing.',
+        title: 'Hali odatlar yo\'q',
+        subtitle: 'Progressni kuzatish uchun rejalashtiruvchi menyusidan odat qo\'shing.',
       },
       data: {
         h1: {
-          title: 'Tonggi mashg‘ulot',
-            aiNote: 'Mashg‘ulotdan keyin tongda bajarib ko‘ring',
+          title: 'Tonggi mashg\'ulot',
+            aiNote: 'Mashg\'ulotdan keyin tongda bajarib ko\'ring',
           },
           h2: {
             title: 'Meditatsiya',
-            aiNote: 'AI: "Mashg‘ulotdan keyin tongda bajarib ko‘ring"',
+            aiNote: 'AI: "Mashg\'ulotdan keyin tongda bajarib ko\'ring"',
           },
           h3: {
-            title: '30 daqiqa o‘qish',
+            title: '30 daqiqa o\'qish',
           },
           h4: {
             title: 'Kuniga 2 l suv ichish',
@@ -3865,6 +5280,122 @@ const t = {
     },
     plannerModals: {
       goal: uzGoalModal as AppTranslations['plannerModals']['goal'],
+      habit: {
+        editTitle: 'Odatni tahrirlash',
+        createTitle: 'Yangi odat',
+        close: 'Yopish',
+        cancel: 'Bekor qilish',
+        create: 'Odat yaratish',
+        update: 'Odatni yangilash',
+        nameLabel: 'Odat nomi',
+        nameRequired: '*',
+        namePlaceholder: 'Masalan: Ertalabki meditatsiya, Mashqlar, O\'qish',
+        descriptionLabel: 'Tavsif',
+        descriptionPlaceholder: 'Bu odat nima uchun sizga muhim?',
+        habitTypeLabel: 'Odat turi',
+        habitTypes: {
+          health: 'Salomatlik',
+          finance: 'Moliya',
+          productivity: 'Samaradorlik',
+          education: 'Ta\'lim',
+          personal: 'Shaxsiy',
+          custom: 'Boshqa',
+        },
+        frequencyLabel: 'Chastota',
+        frequencyTypes: {
+          daily: 'Har kuni',
+          weekly: 'Har hafta',
+          custom: 'Maxsus',
+        },
+        timesPerWeek: 'Haftada necha marta',
+        timesPerPeriod: 'Davrda necha marta',
+        timesOptions: {
+          once: 'Bir marta',
+          twice: 'Ikki marta',
+          times3: '3 marta',
+          times4: '4 marta',
+          times5: '5 marta',
+        },
+        completionModeLabel: 'Bajarish rejimi',
+        completionModes: {
+          boolean: 'Ha/Yo\'q (Bajarildi/O\'tkazib yuborildi)',
+          numeric: 'Raqamli (Qiymatni kuzatish)',
+        },
+        targetPerDay: 'Kunlik maqsad',
+        targetPlaceholder: 'Masalan: 8, 10000, 30',
+        unitLabel: 'Birlik',
+        unitPlaceholder: 'Masalan: km, stakan, daqiqa',
+        timeOfDayLabel: 'Kun vaqti (ixtiyoriy)',
+        setTime: 'Vaqtni belgilash',
+        linkToGoalLabel: 'Maqsadga bog\'lash (ixtiyoriy)',
+        none: 'Yo\'q',
+        financeRuleLabel: 'Moliyaviy qoida (avto-baholash)',
+        ruleTypeLabel: 'Qoida turi',
+        ruleTypes: {
+          noSpendInCategories: 'Kategoriyalarda xarajat yo\'q',
+          spendInCategories: 'Kategoriyalarda xarajat',
+          hasAnyTransactions: 'Har qanday tranzaksiyalar bor',
+          dailySpendUnder: 'Kunlik xarajat ostida',
+        },
+        selectCategories: 'Kategoriyalarni tanlang',
+        selectAccounts: 'Hisoblarni tanlang (ixtiyoriy)',
+        minAmount: 'Minimal summa (ixtiyoriy)',
+        dailyLimitAmount: 'Kunlik limit summasi',
+        currency: 'Valyuta',
+        done: 'Tayyor',
+        // New fields for enhanced habit modal
+        popularHabitsLabel: 'Mashhur odatlar',
+        popularHabits: {
+          morningWorkout: { title: 'Ertalabki mashq', time: '07:00' },
+          meditation: { title: 'Meditatsiya', time: '06:30' },
+          drinkWater: { title: 'Suv ichish', time: '08:00' },
+          quitSmoking: { title: 'Chekishni tashlash', time: '' },
+        },
+        countingTypeLabel: 'Hisoblash turi',
+        countingTypes: {
+          create: 'Yaratish',
+          quit: 'Tashlash',
+        },
+        categoriesLabel: 'Kategoriyalar',
+        difficultyLabel: 'Qiyinlik',
+        difficultyLevels: {
+          easy: 'Oson',
+          medium: 'O\'rtacha',
+          hard: 'Qiyin',
+        },
+        priorityLabel: 'Ustuvorlik',
+        priorityLevels: {
+          low: 'Past',
+          medium: 'O\'rtacha',
+          high: 'Yuqori',
+        },
+        selectDaysLabel: 'Kunlarni tanlang',
+        selectDatesLabel: 'Sanalarni tanlang',
+        weekdays: {
+          mon: 'Dush',
+          tue: 'Sesh',
+          wed: 'Chor',
+          thu: 'Pay',
+          fri: 'Jum',
+          sat: 'Shan',
+          sun: 'Yak',
+        },
+        reminderLabel: 'Eslatma',
+        reminderTimeLabel: 'Eslatma vaqti',
+        addReminder: '+ Eslatma qo\'shish',
+        streakLabel: 'Ketma-ketlik',
+        streakOptions: {
+          days7: '7 kun',
+          days21: '21 kun',
+          days30: '30 kun',
+          days66: '66 kun',
+          days100: '100 kun',
+        },
+        streakMotivation: 'Odatni {days} kun ketma-ket bajaring',
+        aiTipLabel: 'AI maslahati',
+        createAndMore: 'Yaratish va yana',
+        iconPickerLabel: 'Ikonka tanlash',
+      },
     },
     widgets: {
       budgetProgress: {
@@ -3872,7 +5403,7 @@ const t = {
         defaults: { housing: 'Uy-joy', groceries: 'Oziq-ovqat', entertainment: 'Hordiq' },
         placeholders: {
           empty: 'Byudjetlar yaratilmagan',
-          add: 'Kuzatish uchun byudjet qo‘shing',
+          add: 'Kuzatish uchun byudjet qo\'shing',
         },
       },
       cashFlow: {
@@ -3882,23 +5413,23 @@ const t = {
       },
       dailyTasks: {
         title: 'Kundalik vazifalar',
-        placeholders: ['Vazifalar yo‘q', 'Dam oling', 'Yangi vazifa qo‘shing'],
+        placeholders: ['Vazifalar yo\'q', 'Dam oling', 'Yangi vazifa qo\'shing'],
       },
       focusSessions: {
         title: 'Fokus sessiyalar',
         stats: { completed: 'Bajarildi', totalTime: 'Umumiy vaqt', nextSession: 'Keyingi sessiya' },
-        placeholders: { none: 'Sessiyalar yo‘q', free: 'Kalendar bo‘sh' },
+        placeholders: { none: 'Sessiyalar yo\'q', free: 'Kalendar bo\'sh' },
       },
       goals: {
         title: 'Maqsadlar',
-        placeholderText: 'Maqsad qo‘shib natijani kuzating.',
-        placeholders: ['Maqsadlar hali yo‘q', 'Yangi maqsad qo‘shing'],
+        placeholderText: 'Maqsad qo\'shib natijani kuzating.',
+        placeholders: ['Maqsadlar hali yo\'q', 'Yangi maqsad qo\'shing'],
       },
       habits: {
         title: 'Odatlar',
-        placeholders: ['Bugunga odatlar yo‘q', 'Odat qo‘shib boshlang'],
+        placeholders: ['Bugunga odatlar yo\'q', 'Odat qo\'shib boshlang'],
         streakLabel: 'kunlik seriya',
-        noStreak: 'Seriya hali yo‘q',
+        noStreak: 'Seriya hali yo\'q',
       },
       productivityInsights: {
         title: 'Samaradorlik tahlili',
@@ -3908,18 +5439,18 @@ const t = {
           deepWork: 'Chuqur ish soati',
         },
         trendTitle: 'Fokus trendlari',
-        vsLastWeek: 'o‘tgan haftaga nisbatan',
-        noTrend: 'Trend maʼlumotlari yo‘q',
+        vsLastWeek: 'o\'tgan haftaga nisbatan',
+        noTrend: 'Trend maʼlumotlari yo\'q',
         days: { mon: 'Du', tue: 'Se', wed: 'Chor', thu: 'Pay', fri: 'Ju' },
       },
       spendingSummary: {
-        title: 'Xarajatlar yig‘indisi',
+        title: 'Xarajatlar yig\'indisi',
         categories: {
           food: 'Oziq-ovqat',
           transport: 'Transport',
           shopping: 'Xaridlar',
         },
-        placeholders: ['Xarajat qayd etilmagan', 'Xarid qo‘shib boshlang'],
+        placeholders: ['Xarajat qayd etilmagan', 'Xarid qo\'shib boshlang'],
         total: 'Jami sarf',
       },
       transactions: {
@@ -3934,7 +5465,7 @@ const t = {
           currentStreak: 'Joriy seriya',
         },
         summary: {
-          success: 'Zo‘r hafta! {completed} / {total} vazifa bajarildi.',
+          success: 'Zo\'r hafta! {completed} / {total} vazifa bajarildi.',
           empty: 'Haftalik tahlilni ochish uchun sessiyalarni yakunlang.',
         },
         streakUnit: 'kun',
@@ -3943,7 +5474,7 @@ const t = {
         title: 'Salomatlik holati',
         metrics: { energy: 'Energiya', mood: 'Kayfiyat', sleep: 'Uyqu sifati' },
         messages: {
-          balanced: 'Hafta barqaror o‘tdi — shu zaylda davom eting',
+          balanced: 'Hafta barqaror o\'tdi — shu zaylda davom eting',
           logPrompt: 'Ichki holatingizni yozib boring, shunda tahlillar chiqadi',
         },
       },
@@ -3952,11 +5483,11 @@ const t = {
       sectionTitle: 'Til',
       helperTitle: 'Eslatma',
       helperDescription:
-        'Til sozlamasi tahlillar, yordamchi xabarlar va yangilanishlarga qo‘llanadi. Ayrim tajriba funksiyalar hali ingliz tilida qolishi mumkin.',
+        'Til sozlamasi tahlillar, yordamchi xabarlar va yangilanishlarga qo\'llanadi. Ayrim tajriba funksiyalar hali ingliz tilida qolishi mumkin.',
     },
     more: {
       header: {
-        title: 'Ko‘proq',
+        title: 'Ko\'proq',
         profileAction: 'Profilni ochish',
         notificationsAction: 'Bildirishnomalar',
         badgeLabel: 'Premium',
@@ -3977,7 +5508,7 @@ const t = {
         statistics: 'Statistika',
       },
       settingsItems: {
-        appearance: 'Ko‘rinish',
+        appearance: 'Ko\'rinish',
         notifications: 'Bildirishnomalar',
         aiAssistant: 'AI yordamchi',
         security: 'Xavfsizlik',
@@ -3996,20 +5527,20 @@ const t = {
         devices: 'Qurilmalar',
       },
       helpItems: {
-        manual: 'Qo‘llanma',
+        manual: 'Qo\'llanma',
         faq: 'FAQ',
-        support: 'Qo‘llab-quvvatlash',
+        support: 'Qo\'llab-quvvatlash',
         about: 'LEORA haqida',
       },
       values: {
         enabled: 'Yoniq',
-        disabled: 'O‘chiq',
+        disabled: 'O\'chiq',
         on: 'Yoqilgan',
-        off: 'O‘chirilgan',
-        themeLight: 'Yorug‘',
-        themeDark: 'Qorong‘i',
+        off: 'O\'chirilgan',
+        themeLight: 'Yorug\'',
+        themeDark: 'Qorong\'i',
         aiAlpha: 'Alfa',
-        languageLabel: 'O‘zbekcha',
+        languageLabel: 'O\'zbekcha',
         level: 'Daraja',
       },
       logout: 'Chiqish',
@@ -4034,41 +5565,41 @@ const t = {
         email: 'Email',
         phone: 'Telefon',
         username: 'Taxallus',
-        joined: 'Qo‘shilgan sana',
+        joined: 'Qo\'shilgan sana',
         bio: 'Qisqacha maʼlumot',
-        visibility: 'Profil ko‘rinishi',
-        visibilityOptions: { public: 'Ochiq', friends: 'Faqat do‘stlar', private: 'Yopiq' },
-        showLevel: 'Daraja nishonini ko‘rsatish',
-        showAchievements: 'Yutuqlarni ko‘rsatish',
-        showStatistics: 'Statistikani ko‘rsatish',
+        visibility: 'Profil ko\'rinishi',
+        visibilityOptions: { public: 'Ochiq', friends: 'Faqat do\'stlar', private: 'Yopiq' },
+        showLevel: 'Daraja nishonini ko\'rsatish',
+        showAchievements: 'Yutuqlarni ko\'rsatish',
+        showStatistics: 'Statistikani ko\'rsatish',
       },
       finance: {
         regionLabel: 'Asosiy mintaqa',
-        currencyLabel: 'Ko‘rsatiladigan valyuta',
+        currencyLabel: 'Ko\'rsatiladigan valyuta',
         regionSheetTitle: 'Mintaqani tanlang',
         currencySheetTitle: 'Valyutani tanlang',
         currencySearchPlaceholder: 'Valyutani qidiring',
         fxTitle: 'Valyuta kurslari',
-        fxDescription: 'Provayderdan maʼlumotni sinxronlang yoki kursni qo‘lda kiriting.',
+        fxDescription: 'Provayderdan maʼlumotni sinxronlang yoki kursni qo\'lda kiriting.',
         fxProviderLabel: 'Kurs provayderi',
         fxProviders: {
-          central_bank_stub: 'Markaziy bank',
-          market_stub: 'Bozor',
+          central_bank: 'Markaziy bank',
+          market: 'Bozor kursi',
         },
         fxSyncButton: 'Kurslarni yangilash',
         fxSyncing: 'Yangilanmoqda...',
         fxSyncSuccess: 'Kurslar {provider} orqali yangilandi',
-        fxSyncError: 'Kurslarni yangilab bo‘lmadi. Qayta urinib ko‘ring.',
+        fxSyncError: 'Kurslarni yangilab bo\'lmadi. Qayta urinib ko\'ring.',
         fxLastSync: 'Oxirgi yangilanish: {value}',
-        fxManualTitle: 'Qo‘lda kurs',
+        fxManualTitle: 'Qo\'lda kurs',
         fxManualHint: '{base} ga nisbatan kurs',
         fxManualCurrencyLabel: 'Valyuta',
         fxOverridePlaceholder: 'Kursni kiriting',
         fxOverrideButton: 'Saqlash',
         fxOverrideSuccess: '{currency} uchun kurs saqlandi',
-        fxOverrideError: 'To‘g‘ri qiymat kiriting',
-        fxOverrideBaseError: 'Bazaga teng bo‘lmagan valyutani tanlang',
-        fxOverrideSheetTitle: 'Qo‘lda kurs uchun valyuta',
+        fxOverrideError: 'To\'g\'ri qiymat kiriting',
+        fxOverrideBaseError: 'Bazaga teng bo\'lmagan valyutani tanlang',
+        fxOverrideSheetTitle: 'Qo\'lda kurs uchun valyuta',
       },
       stats: {
         daysWithApp: 'LEORA bilan kunlar',
@@ -4084,13 +5615,13 @@ const t = {
         edit: 'Profilni tahrirlash',
         save: 'Saqlash',
         cancel: 'Bekor qilish',
-        delete: 'Akkauntni o‘chirish',
+        delete: 'Akkauntni o\'chirish',
         logout: 'Chiqish',
         changePhoto: 'Rasmni almashtirish',
-        removePhoto: 'Rasmni o‘chirish',
-        confirmDeleteTitle: 'Akkauntni o‘chirish',
-        confirmDeleteMessage: 'Barcha maʼlumotlar butunlay o‘chiriladi. Davom etasizmi?',
-        confirmDeleteConfirm: 'O‘chirish',
+        removePhoto: 'Rasmni o\'chirish',
+        confirmDeleteTitle: 'Akkauntni o\'chirish',
+        confirmDeleteMessage: 'Barcha maʼlumotlar butunlay o\'chiriladi. Davom etasizmi?',
+        confirmDeleteConfirm: 'O\'chirish',
         confirmDeleteCancel: 'Bekor qilish',
       },
     },
@@ -4104,9 +5635,9 @@ const t = {
         debts: 'Qarzlar',
       },
       goalActions: {
-        connectFinance: 'Moliya bilan bog‘lash',
+        connectFinance: 'Moliya bilan bog\'lash',
         createBudget: 'Maqsad uchun byudjet yarating',
-        addContribution: 'Hissa qo‘shish',
+        addContribution: 'Hissa qo\'shish',
       },
       review: {
         totalBalance: 'Umumiy balans',
@@ -4116,39 +5647,40 @@ const t = {
         used: 'Sarflandi',
         progress: 'Jarayon',
         expenseStructure: 'Xarajatlar tuzilmasi',
-        recentTransactions: 'So‘nggi tranzaksiyalar',
-        seeAll: 'Hammasini ko‘rish',
+        noExpenseData: 'Xarajat ma\'lumotlari yo\'q',
+        recentTransactions: 'So\'nggi tranzaksiyalar',
+        seeAll: 'Hammasini ko\'rish',
         importantEvents: 'Muhim hodisalar',
         table: { type: 'Turi', amount: 'Summasi', date: 'Sana' },
         fxQuick: {
           title: 'Valyuta boshqaruvi',
           providerLabel: 'Provayder',
           providers: {
-            central_bank_stub: 'Markaziy bank',
-            market_stub: 'Bozor',
+            central_bank: 'Markaziy bank',
+            market: 'Bozor kursi',
           },
           syncButton: 'Kurslarni yangilash',
           syncDescription: 'Provayderdan oxirgi kurslarni oling',
           syncing: 'Yangilanmoqda...',
           syncSuccess: 'Kurslar {provider} orqali yangilandi',
-          syncError: 'Kurslarni yangilab bo‘lmadi. Qayta urinib ko‘ring.',
+          syncError: 'Kurslarni yangilab bo\'lmadi. Qayta urinib ko\'ring.',
           lastSync: 'Oxirgi yangilanish: {value}',
-          overrideButton: 'Qo‘lda kurs',
+          overrideButton: 'Qo\'lda kurs',
           overrideHint: '{base} ga nisbatan kurs',
-          overrideTitle: 'Qo‘lda kurs',
+          overrideTitle: 'Qo\'lda kurs',
           overridePlaceholder: 'Qiymat kiriting',
           overrideConfirm: 'Saqlash',
           overrideCancel: 'Bekor qilish',
         overrideSuccess: '{currency} uchun kurs saqlandi',
-        overrideError: 'To‘g‘ri qiymat kiriting',
-        overrideBaseError: 'Bazaga teng bo‘lmagan valyutani tanlang',
+        overrideError: 'To\'g\'ri qiymat kiriting',
+        overrideBaseError: 'Bazaga teng bo\'lmagan valyutani tanlang',
       },
       accountFilterTitle: 'Hisoblarni tanlang',
       accountFilterAll: 'Barcha hisoblar',
       accountFilterSelected: '{count} ta tanlandi',
       accountFilterSelectAll: 'Hammasini tanlash',
-      accountFilterApply: 'Qo‘llash',
-      accountFilterCurrencyLabel: 'Ko‘rsatiladigan valyuta',
+      accountFilterApply: 'Qo\'llash',
+      accountFilterCurrencyLabel: 'Ko\'rsatiladigan valyuta',
       monitorTitle: 'Balans monitoringi',
       monitorSearchPlaceholder: 'Tranzaksiyalarni qidiring',
       monitorAccounts: 'Hisoblar',
@@ -4165,6 +5697,10 @@ const t = {
       monitorEmpty: 'Filtrlarga mos tranzaksiya topilmadi',
       monitorApply: 'Tugatish',
       monitorReset: 'Filtrlarni tozalash',
+      empty: {
+        title: 'Moliyaviy ma\'lumotlar yo\'q',
+        subtitle: 'Umumiy ko\'rinish uchun hisob va tranzaksiya qo\'shing.',
+      },
     },
       accounts: {
         header: 'Hisoblarim',
@@ -4173,27 +5709,27 @@ const t = {
         goalProgress: '{value}% maqsaddan',
         historyTitle: 'Tranzaksiya tarixi',
         historyHeaders: { type: 'Turi', amount: 'Summasi', time: 'Vaqti' },
-        actions: { edit: 'Tahrirlash', archive: 'Arxivlash', delete: 'O‘chirish' },
+        actions: { edit: 'Tahrirlash', archive: 'Arxivlash', delete: 'O\'chirish' },
         modal: {
-          titleAdd: 'Yangi hisob qo‘shish',
+          titleAdd: 'Yangi hisob qo\'shish',
           titleEdit: 'Hisobni tahrirlash',
           nameLabel: 'Nomi',
           namePlaceholder: 'Hisob nomi',
           descriptionLabel: 'Tavsif',
           descriptionPlaceholder: 'Tavsif',
           typeLabel: 'Turi',
-          addType: 'Tur qo‘shish',
+          addType: 'Tur qo\'shish',
           newTypePlaceholder: 'Yangi tur nomi',
           saveType: 'Turni saqlash',
           currencyLabel: 'Valyuta',
           amountLabel: 'Summasi',
           amountPlaceholder: 'Summasi ({currency})',
-          primaryActionAdd: 'Qo‘shish',
+          primaryActionAdd: 'Qo\'shish',
           primaryActionSave: 'Saqlash',
           typeOptions: {
             cash: 'Naqd',
             card: 'Karta',
-            savings: 'Jamg‘arma',
+            savings: 'Jamg\'arma',
             usd: 'Kredit',
             crypto: 'Kripto',
             other: 'Boshqa',
@@ -4202,17 +5738,17 @@ const t = {
           iconOptions: {
             wallet: 'Hamyon',
             creditCard: 'Karta',
-            piggyBank: 'Jamg‘arma',
+            piggyBank: 'Jamg\'arma',
             bank: 'Bank',
             briefcase: 'Biznes',
             coins: 'Tangalar',
             sparkles: 'Boshqa',
             bitcoin: 'Kripto',
             shield: 'Xavfsiz',
-            trendingUp: 'O‘sish',
+            trendingUp: 'O\'sish',
           },
           currencyLabels: {
-            UZS: 'O‘zbekiston so‘mi',
+            UZS: 'O\'zbekiston so\'mi',
             USD: 'AQSh dollari',
             EUR: 'Yevro',
             GBP: 'Funt sterling',
@@ -4222,6 +5758,10 @@ const t = {
             USDT: 'Tether (USDT)',
             RUB: 'Rossiya rubli',
           },
+        },
+        empty: {
+          title: 'Hisoblar yo\'q',
+          subtitle: 'Kuzatishni boshlash uchun birinchi hisobni yarating.',
         },
       },
       transactions: {
@@ -4234,23 +5774,27 @@ const t = {
           category: 'Kategoriya',
           date: 'Sana',
           note: 'Izoh',
-          relatedDebt: 'Bog‘langan qarz',
+          relatedDebt: 'Bog\'langan qarz',
           close: 'Yopish',
+          linkedData: 'Bog\'langan ma\'lumotlar',
+          linkedGoal: 'Bog\'langan maqsad',
+          linkedBudget: 'Bog\'langan byudjet',
+          notFound: 'Tranzaksiya topilmadi',
         },
         filterSheet: {
           title: 'Tranzaksiyalarni filtrlash',
-          dateRange: 'Sana oralig‘i',
+          dateRange: 'Sana oralig\'i',
           category: 'Kategoriya',
           accounts: 'Hisoblar',
           type: 'Tranzaksiya turi',
-          amount: 'Summalar oralig‘i',
+          amount: 'Summalar oralig\'i',
           from: 'Dan',
           to: 'Gacha',
           close: 'Yopish',
           clearHint: 'Tozalash uchun bosing va ushlab turing',
           selectDate: 'Sanani tanlang',
           reset: 'Tozalash',
-          apply: 'Qo‘llash',
+          apply: 'Qo\'llash',
           all: 'Hammasi',
           typeOptions: {
             income: 'Daromad',
@@ -4267,15 +5811,15 @@ const t = {
           debtOwedToYouPlaceholder: 'Qarzdor ismi',
           debtYouOweLabel: 'Kimga qarzdorsiz?',
           debtYouOwePlaceholder: 'Kimga qarzdor ekaningiz',
-          categoryAddTitle: 'Kategoriya qo‘shish',
+          categoryAddTitle: 'Kategoriya qo\'shish',
           categoryEditTitle: 'Kategoriyani tahrirlash',
           categoryPlaceholder: 'Kategoriya nomi',
           save: 'Yozuvni saqlash',
-          update: 'O‘zgarishlarni saqlash',
+          update: 'O\'zgarishlarni saqlash',
         },
         transferForm: {
-          title: 'Hisoblar orasida o‘tkazma',
-          submit: 'O‘tkazish',
+          title: 'Hisoblar orasida o\'tkazma',
+          submit: 'O\'tkazish',
           amountPlaceholder: 'Summasi',
           fromAccount: 'Qaysi hisobdan',
           toAccount: 'Qaysi hisobga',
@@ -4285,11 +5829,15 @@ const t = {
           resetRate: 'Avto kursga qaytarish',
           date: 'Sana',
           time: 'Vaqt',
-          notePlaceholder: 'Izoh yoki kontekst qo‘shing…',
+          notePlaceholder: 'Izoh yoki kontekst qo\'shing…',
           pickerDone: 'Tayyor',
           selectAccount: 'Hisobni tanlang',
           rateInfoTemplate:
             'Kurs: 1 {toCurrency} = {rate} {fromCurrency}. Qabul qilingan: {amount}',
+        },
+        empty: {
+          title: 'Tranzaksiyalar yo\'q',
+          subtitle: 'Tranzaksiyalaringiz shu yerda ko\'rinadi.',
         },
       },
       budgets: {
@@ -4297,14 +5845,14 @@ const t = {
         dateTemplate: '{date} uchun byudjet sharhi',
       mainTitle: 'Asosiy byudjet',
       categoriesTitle: 'Kategoriyalar',
-      addCategory: 'Kategoriya qo‘shish',
-      setLimit: 'Limit qo‘yish',
+      addCategory: 'Kategoriya qo\'shish',
+      setLimit: 'Limit qo\'yish',
       states: { exceeding: 'Limitdan oshgan', warning: 'Limitga yaqinlashmoqda', fixed: 'Belgilangan', within: 'Doirada' },
       detail: {
         title: 'Byudjet tafsilotlari',
         status: 'Holat',
-        linkedGoal: 'Bog‘langan maqsad',
-        goalUnlinked: 'Maqsad bog‘lanmagan',
+        linkedGoal: 'Bog\'langan maqsad',
+        goalUnlinked: 'Maqsad bog\'lanmagan',
         accountLabel: 'Hisob',
         currencyLabel: 'Byudjet valyutasi',
         limitLabel: 'Limit',
@@ -4316,23 +5864,23 @@ const t = {
         categoriesLabel: 'Kategoriyalar',
         notifyLabel: 'Limit oshsa xabarnoma',
         targetLabel: 'Maqsad',
-        contributedLabel: "Qo'shilgan",
-        savedLabel: "Jamg'arilgan",
-        valueAddTitle: "Qiymat qo'shish",
+        contributedLabel: 'Qo\'shilgan',
+        savedLabel: 'Jamg\'arilgan',
+        valueAddTitle: 'Qiymat qo\'shish',
         valueAddAccountCurrency: 'Hisob valyutasi',
         valueAddBudgetCurrency: 'Byudjet valyutasi',
-        valueAddDisplayCurrency: "Ko'rsatish valyutasi",
+        valueAddDisplayCurrency: 'Ko\'rsatish valyutasi',
         actions: {
           title: 'Harakatlar',
           edit: 'Byudjetni tahrirlash',
-          delete: "Byudjetni o'chirish",
-          viewGoal: "Maqsadni ko'rish",
+          delete: 'Byudjetni o\'chirish',
+          viewGoal: 'Maqsadni ko\'rish',
           viewTransactions: 'Tranzaksiyalar',
-          addToBudget: "Byudjetni to'ldirish",
+          addToBudget: 'Byudjetni to\'ldirish',
           recordExpense: 'Xarajatni qayd etish',
-          confirmDeleteTitle: "Byudjet o'chirilsinmi?",
+          confirmDeleteTitle: 'Byudjet o\'chirilsinmi?',
           confirmDeleteMessage: 'Byudjet arxivlanadi va maqsadlardan uziladi.',
-          confirmDeleteConfirm: "O'chirish",
+          confirmDeleteConfirm: 'O\'chirish',
           confirmDeleteCancel: 'Bekor qilish',
         },
       },
@@ -4357,23 +5905,40 @@ const t = {
         budgetTypes: {
           spending: 'Xarajat byudjeti',
           spendingHint: 'Limitga qarab xarajatni kuzating',
-          saving: "Jamg'arma byudjeti",
-          savingHint: "Maqsadga yetguncha to'plash",
+          saving: 'Jamg\'arma byudjeti',
+          savingHint: 'Maqsadga yetguncha to\'plash',
         },
         limitAmount: 'Limit summasi',
         targetAmount: 'Maqsad summasi',
+        alerts: {
+          linkedTitle: 'Byudjet bog\'langan',
+          linkedSingle: 'Bu byudjet maqsadga bog\'langan. Avval uzishingiz kerak.',
+          linkedMultiple: 'Bu byudjet bir necha maqsadga bog\'langan. Avval ularni uzishingiz kerak.',
+        },
+      },
+      empty: {
+        title: 'Byudjetlar yo\'q',
+        subtitle: 'Kategoriyalaringiz uchun xarajat limitlarini belgilang.',
       },
     },
       analytics: {
         header: 'Moliyaviy analitika',
         expenseDynamics: 'Xarajatlar dinamikasi',
-        comparison: 'O‘tgan oy bilan taqqoslash',
-        topExpenses: 'Kategoriyalar bo‘yicha top xarajatlar',
+        comparison: 'O\'tgan oy bilan taqqoslash',
+        topExpenses: 'Kategoriyalar bo\'yicha top xarajatlar',
         aiInsights: 'AI tavsiyalari',
-        stats: { peak: 'Pik', average: 'O‘rtacha', trend: 'Trend' },
-        comparisonRows: { income: 'Daromad:', outcome: 'Xarajat:', savings: 'Jamg‘arma:' },
+        stats: { peak: 'Pik', average: 'O\'rtacha', trend: 'Trend' },
+        comparisonRows: { income: 'Daromad:', outcome: 'Xarajat:', savings: 'Jamg\'arma:' },
+        empty: {
+          title: 'Analitika ma\'lumotlari yo\'q',
+          subtitle: 'Statistikani ko\'rish uchun tranzaksiya qo\'shing.',
+        },
       },
       debts: {
+        empty: {
+          title: 'Qarzlar yo\'q',
+          subtitle: 'Kim sizga qarzdor yoki kimga qarzdor ekanligingizni kuzating.',
+        },
         sections: { incoming: 'Qarzlar', outgoing: 'Mening qarzlarim' },
         timeline: {
           incoming: 'Qaytarish muddati',
@@ -4384,7 +5949,84 @@ const t = {
         },
         actions: {
           incoming: { notify: 'Eslatish', cancel: 'Qarzdan voz kechish' },
-          outgoing: { plan: 'Rejalashtirish', partial: 'Qisman to‘lash' },
+          outgoing: { plan: 'Rejalashtirish', partial: 'Qisman to\'lash' },
+          title: 'Qarz amallari',
+          notFound: 'Qarz topilmadi',
+          paidBanner: 'Bu qarz to\'liq to\'langan',
+          summary: {
+            youOwe: 'Siz qarzdorsiz',
+            theyOwe: 'Sizga qarzdor',
+          },
+          partialPayment: {
+            titleIOwe: 'Qisman to\'lov',
+            titleTheyOwe: 'Qisman olish',
+            subtitle: 'Bu qarz uchun qisman to\'lovni qayd qilish',
+          },
+          fullPayment: {
+            titleIOwe: 'To\'liq to\'lov',
+            titleTheyOwe: 'To\'liq olish',
+            subtitle: 'Qolgan to\'liq summani to\'lash',
+          },
+          extendDate: {
+            title: 'Muddatni uzaytirish',
+            subtitle: 'Yangi to\'lov muddatini belgilash',
+            currentDue: 'Joriy muddat',
+            noDueDate: 'Muddat belgilanmagan',
+            customDateLabel: 'Yoki sanani tanlang',
+          },
+          markSettled: {
+            title: 'To\'langan deb belgilash',
+            subtitle: 'To\'lovsiz qarzni to\'langan deb belgilash',
+            descriptionIOwe: 'Sizning qarzingiz to\'liq to\'langan deb belgilanadi.',
+            descriptionTheyOwe: 'Sizga bo\'lgan qarz to\'liq to\'langan deb belgilanadi.',
+            warning: 'Bu amalni bekor qilib bo\'lmaydi. Tranzaksiya yaratilmaydi.',
+          },
+          quickOptions: {
+            tomorrow: 'Ertaga',
+            nextWeek: 'Keyingi hafta',
+            nextMonth: 'Keyingi oy',
+            threeMonths: '3 oydan keyin',
+          },
+          fields: {
+            amount: 'Summa',
+            remaining: 'Qoldiq',
+            paymentDate: 'To\'lov sanasi',
+            account: 'Hisob',
+            selectAccount: 'Hisobni tanlang...',
+            note: 'Izoh',
+            optionalNote: 'Ixtiyoriy izoh...',
+          },
+          paymentInfo: {
+            expense: 'Bu to\'lov hisobingizdan chiqim sifatida qayd qilinadi',
+            income: 'Bu to\'lov hisobingizga kirim sifatida qayd qilinadi',
+          },
+          buttons: {
+            cancel: 'Bekor qilish',
+            confirm: 'Tasdiqlash',
+            done: 'Tayyor',
+            setDueDate: 'Muddatni belgilash',
+            markSettled: 'To\'langan deb belgilash',
+          },
+          errors: {
+            error: 'Xatolik',
+            invalidAmount: 'Noto\'g\'ri summa',
+            enterValidAmount: 'Iltimos, to\'g\'ri summa kiriting',
+            amountTooHigh: 'Summa juda katta',
+            maxAmount: 'Maksimal summa',
+            paymentFailed: 'To\'lovni qayd qilib bo\'lmadi. Qaytadan urinib ko\'ring.',
+            dueDateFailed: 'Muddatni yangilab bo\'lmadi. Qaytadan urinib ko\'ring.',
+            settleFailed: 'Qarzni to\'langan deb belgilab bo\'lmadi. Qaytadan urinib ko\'ring.',
+          },
+          success: {
+            paymentRecorded: 'To\'lov qayd qilindi',
+            repayment: 'to\'lov',
+            collection: 'olish',
+            hasBeenRecorded: 'qayd qilindi.',
+            dueDateUpdated: 'Muddat yangilandi',
+            dueDateSetTo: 'Muddat belgilandi',
+            debtSettled: 'Qarz to\'landi',
+            markedAsSettled: 'Qarz to\'liq to\'langan deb belgilandi.',
+          },
         },
         summary: {
           balanceLabel: 'Umumiy balans',
@@ -4394,7 +6036,7 @@ const t = {
           takenChange: '-8% Dekabr',
         },
         modal: {
-          title: 'Yangi qarz qo‘shish',
+          title: 'Yangi qarz qo\'shish',
           editTitle: 'Qarzlarni tahrirlash',
           subtitle: 'Olingan va berilgan qarzlarni kuzating',
           typeLabel: 'Turi',
@@ -4404,20 +6046,20 @@ const t = {
           personPlaceholder: 'Bu qarz kim uchun?',
           amount: 'Summasi',
           accountLabel: 'Hamyon',
-          accountHelper: 'Qaysi hisobdan mablag‘ olinadi',
+          accountHelper: 'Qaysi hisobdan mablag\' olinadi',
           accountPickerTitle: 'Hamyonni tanlang',
           currencyLabel: 'Valyuta',
           currencyHelper: 'Qarz valyutasini tanlang',
           currencyPickerTitle: 'Valyutani tanlang',
           dateLabel: 'Sana',
-          changeDate: 'Sana o‘zgartirish',
+          changeDate: 'Sana o\'zgartirish',
           clear: 'Bekor qilish',
           selectAccount: 'Hisobni tanlang',
           expectedReturn: 'Qaytarish sanasi',
           expectedPlaceholder: 'Qaytarish sanasi belgilanmagan',
         selectDate: 'Sana tanlang',
         note: 'Izoh',
-        notePlaceholder: 'Qo‘shimcha izoh yoki tafsilot kiriting…',
+        notePlaceholder: 'Qo\'shimcha izoh yoki tafsilot kiriting…',
         personDirectional: {
           incoming: { label: 'Kimdan oldingiz?', placeholder: 'Qarz bergan shaxs' },
           outgoing: { label: 'Kimga beryapsiz?', placeholder: 'Qarz oluvchi shaxs' },
@@ -4491,14 +6133,214 @@ const t = {
         manualRate: {
           title: 'Konvertatsiya',
           description:
-            'Qarz valyutasi {debtCurrency}. Hisob valyutasi {accountCurrency}. {accountCurrency} bo‘yicha yechib olinadigan summani kiriting.',
-          toggle: 'Qo‘lda kiritish',
-          amountLabel: '{currency} bo‘yicha yechib olinadigan summa',
+            'Qarz valyutasi {debtCurrency}. Hisob valyutasi {accountCurrency}. {accountCurrency} bo\'yicha yechib olinadigan summani kiriting.',
+          toggle: 'Qo\'lda kiritish',
+          amountLabel: '{currency} bo\'yicha yechib olinadigan summa',
         },
-        fullPaymentTitle: 'Qarzini to‘liq to‘lash',
-        fullPaymentDescription: 'Qolgan {amount} summa to‘liq yopiladi.',
-        fullPaymentSubmit: 'To‘liq to‘lash',
+        fullPaymentTitle: 'Qarzini to\'liq to\'lash',
+        fullPaymentDescription: 'Qolgan {amount} summa to\'liq yopiladi.',
+        fullPaymentSubmit: 'To\'liq to\'lash',
+        alerts: {
+          linkedTitle: 'Qarz bog\'langan',
+          linkedSingle: 'Bu qarz maqsadga bog\'langan. Avval uzishingiz kerak.',
+          linkedMultiple: 'Bu qarz bir necha maqsadga bog\'langan. Avval ularni uzishingiz kerak.',
+        },
+        differentCurrency: 'Boshqa valyutada qaytarish',
+        repayIn: 'Qaytarish valyutasi',
+        sameCurrency: 'Bir xil valyuta',
+        repaymentCurrency: 'Qaytarish valyutasi',
+        exchangeRate: 'Valyuta kursi',
+        autoRate: 'Avto (joriy kurs)',
+        fixedAmount: 'Belgilangan qaytarish summasi',
+        fixedAmountEnabled: 'Summa boshlang\'ich kursda belgilangan',
+        fixedAmountDisabled: 'Joriy kurs ishlatiladi',
       },
+      },
+    },
+    modals: {
+      lock: {
+        enterPasscode: 'Parolni kiriting',
+        forgotPasscode: 'Parolni unutdingizmi?',
+        resetAppLock: 'Qulfni tiklash',
+        verifyCode: 'Kodni tasdiqlang',
+        createNewPasscode: 'Yangi parol yarating',
+        chooseMethod: 'Tasdiqlash kodini qayerga jo\'natishni tanlang.',
+        addContact: 'Parolni masofadan tiklash uchun profilingizga email yoki telefon qo\'shing.',
+        email: 'Email',
+        phone: 'Telefon',
+        sendCode: 'Kodni yuborish',
+        continue: 'Davom etish',
+        changeMethod: 'Usulni o\'zgartirish',
+        resendCode: 'Qayta yuborish',
+        resendIn: '{n}s da qayta yuborish',
+        enterVerificationCode: 'Tasdiqlash kodini kiriting',
+        newPasscode: 'Yangi parol',
+        confirmPasscode: 'Parolni tasdiqlang',
+        saveNewPasscode: 'Yangi parolni saqlash',
+        noContactMethod: 'Aloqa usuli mavjud emas. Profilingizni yangilang.',
+        enterDigitCode: '{contact}ga yuborilgan {n} xonali kodni kiriting.',
+        requestNewCode: 'Davom etish uchun yangi kod so\'rang.',
+        codeExpired: 'Kod eskirdi. Yangisini so\'rang.',
+        incorrectCode: 'Noto\'g\'ri kod. Qaytadan urinib ko\'ring.',
+        createPasscodeHint: 'Ilova qulfi uchun yangi 4 xonali parol yarating.',
+        passcodeMustBe4Digits: 'Parol 4 raqamdan iborat bo\'lishi kerak.',
+        passcodesDoNotMatch: 'Parollar mos kelmaydi.',
+        passcodeUpdated: 'Parol yangilandi',
+        passcodeResetMessage: 'Ilova qulfi paroli tiklandi.',
+        unlockLeora: 'Leora qulfini ochish',
+        cancel: 'Bekor qilish',
+        usePasscode: 'Paroldan foydalanish',
+      },
+      search: {
+        placeholder: 'Qidirish...',
+        noResults: 'Natija topilmadi',
+        startTyping: 'Qidirish uchun yozing',
+        suggestions: {
+          improveFocus: 'Diqqatni qanday yaxshilash',
+          createTask: 'Yangi vazifa yaratish',
+          budgetTips: '2025 yilgi byudjet maslahatlari',
+          planGoals: 'Maqsadlarimni rejalashtirish',
+          aiFinance: 'Moliya uchun AI tavsiyalari',
+          quickExpenses: 'Tez xarajatlar ro\'yxati',
+          upcomingInvoices: 'Kelayotgan hisob-fakturalar',
+          trackDebts: 'Qarzlarimni kuzatish',
+        },
+      },
+      notifications: {
+        title: 'Bildirishnomalar',
+        markAllAsRead: 'Barchasini o\'qilgan deb belgilash',
+        noNewNotifications: 'Yangi bildirishnomalar yo\'q',
+        justNow: 'hozirgina',
+        minutesAgo: '{n}d oldin',
+        hoursAgo: '{n}s oldin',
+        daysAgo: '{n}k oldin',
+      },
+      financeExport: {
+        title: 'Statistikani eksport qilish',
+        dateRange: 'Sana oralig\'i',
+        from: 'Dan',
+        to: 'Gacha',
+        format: 'Format',
+        exportExcel: 'Excel sifatida eksport',
+        exportPdf: 'PDF sifatida eksport',
+        exportQueued: 'Eksport navbatda',
+        preparingReport: '{format} hisoboti tayyorlanmoqda',
+      },
+      financeCurrency: {
+        title: 'Umumiy valyuta',
+        displayCurrency: 'Ko\'rsatiladigan valyuta',
+        baseCurrency: 'Asosiy valyuta',
+        convertTo: 'Bu valyutaga aylantirish',
+        exchangeRates: 'Ayirboshlash kurslari (1 birlik)',
+        fixedReference: 'Belgilangan ma\'lumot',
+        oneEquals: '1 {currency} =',
+        apply: 'Qo\'llash',
+      },
+      financeSearch: {
+        title: 'Moliya qidirish',
+        placeholder: 'Hisoblar, tranzaksiyalar, byudjetlar qidirish…',
+        noResults: 'Natija yo\'q',
+        startTyping: 'Qidirish uchun yozing',
+      },
+      voice: {
+        title: 'Ovozli yordamchi',
+        speakNaturally: 'Tabiiy gapiring, do\'stingiz bilan gaplashgandek.',
+        listening: 'Tinglamoqda',
+        mentionDetails: 'Summa, vazifalar yoki kontekstni ayting — biz har bir tafsilotni olamiz.',
+        analyzing: 'Tahlil qilinmoqda',
+        dataProcessing: 'Ma\'lumotlarni qayta ishlash va AI moslash jarayonida.',
+        startTalking: 'Gapirishni boshlash',
+        stopAnalyze: 'To\'xtatish va tahlil qilish',
+        analyzingDots: 'Tahlil qilinmoqda...',
+        leoraVoice: 'LEORA OVOZ',
+        requestsHistory: 'So\'rovlar tarixi',
+        repeatRequest: 'So\'rovni takrorlash',
+        recognized: 'Tan olindi',
+        latestStatement: 'So\'nggi bayonot',
+        aiMatching: 'AI ob\'ektlarni moslamoqda',
+        capturedAudio: 'Yozib olingan audio',
+        category: 'Kategoriya',
+        account: 'Hisob',
+        edit: 'Tahrirlash',
+        confirm: 'Tasdiqlash',
+        microphoneRequired: 'Mikrofon ruxsati talab qilinadi. Leora Voice-dan foydalanish uchun uni tizim sozlamalarida yoqing.',
+        cancel: 'BEKOR QILISH',
+      },
+      changePassword: {
+        createPin: 'PIN yaratish',
+        changePin: 'PIN-ni o\'zgartirish',
+        close: 'Yopish',
+        secureYourSpace: 'Makoningizni himoya qiling',
+        updatePin: 'PIN-ni yangilash',
+        createYour4DigitPin: '4 xonali PIN yarating',
+        changeYour4DigitPin: '4 xonali PIN-ni o\'zgartiring',
+        pinDescription: 'Biz bu PIN-dan ushbu qurilmada LEORA qulfini ochish uchun foydalanamiz. Uni maxfiy saqlang va oddiy ketma-ketliklardan saqlaning.',
+        pinUsageHint: 'Biz bu PIN-dan ushbu qurilmada LEORA qulfini ochish uchun foydalanamiz. Uni maxfiy saqlang va oddiy ketma-ketliklardan saqlaning.',
+        currentPin: 'Joriy PIN',
+        forgotPin: 'PIN-ni unutdingizmi?',
+        newPin: 'Yangi PIN',
+        confirmPin: 'PIN-ni tasdiqlang',
+        pinHint: 'PIN aynan 4 ta raqamdan iborat bo\'lishi kerak. Bir xil raqamni takrorlashdan saqlaning.',
+        pinMustBe4Digits: 'PIN aynan 4 ta raqamdan iborat bo\'lishi kerak. Bir xil raqamni takrorlashdan saqlaning.',
+        pinsDoNotMatch: 'PIN-lar mos kelmaydi.',
+        helperText: 'Bu PIN LEORA-ga tez kirishni himoya qiladi. U yangilanganida, boshqa qurilmalaringiz keyingi ishga tushirishda yangi PIN talab qiladi.',
+        pinProtectsAccess: 'Bu PIN LEORA-ga tez kirishni himoya qiladi. U yangilanganida, boshqa qurilmalaringiz keyingi ishga tushirishda yangi PIN talab qiladi.',
+        saveNewPin: 'Yangi PIN-ni saqlash',
+        currentPinIncorrect: 'Joriy PIN noto\'g\'ri.',
+        tips: 'Maslahatlar',
+        tipsContent: '• Faqat siz biladigan ketma-ketlikdan foydalaning. Tug\'ilgan kunlar yoki aniq naqshlardan saqlaning.\n• Agar kimdir ko\'rgan deb shubhalansangiz, PIN-ni o\'zgartiring.',
+        lostAccessHint: 'Kirish imkoniyatini yo\'qotdingizmi? Xavfsiz tiklash uchun qulflash ekranida "Parolni unutdingizmi" tugmasini bosing.',
+        footerHint: 'Kirish imkoniyatini yo\'qotdingizmi? Xavfsiz tiklash uchun qulflash ekranida "Parolni unutdingizmi" tugmasini bosing.',
+      },
+      forgotPasscode: {
+        title: 'Parolni unutdingizmi',
+        subtitle: 'Ishonchli kontaktni tasdiqlash va biz yuborgan bir martalik kodni kiritish orqali kirishni tiklang.',
+        close: 'Yopish',
+        recoverAccess: 'Ishonchli kontaktni tasdiqlash va biz yuborgan bir martalik kodni kiritish orqali kirishni tiklang.',
+        contact: 'Aloqa',
+        contactHelper: 'Tiklash kodini xavfsiz yetkazish uchun tasdiqlangan email yoki telefondan foydalaning.',
+        emailOrPhone: 'Email yoki telefon raqami',
+        useVerifiedContact: 'Tiklash kodini xavfsiz yetkazish uchun tasdiqlangan email yoki telefondan foydalaning.',
+        verificationCode: 'Tasdiqlash kodi',
+        enterCode: 'Kodni kiriting',
+        codeHelper: 'Tiklash kodi uchun pochtangizni tekshiring. Kodlar 10 daqiqadan so\'ng eskiradi.',
+        codeSentMessage: 'Tiklash kodi {contact} ga yuborildi.',
+        checkInbox: 'Tiklash kodi uchun pochtangizni tekshiring. Kodlar 10 daqiqadan so\'ng eskiradi.',
+        cancel: 'Bekor qilish',
+        sendCode: 'Kodni yuborish',
+        verify: 'Tasdiqlash',
+      },
+      manageWidget: {
+        title: 'Vidjetlarni boshqarish',
+        loadingWidgets: 'Vidjetlar yuklanmoqda...',
+        availableWidgets: 'MAVJUD VIDJETLAR',
+        tapToAdd: 'Qo\'shish uchun plyusga bosing',
+        allWidgetsActive: 'Barcha vidjetlar faol',
+        noWidgetsInCategory: 'Bu kategoriyada vidjetlar yo\'q',
+        activeWidgets: 'FAOL VIDJETLAR',
+        dragToReorder: 'Tartibni o\'zgartirish uchun torting • O\'chirish uchun chapga suring',
+        noActiveWidgets: 'Faol vidjetlar yo\'q',
+        addWidgetsFromAbove: 'Yuqoridan vidjetlarni qo\'shing',
+        categories: {
+          planner: 'Rejalashtiruvchi',
+          finance: 'Moliya',
+          ai: 'Sun\'iy intellekt',
+          health: 'Salomatlik',
+          insights: 'Tahlillar',
+        },
+        widgetTitles: {
+          'daily-tasks': { title: 'Kunlik vazifalar', description: 'Bugungi vazifalar ro\'yxati' },
+          'goals': { title: 'Maqsadlar', description: 'Maqsadlaringizni kuzating' },
+          'habits': { title: 'Odatlar', description: 'Kunlik odatlar trekeri' },
+          'weekly-review': { title: 'Haftalik sharh', description: 'Haftalik progress sharhi' },
+          'focus-sessions': { title: 'Fokus sessiyalari', description: 'Pomodoro taymer va kuzatuv' },
+          'transactions': { title: 'Tranzaksiyalar', description: 'So\'nggi moliyaviy faoliyat' },
+          'spending-summary': { title: 'Xarajatlar xulosasi', description: 'Oylik top kategoriyalar' },
+          'budget-progress': { title: 'Byudjet progressi', description: 'Haqiqiy vs rejalashtirilgan' },
+          'cash-flow': { title: 'Pul oqimi', description: 'Haftalik daromad va xarajatlar' },
+          'productivity-insights': { title: 'Unumdorlik tahlili', description: 'Fokus trendi va yakunlash' },
+          'wellness-overview': { title: 'Salomatlik sharhi', description: 'Energiya va kayfiyat' },
+        },
       },
     },
   },
@@ -4761,10 +6603,11 @@ const t = {
           delete: 'حذف المهمة',
         },
         history: {
-          title: 'سجل المهام',
+          title: 'سجل الحذف',
           subtitle: 'اسحب للاستعادة أو الحذف',
           tip: 'اضغط قليلاً ثم اسحب لليمين لاستعادة المهمة أو لليسار لحذفها نهائياً.',
-          deletedBadge: 'مؤجل',
+          deletedBadge: 'محذوف',
+          archivedBadge: 'مؤرشف',
         },
         defaults: {
           startToday: 'اليوم',
@@ -4772,6 +6615,10 @@ const t = {
           startPick: 'اختيار',
           newTaskTitle: 'مهمة جديدة',
           defaultContext: '@work',
+        },
+        empty: {
+          title: 'لا توجد مهام بعد',
+          subtitle: 'أضف مهمتك الأولى لبدء تخطيط يومك.',
         },
         aiPrefix: 'الذكاء الاصطناعي:',
         dailySummary: 'اليوم: {tasks} مهام • {habits} عادات • {goals} خطوات هدف',
@@ -5027,6 +6874,122 @@ const t = {
     },
     plannerModals: {
       goal: arGoalModal as AppTranslations['plannerModals']['goal'],
+      habit: {
+        editTitle: 'تعديل العادة',
+        createTitle: 'عادة جديدة',
+        close: 'إغلاق',
+        cancel: 'إلغاء',
+        create: 'إنشاء العادة',
+        update: 'تحديث العادة',
+        nameLabel: 'اسم العادة',
+        nameRequired: '*',
+        namePlaceholder: 'مثال: التأمل الصباحي، التمارين، القراءة',
+        descriptionLabel: 'الوصف',
+        descriptionPlaceholder: 'لماذا هذه العادة مهمة لك؟',
+        habitTypeLabel: 'نوع العادة',
+        habitTypes: {
+          health: 'الصحة',
+          finance: 'المالية',
+          productivity: 'الإنتاجية',
+          education: 'التعليم',
+          personal: 'شخصي',
+          custom: 'مخصص',
+        },
+        frequencyLabel: 'التكرار',
+        frequencyTypes: {
+          daily: 'يومياً',
+          weekly: 'أسبوعياً',
+          custom: 'مخصص',
+        },
+        timesPerWeek: 'مرات في الأسبوع',
+        timesPerPeriod: 'مرات في الفترة',
+        timesOptions: {
+          once: 'مرة واحدة',
+          twice: 'مرتين',
+          times3: '3 مرات',
+          times4: '4 مرات',
+          times5: '5 مرات',
+        },
+        completionModeLabel: 'وضع الإنجاز',
+        completionModes: {
+          boolean: 'نعم/لا (تم/فائت)',
+          numeric: 'رقمي (تتبع القيمة)',
+        },
+        targetPerDay: 'الهدف اليومي',
+        targetPlaceholder: 'مثال: 8، 10000، 30',
+        unitLabel: 'الوحدة',
+        unitPlaceholder: 'مثال: كم، أكواب، دقائق',
+        timeOfDayLabel: 'وقت اليوم (اختياري)',
+        setTime: 'تحديد الوقت',
+        linkToGoalLabel: 'ربط بهدف (اختياري)',
+        none: 'لا شيء',
+        financeRuleLabel: 'قاعدة مالية (تقييم تلقائي)',
+        ruleTypeLabel: 'نوع القاعدة',
+        ruleTypes: {
+          noSpendInCategories: 'بدون إنفاق في الفئات',
+          spendInCategories: 'الإنفاق في الفئات',
+          hasAnyTransactions: 'أي معاملات موجودة',
+          dailySpendUnder: 'الإنفاق اليومي أقل من',
+        },
+        selectCategories: 'اختر الفئات',
+        selectAccounts: 'اختر الحسابات (اختياري)',
+        minAmount: 'الحد الأدنى للمبلغ (اختياري)',
+        dailyLimitAmount: 'مبلغ الحد اليومي',
+        currency: 'العملة',
+        done: 'تم',
+        // New fields for enhanced habit modal
+        popularHabitsLabel: 'العادات الشائعة',
+        popularHabits: {
+          morningWorkout: { title: 'تمرين صباحي', time: '07:00' },
+          meditation: { title: 'التأمل', time: '06:30' },
+          drinkWater: { title: 'شرب الماء', time: '08:00' },
+          quitSmoking: { title: 'الإقلاع عن التدخين', time: '' },
+        },
+        countingTypeLabel: 'نوع العد',
+        countingTypes: {
+          create: 'إنشاء',
+          quit: 'إقلاع',
+        },
+        categoriesLabel: 'الفئات',
+        difficultyLabel: 'الصعوبة',
+        difficultyLevels: {
+          easy: 'سهل',
+          medium: 'متوسط',
+          hard: 'صعب',
+        },
+        priorityLabel: 'الأولوية',
+        priorityLevels: {
+          low: 'منخفض',
+          medium: 'متوسط',
+          high: 'عالي',
+        },
+        selectDaysLabel: 'اختر الأيام',
+        selectDatesLabel: 'اختر التواريخ',
+        weekdays: {
+          mon: 'إثن',
+          tue: 'ثلث',
+          wed: 'أرب',
+          thu: 'خمس',
+          fri: 'جمع',
+          sat: 'سبت',
+          sun: 'أحد',
+        },
+        reminderLabel: 'تذكير',
+        reminderTimeLabel: 'وقت التذكير',
+        addReminder: '+ إضافة تذكير',
+        streakLabel: 'السلسلة',
+        streakOptions: {
+          days7: '7 أيام',
+          days21: '21 يوم',
+          days30: '30 يوم',
+          days66: '66 يوم',
+          days100: '100 يوم',
+        },
+        streakMotivation: 'أكمل العادة {days} يوماً متتالية',
+        aiTipLabel: 'نصيحة الذكاء الاصطناعي',
+        createAndMore: 'إنشاء والمزيد',
+        iconPickerLabel: 'اختر أيقونة',
+      },
     },
     widgets: {
       budgetProgress: {
@@ -5214,8 +7177,8 @@ const t = {
         fxDescription: 'قم بمزامنة بيانات المزود أو أدخل سعراً يدوياً لعملة معينة.',
         fxProviderLabel: 'مزود الأسعار',
         fxProviders: {
-          central_bank_stub: 'البنك المركزي',
-          market_stub: 'السوق',
+          central_bank: 'البنك المركزي',
+          market: 'سعر السوق',
         },
         fxSyncButton: 'مزامنة الأسعار',
         fxSyncing: 'جاري المزامنة...',
@@ -5278,6 +7241,7 @@ const t = {
         used: 'المستخدم',
         progress: 'التقدم',
         expenseStructure: 'هيكل المصروفات',
+        noExpenseData: 'لا توجد بيانات مصروفات',
         recentTransactions: 'آخر المعاملات',
         seeAll: 'عرض الكل',
         importantEvents: 'أحداث مهمة',
@@ -5286,8 +7250,8 @@ const t = {
           title: 'أسعار الصرف',
           providerLabel: 'المزود',
           providers: {
-            central_bank_stub: 'البنك المركزي',
-            market_stub: 'السوق',
+            central_bank: 'البنك المركزي',
+            market: 'سعر السوق',
           },
           syncButton: 'مزامنة الأسعار',
           syncDescription: 'جلب أحدث الأسعار من المزود',
@@ -5327,6 +7291,10 @@ const t = {
       monitorEmpty: 'لا توجد معاملات مطابقة للمرشحات',
       monitorApply: 'تم',
       monitorReset: 'إعادة التصفية',
+      empty: {
+        title: 'لا توجد بيانات مالية بعد',
+        subtitle: 'أضف حسابات ومعاملات لعرض النظرة العامة.',
+      },
     },
       accounts: {
         header: 'حساباتي',
@@ -5385,6 +7353,10 @@ const t = {
             RUB: 'روبل روسي',
           },
         },
+        empty: {
+          title: 'لا توجد حسابات بعد',
+          subtitle: 'أنشئ حسابك الأول لبدء التتبع.',
+        },
       },
       transactions: {
         header: 'سجل المعاملات',
@@ -5398,6 +7370,10 @@ const t = {
           note: 'ملاحظة',
           relatedDebt: 'دين مرتبط',
           close: 'إغلاق',
+          linkedData: 'بيانات مرتبطة',
+          linkedGoal: 'هدف مرتبط',
+          linkedBudget: 'ميزانية مرتبطة',
+          notFound: 'المعاملة غير موجودة',
         },
         filterSheet: {
           title: 'تصفية المعاملات',
@@ -5452,6 +7428,10 @@ const t = {
           selectAccount: 'اختر الحساب',
           rateInfoTemplate:
             'سعر الصرف: 1 {toCurrency} = {rate} {fromCurrency}. المستلم: {amount}',
+        },
+        empty: {
+          title: 'لا توجد معاملات بعد',
+          subtitle: 'ستظهر معاملاتك هنا.',
         },
       },
       budgets: {
@@ -5524,6 +7504,15 @@ const t = {
         },
         limitAmount: 'مبلغ الحد',
         targetAmount: 'المبلغ المستهدف',
+        alerts: {
+          linkedTitle: 'الميزانية مرتبطة',
+          linkedSingle: 'هذه الميزانية مرتبطة بهدف. قم بإلغاء الارتباط أولاً.',
+          linkedMultiple: 'هذه الميزانية مرتبطة بأهداف متعددة. قم بإلغاء ارتباطها أولاً.',
+        },
+      },
+      empty: {
+        title: 'لا توجد ميزانيات بعد',
+        subtitle: 'حدد حدود الإنفاق لفئاتك.',
       },
     },
       analytics: {
@@ -5534,8 +7523,16 @@ const t = {
         aiInsights: 'رؤى الذكاء الاصطناعي',
         stats: { peak: 'الذروة', average: 'المتوسط', trend: 'الاتجاه' },
         comparisonRows: { income: 'الدخل:', outcome: 'المصروف:', savings: 'المدخرات:' },
+        empty: {
+          title: 'لا توجد بيانات تحليلية',
+          subtitle: 'أضف معاملات لعرض الإحصائيات.',
+        },
       },
       debts: {
+        empty: {
+          title: 'لا توجد ديون',
+          subtitle: 'تتبع من يدين لك أو لمن أنت مدين.',
+        },
         sections: { incoming: 'الديون', outgoing: 'ديوني' },
         timeline: {
           incoming: 'يعيد خلال',
@@ -5547,6 +7544,83 @@ const t = {
         actions: {
           incoming: { notify: 'إشعار', cancel: 'إلغاء الدين' },
           outgoing: { plan: 'تخطيط', partial: 'دفع جزئي' },
+          title: 'إجراءات الدين',
+          notFound: 'الدين غير موجود',
+          paidBanner: 'تم تسوية هذا الدين بالكامل',
+          summary: {
+            youOwe: 'أنت مدين',
+            theyOwe: 'مدين لك',
+          },
+          partialPayment: {
+            titleIOwe: 'سداد جزئي',
+            titleTheyOwe: 'تحصيل جزئي',
+            subtitle: 'تسجيل دفعة جزئية لهذا الدين',
+          },
+          fullPayment: {
+            titleIOwe: 'سداد كامل',
+            titleTheyOwe: 'تحصيل كامل',
+            subtitle: 'سداد المبلغ المتبقي بالكامل',
+          },
+          extendDate: {
+            title: 'تمديد الموعد',
+            subtitle: 'تحديد موعد استحقاق جديد',
+            currentDue: 'الموعد الحالي',
+            noDueDate: 'لم يتم تحديد موعد',
+            customDateLabel: 'أو اختر تاريخاً',
+          },
+          markSettled: {
+            title: 'تحديد كمسدد',
+            subtitle: 'تحديد الدين كمسدد بدون تسجيل دفعة',
+            descriptionIOwe: 'سيتم تحديد دينك كمسدد بالكامل.',
+            descriptionTheyOwe: 'سيتم تحديد الدين المستحق لك كمسدد بالكامل.',
+            warning: 'لا يمكن التراجع عن هذا الإجراء. لن يتم إنشاء معاملة.',
+          },
+          quickOptions: {
+            tomorrow: 'غداً',
+            nextWeek: 'الأسبوع القادم',
+            nextMonth: 'الشهر القادم',
+            threeMonths: '3 أشهر',
+          },
+          fields: {
+            amount: 'المبلغ',
+            remaining: 'المتبقي',
+            paymentDate: 'تاريخ الدفع',
+            account: 'الحساب',
+            selectAccount: 'اختر حساباً...',
+            note: 'ملاحظة',
+            optionalNote: 'ملاحظة اختيارية...',
+          },
+          paymentInfo: {
+            expense: 'سيتم تسجيل هذه الدفعة كمصروف من حسابك',
+            income: 'سيتم تسجيل هذه الدفعة كدخل إلى حسابك',
+          },
+          buttons: {
+            cancel: 'إلغاء',
+            confirm: 'تأكيد',
+            done: 'تم',
+            setDueDate: 'تحديد الموعد',
+            markSettled: 'تحديد كمسدد',
+          },
+          errors: {
+            error: 'خطأ',
+            invalidAmount: 'مبلغ غير صالح',
+            enterValidAmount: 'الرجاء إدخال مبلغ صحيح',
+            amountTooHigh: 'المبلغ مرتفع جداً',
+            maxAmount: 'الحد الأقصى للمبلغ',
+            paymentFailed: 'فشل تسجيل الدفعة. حاول مرة أخرى.',
+            dueDateFailed: 'فشل تحديث الموعد. حاول مرة أخرى.',
+            settleFailed: 'فشل تحديد الدين كمسدد. حاول مرة أخرى.',
+          },
+          success: {
+            paymentRecorded: 'تم تسجيل الدفعة',
+            repayment: 'سداد',
+            collection: 'تحصيل',
+            hasBeenRecorded: 'تم التسجيل.',
+            dueDateUpdated: 'تم تحديث الموعد',
+            dueDateSetTo: 'تم تحديد الموعد إلى',
+            debtSettled: 'تم تسوية الدين',
+            markedAsSettled: 'تم تحديد الدين كمسدد بالكامل.',
+          },
         },
         summary: {
           balanceLabel: 'إجمالي الرصيد',
@@ -5660,7 +7734,198 @@ const t = {
         fullPaymentTitle: 'سداد الدين بالكامل',
         fullPaymentDescription: 'سيتم سداد الرصيد المتبقي بالكامل ({amount}).',
         fullPaymentSubmit: 'سدّد بالكامل',
+        alerts: {
+          linkedTitle: 'الدين مرتبط',
+          linkedSingle: 'هذا الدين مرتبط بهدف. قم بإلغاء الارتباط أولاً.',
+          linkedMultiple: 'هذا الدين مرتبط بأهداف متعددة. قم بإلغاء ارتباطها أولاً.',
+        },
       },
+      },
+    },
+    modals: {
+      lock: {
+        enterPasscode: 'أدخل رمز المرور',
+        forgotPasscode: 'هل نسيت رمز المرور؟',
+        resetAppLock: 'إعادة تعيين قفل التطبيق',
+        verifyCode: 'تأكيد الرمز',
+        createNewPasscode: 'إنشاء رمز مرور جديد',
+        chooseMethod: 'اختر أين نرسل رمز التحقق.',
+        addContact: 'أضف بريدًا إلكترونيًا أو رقم هاتف في ملفك الشخصي لإعادة تعيين رمز المرور عن بُعد.',
+        email: 'البريد الإلكتروني',
+        phone: 'الهاتف',
+        sendCode: 'إرسال الرمز',
+        continue: 'متابعة',
+        changeMethod: 'تغيير الطريقة',
+        resendCode: 'إعادة إرسال الرمز',
+        resendIn: 'إعادة الإرسال خلال {n} ثانية',
+        enterVerificationCode: 'أدخل رمز التحقق',
+        newPasscode: 'رمز مرور جديد',
+        confirmPasscode: 'تأكيد رمز المرور',
+        saveNewPasscode: 'حفظ رمز المرور الجديد',
+        noContactMethod: 'لا توجد طريقة اتصال متاحة. قم بتحديث ملفك الشخصي.',
+        enterDigitCode: 'أدخل الرمز المكون من {n} أرقام المرسل إلى {contact}.',
+        requestNewCode: 'اطلب رمزًا جديدًا للمتابعة.',
+        codeExpired: 'انتهت صلاحية الرمز. اطلب رمزًا جديدًا.',
+        incorrectCode: 'رمز غير صحيح. حاول مرة أخرى.',
+        createPasscodeHint: 'أنشئ رمز مرور جديد مكون من 4 أرقام لقفل التطبيق.',
+        passcodeMustBe4Digits: 'يجب أن يكون رمز المرور 4 أرقام.',
+        passcodesDoNotMatch: 'رموز المرور غير متطابقة.',
+        passcodeUpdated: 'تم تحديث رمز المرور',
+        passcodeResetMessage: 'تمت إعادة تعيين رمز مرور قفل التطبيق.',
+        unlockLeora: 'فتح Leora',
+        cancel: 'إلغاء',
+        usePasscode: 'استخدام رمز المرور',
+      },
+      search: {
+        placeholder: 'بحث...',
+        noResults: 'لم يتم العثور على نتائج',
+        startTyping: 'ابدأ الكتابة للبحث',
+        suggestions: {
+          improveFocus: 'كيفية تحسين التركيز',
+          createTask: 'إنشاء مهمة جديدة',
+          budgetTips: 'نصائح الميزانية 2025',
+          planGoals: 'خطط أهدافي',
+          aiFinance: 'اقتراحات الذكاء الاصطناعي للمالية',
+          quickExpenses: 'قائمة المصاريف السريعة',
+          upcomingInvoices: 'الفواتير القادمة',
+          trackDebts: 'تتبع ديوني',
+        },
+      },
+      notifications: {
+        title: 'الإشعارات',
+        markAllAsRead: 'وضع علامة مقروءة على الكل',
+        noNewNotifications: 'لا توجد إشعارات جديدة',
+        justNow: 'الآن',
+        minutesAgo: 'منذ {n} دقيقة',
+        hoursAgo: 'منذ {n} ساعة',
+        daysAgo: 'منذ {n} يوم',
+      },
+      financeExport: {
+        title: 'تصدير الإحصائيات',
+        dateRange: 'نطاق التاريخ',
+        from: 'من',
+        to: 'إلى',
+        format: 'التنسيق',
+        exportExcel: 'تصدير كـ Excel',
+        exportPdf: 'تصدير كـ PDF',
+        exportQueued: 'التصدير في الانتظار',
+        preparingReport: 'جارٍ إعداد تقرير {format}',
+      },
+      financeCurrency: {
+        title: 'العملة العالمية',
+        displayCurrency: 'عملة العرض',
+        baseCurrency: 'العملة الأساسية',
+        convertTo: 'تحويل إلى هذه العملة',
+        exchangeRates: 'أسعار الصرف (وحدة واحدة)',
+        fixedReference: 'مرجع ثابت',
+        oneEquals: '1 {currency} =',
+        apply: 'تطبيق',
+      },
+      financeSearch: {
+        title: 'بحث مالي',
+        placeholder: 'بحث في الحسابات والمعاملات والميزانيات...',
+        noResults: 'لا توجد نتائج',
+        startTyping: 'ابدأ الكتابة للبحث',
+      },
+      voice: {
+        title: 'المساعد الصوتي',
+        speakNaturally: 'تحدث بشكل طبيعي، كما لو كنت تتحدث إلى صديق.',
+        listening: 'الاستماع',
+        mentionDetails: 'اذكر المبالغ أو المهام أو السياق — نلتقط كل التفاصيل.',
+        analyzing: 'جارٍ التحليل',
+        dataProcessing: 'معالجة البيانات ومطابقة الذكاء الاصطناعي قيد التقدم.',
+        startTalking: 'ابدأ التحدث',
+        stopAnalyze: 'توقف وحلل',
+        analyzingDots: 'جارٍ التحليل...',
+        leoraVoice: 'صوت LEORA',
+        requestsHistory: 'سجل الطلبات',
+        repeatRequest: 'تكرار الطلب',
+        recognized: 'معترف به',
+        latestStatement: 'أحدث بيان',
+        aiMatching: 'الذكاء الاصطناعي يطابق الكيانات',
+        capturedAudio: 'الصوت الملتقط',
+        category: 'الفئة',
+        account: 'الحساب',
+        edit: 'تعديل',
+        confirm: 'تأكيد',
+        microphoneRequired: 'مطلوب الوصول إلى الميكروفون. قم بتمكينه في إعدادات النظام لاستخدام Leora Voice.',
+        cancel: 'إلغاء',
+      },
+      changePassword: {
+        createPin: 'إنشاء رمز PIN',
+        changePin: 'تغيير رمز PIN',
+        close: 'إغلاق',
+        secureYourSpace: 'حماية مساحتك',
+        updatePin: 'تحديث رمز PIN',
+        createYour4DigitPin: 'أنشئ رمز PIN المكون من 4 أرقام',
+        changeYour4DigitPin: 'غيّر رمز PIN المكون من 4 أرقام',
+        pinDescription: 'نستخدم رمز PIN هذا لفتح LEORA على هذا الجهاز. احتفظ به خاصًا وتجنب التسلسلات البسيطة.',
+        pinUsageHint: 'نستخدم رمز PIN هذا لفتح LEORA على هذا الجهاز. احتفظ به خاصًا وتجنب التسلسلات البسيطة.',
+        currentPin: 'رمز PIN الحالي',
+        forgotPin: 'هل نسيت رمز PIN؟',
+        newPin: 'رمز PIN الجديد',
+        confirmPin: 'تأكيد رمز PIN',
+        pinHint: 'يجب أن يحتوي رمز PIN على 4 أرقام بالضبط. تجنب تكرار نفس الرقم.',
+        pinMustBe4Digits: 'يجب أن يحتوي رمز PIN على 4 أرقام بالضبط. تجنب تكرار نفس الرقم.',
+        pinsDoNotMatch: 'رموز PIN غير متطابقة.',
+        helperText: 'يحمي رمز PIN هذا الوصول السريع إلى LEORA. عند تحديثه، ستحتاج أجهزتك الأخرى إلى رمز PIN الجديد عند التشغيل التالي.',
+        pinProtectsAccess: 'يحمي رمز PIN هذا الوصول السريع إلى LEORA. عند تحديثه، ستحتاج أجهزتك الأخرى إلى رمز PIN الجديد عند التشغيل التالي.',
+        saveNewPin: 'حفظ رمز PIN الجديد',
+        currentPinIncorrect: 'رمز PIN الحالي غير صحيح.',
+        tips: 'نصائح',
+        tipsContent: '• استخدم تسلسلًا تعرفه أنت فقط. تجنب تواريخ الميلاد أو الأنماط الواضحة.\n• غيّر رمز PIN إذا كنت تشك في أن شخصًا آخر رآه.',
+        lostAccessHint: 'فقدت الوصول؟ اختر "نسيت رمز المرور" على شاشة القفل لإعادة التعيين بأمان.',
+        footerHint: 'فقدت الوصول؟ اختر "نسيت رمز المرور" على شاشة القفل لإعادة التعيين بأمان.',
+      },
+      forgotPasscode: {
+        title: 'نسيت رمز المرور',
+        subtitle: 'استعد الوصول عن طريق تأكيد جهة اتصال موثوقة وإدخال الرمز الذي نرسله لك مرة واحدة.',
+        close: 'إغلاق',
+        recoverAccess: 'استعد الوصول عن طريق تأكيد جهة اتصال موثوقة وإدخال الرمز الذي نرسله لك مرة واحدة.',
+        contact: 'جهة الاتصال',
+        contactHelper: 'استخدم بريدًا إلكترونيًا أو هاتفًا موثقًا حتى نتمكن من توصيل رمز الاسترداد بأمان.',
+        emailOrPhone: 'البريد الإلكتروني أو رقم الهاتف',
+        useVerifiedContact: 'استخدم بريدًا إلكترونيًا أو هاتفًا موثقًا حتى نتمكن من توصيل رمز الاسترداد بأمان.',
+        verificationCode: 'رمز التحقق',
+        enterCode: 'أدخل الرمز',
+        codeHelper: 'تحقق من صندوق الوارد للحصول على رمز الاسترداد. تنتهي صلاحية الرموز بعد 10 دقائق.',
+        codeSentMessage: 'تم إرسال رمز الاسترداد إلى {contact}.',
+        checkInbox: 'تحقق من صندوق الوارد للحصول على رمز الاسترداد. تنتهي صلاحية الرموز بعد 10 دقائق.',
+        cancel: 'إلغاء',
+        sendCode: 'إرسال الرمز',
+        verify: 'تحقق',
+      },
+      manageWidget: {
+        title: 'إدارة الأدوات',
+        loadingWidgets: 'جاري تحميل الأدوات...',
+        availableWidgets: 'الأدوات المتاحة',
+        tapToAdd: 'اضغط على علامة الزائد للإضافة',
+        allWidgetsActive: 'جميع الأدوات نشطة',
+        noWidgetsInCategory: 'لا توجد أدوات في هذه الفئة',
+        activeWidgets: 'الأدوات النشطة',
+        dragToReorder: 'اسحب لإعادة الترتيب • مرر لليسار للإزالة',
+        noActiveWidgets: 'لا توجد أدوات نشطة',
+        addWidgetsFromAbove: 'أضف أدوات من الأعلى',
+        categories: {
+          planner: 'المخطط',
+          finance: 'المالية',
+          ai: 'الذكاء الاصطناعي',
+          health: 'الصحة',
+          insights: 'التحليلات',
+        },
+        widgetTitles: {
+          'daily-tasks': { title: 'المهام اليومية', description: 'قائمة مهام اليوم' },
+          'goals': { title: 'الأهداف', description: 'تتبع أهدافك' },
+          'habits': { title: 'العادات', description: 'متتبع العادات اليومية' },
+          'weekly-review': { title: 'المراجعة الأسبوعية', description: 'نظرة عامة على تقدم الأسبوع' },
+          'focus-sessions': { title: 'جلسات التركيز', description: 'مؤقت بومودورو والتتبع' },
+          'transactions': { title: 'المعاملات', description: 'النشاط المالي الأخير' },
+          'spending-summary': { title: 'ملخص الإنفاق', description: 'أعلى الفئات هذا الشهر' },
+          'budget-progress': { title: 'تقدم الميزانية', description: 'الفعلي مقابل المخطط' },
+          'cash-flow': { title: 'التدفق النقدي', description: 'الدخل والمصروفات الأسبوعية' },
+          'productivity-insights': { title: 'رؤى الإنتاجية', description: 'اتجاه التركيز والإنجاز' },
+          'wellness-overview': { title: 'نظرة على الصحة', description: 'لمحة عن الطاقة والمزاج' },
+        },
       },
     },
   },
@@ -5923,10 +8188,11 @@ const t = {
           delete: 'GÖREVİ SİL',
         },
         history: {
-          title: 'Görev geçmişi',
+          title: 'Silme geçmişi',
           subtitle: 'Geri almak veya silmek için kaydır',
           tip: 'Kısaca basıp sağa kaydırarak geri alın, sola kaydırarak kalıcı olarak silin.',
-          deletedBadge: 'Taşındı',
+          deletedBadge: 'Silindi',
+          archivedBadge: 'Arşivlendi',
         },
         defaults: {
           startToday: 'Bugün',
@@ -5934,6 +8200,10 @@ const t = {
           startPick: 'Seç',
           newTaskTitle: 'Yeni görev',
           defaultContext: '@work',
+        },
+        empty: {
+          title: 'Henüz görev yok',
+          subtitle: 'Gününüzü planlamak için ilk görevinizi ekleyin.',
         },
         aiPrefix: 'YZ:',
         dailySummary: 'Bugün: {tasks} görev • {habits} alışkanlık • {goals} hedef adımı',
@@ -6189,6 +8459,122 @@ const t = {
     },
     plannerModals: {
       goal: trGoalModal as AppTranslations['plannerModals']['goal'],
+      habit: {
+        editTitle: 'Alışkanlığı Düzenle',
+        createTitle: 'Yeni Alışkanlık',
+        close: 'Kapat',
+        cancel: 'İptal',
+        create: 'Alışkanlık Oluştur',
+        update: 'Alışkanlığı Güncelle',
+        nameLabel: 'Alışkanlık Adı',
+        nameRequired: '*',
+        namePlaceholder: 'Örn: Sabah meditasyonu, Egzersiz, Okuma',
+        descriptionLabel: 'Açıklama',
+        descriptionPlaceholder: 'Bu alışkanlık sizin için neden önemli?',
+        habitTypeLabel: 'Alışkanlık Türü',
+        habitTypes: {
+          health: 'Sağlık',
+          finance: 'Finans',
+          productivity: 'Verimlilik',
+          education: 'Eğitim',
+          personal: 'Kişisel',
+          custom: 'Özel',
+        },
+        frequencyLabel: 'Sıklık',
+        frequencyTypes: {
+          daily: 'Günlük',
+          weekly: 'Haftalık',
+          custom: 'Özel',
+        },
+        timesPerWeek: 'Haftada kaç kez',
+        timesPerPeriod: 'Dönemde kaç kez',
+        timesOptions: {
+          once: 'Bir kez',
+          twice: 'İki kez',
+          times3: '3 kez',
+          times4: '4 kez',
+          times5: '5 kez',
+        },
+        completionModeLabel: 'Tamamlama Modu',
+        completionModes: {
+          boolean: 'Evet/Hayır (Tamamlandı/Kaçırıldı)',
+          numeric: 'Sayısal (Değer Takibi)',
+        },
+        targetPerDay: 'Günlük Hedef',
+        targetPlaceholder: 'Örn: 8, 10000, 30',
+        unitLabel: 'Birim',
+        unitPlaceholder: 'Örn: km, bardak, dakika',
+        timeOfDayLabel: 'Günün Saati (İsteğe bağlı)',
+        setTime: 'Saat belirle',
+        linkToGoalLabel: 'Hedefe Bağla (İsteğe bağlı)',
+        none: 'Yok',
+        financeRuleLabel: 'Finans Kuralı (Otomatik değerlendirme)',
+        ruleTypeLabel: 'Kural Türü',
+        ruleTypes: {
+          noSpendInCategories: 'Kategorilerde Harcama Yok',
+          spendInCategories: 'Kategorilerde Harcama',
+          hasAnyTransactions: 'Herhangi Bir İşlem Var',
+          dailySpendUnder: 'Günlük Harcama Altında',
+        },
+        selectCategories: 'Kategorileri Seçin',
+        selectAccounts: 'Hesapları Seçin (İsteğe bağlı)',
+        minAmount: 'Minimum Tutar (İsteğe bağlı)',
+        dailyLimitAmount: 'Günlük Limit Tutarı',
+        currency: 'Para Birimi',
+        done: 'Tamam',
+        // New fields for enhanced habit modal
+        popularHabitsLabel: 'Popüler alışkanlıklar',
+        popularHabits: {
+          morningWorkout: { title: 'Sabah egzersizi', time: '07:00' },
+          meditation: { title: 'Meditasyon', time: '06:30' },
+          drinkWater: { title: 'Su içmek', time: '08:00' },
+          quitSmoking: { title: 'Sigarayı bırakmak', time: '' },
+        },
+        countingTypeLabel: 'Sayım türü',
+        countingTypes: {
+          create: 'Oluştur',
+          quit: 'Bırak',
+        },
+        categoriesLabel: 'Kategoriler',
+        difficultyLabel: 'Zorluk',
+        difficultyLevels: {
+          easy: 'Kolay',
+          medium: 'Orta',
+          hard: 'Zor',
+        },
+        priorityLabel: 'Öncelik',
+        priorityLevels: {
+          low: 'Düşük',
+          medium: 'Orta',
+          high: 'Yüksek',
+        },
+        selectDaysLabel: 'Günleri seçin',
+        selectDatesLabel: 'Tarihleri seçin',
+        weekdays: {
+          mon: 'Pzt',
+          tue: 'Sal',
+          wed: 'Çar',
+          thu: 'Per',
+          fri: 'Cum',
+          sat: 'Cmt',
+          sun: 'Paz',
+        },
+        reminderLabel: 'Hatırlatıcı',
+        reminderTimeLabel: 'Hatırlatma zamanı',
+        addReminder: '+ Hatırlatıcı ekle',
+        streakLabel: 'Seri',
+        streakOptions: {
+          days7: '7 Gün',
+          days21: '21 Gün',
+          days30: '30 Gün',
+          days66: '66 Gün',
+          days100: '100 Gün',
+        },
+        streakMotivation: 'Alışkanlığı {days} gün üst üste tamamla',
+        aiTipLabel: 'AI İpucu',
+        createAndMore: 'Oluştur ve devam et',
+        iconPickerLabel: 'İkon seç',
+      },
     },
     widgets: {
       budgetProgress: {
@@ -6376,8 +8762,8 @@ const t = {
         fxDescription: 'Provayderden kur çekin veya belirli bir para birimi için manuel değer girin.',
         fxProviderLabel: 'Kur sağlayıcısı',
         fxProviders: {
-          central_bank_stub: 'Merkez bankası',
-          market_stub: 'Piyasa',
+          central_bank: 'Merkez Bankası',
+          market: 'Piyasa Kuru',
         },
         fxSyncButton: 'Kurları senkronize et',
         fxSyncing: 'Senkronize ediliyor...',
@@ -6440,6 +8826,7 @@ const t = {
         used: 'Kullanıldı',
         progress: 'İlerleme',
         expenseStructure: 'Gider yapısı',
+        noExpenseData: 'Henüz gider verisi yok',
         recentTransactions: 'Son işlemler',
         seeAll: 'Hepsini gör',
         importantEvents: 'Önemli olaylar',
@@ -6448,8 +8835,8 @@ const t = {
           title: 'Döviz işlemleri',
           providerLabel: 'Sağlayıcı',
           providers: {
-            central_bank_stub: 'Merkez bankası',
-            market_stub: 'Piyasa',
+            central_bank: 'Merkez Bankası',
+            market: 'Piyasa Kuru',
           },
           syncButton: 'Kurları senkronize et',
           syncDescription: 'Sağlayıcıdan en güncel kurları çek',
@@ -6489,6 +8876,10 @@ const t = {
       monitorEmpty: 'Filtrelere uygun işlem yok',
       monitorApply: 'Tamam',
       monitorReset: 'Filtreleri sıfırla',
+      empty: {
+        title: 'Henüz finansal veri yok',
+        subtitle: 'Genel görünüm için hesap ve işlem ekleyin.',
+      },
     },
       accounts: {
         header: 'Hesaplarım',
@@ -6547,6 +8938,10 @@ const t = {
             RUB: 'Rus Rublesi',
           },
         },
+        empty: {
+          title: 'Henüz hesap yok',
+          subtitle: 'Takibe başlamak için ilk hesabınızı oluşturun.',
+        },
       },
       transactions: {
         header: 'İşlem geçmişi',
@@ -6560,6 +8955,10 @@ const t = {
           note: 'Not',
           relatedDebt: 'Bağlı borç',
           close: 'Kapat',
+          linkedData: 'Bağlı veriler',
+          linkedGoal: 'Bağlı hedef',
+          linkedBudget: 'Bağlı bütçe',
+          notFound: 'İşlem bulunamadı',
         },
         filterSheet: {
           title: 'İşlemleri filtrele',
@@ -6614,6 +9013,10 @@ const t = {
           selectAccount: 'Hesap seç',
           rateInfoTemplate:
             'Kur: 1 {toCurrency} = {rate} {fromCurrency}. Alınan: {amount}',
+        },
+        empty: {
+          title: 'Henüz işlem yok',
+          subtitle: 'İşlemleriniz burada görünecek.',
         },
       },
       budgets: {
@@ -6686,6 +9089,15 @@ const t = {
         },
         limitAmount: 'Limit tutarı',
         targetAmount: 'Hedef tutar',
+        alerts: {
+          linkedTitle: 'Bütçe bağlı',
+          linkedSingle: 'Bu bütçe bir hedefe bağlı. Önce bağlantısını kaldırın.',
+          linkedMultiple: 'Bu bütçe birden fazla hedefe bağlı. Önce bağlantılarını kaldırın.',
+        },
+      },
+      empty: {
+        title: 'Henüz bütçe yok',
+        subtitle: 'Kategorileriniz için harcama limitleri belirleyin.',
       },
     },
       analytics: {
@@ -6696,8 +9108,16 @@ const t = {
         aiInsights: 'Yapay zekâ içgörüleri',
         stats: { peak: 'Zirve', average: 'Ortalama', trend: 'Trend' },
         comparisonRows: { income: 'Gelir:', outcome: 'Gider:', savings: 'Tasarruf:' },
+        empty: {
+          title: 'Analiz verisi yok',
+          subtitle: 'İstatistikleri görmek için işlem ekleyin.',
+        },
       },
       debts: {
+        empty: {
+          title: 'Borç yok',
+          subtitle: 'Kimin size borçlu olduğunu veya kime borçlu olduğunuzu takip edin.',
+        },
         sections: { incoming: 'Alacaklarım', outgoing: 'Borçlarım' },
         timeline: {
           incoming: 'Ne zaman döner',
@@ -6709,6 +9129,83 @@ const t = {
         actions: {
           incoming: { notify: 'Hatırlat', cancel: 'Borca son ver' },
           outgoing: { plan: 'Planla', partial: 'Kısmi ödeme' },
+          title: 'Borç İşlemleri',
+          notFound: 'Borç bulunamadı',
+          paidBanner: 'Bu borç tamamen ödendi',
+          summary: {
+            youOwe: 'Borçlusunuz',
+            theyOwe: 'Size borçlu',
+          },
+          partialPayment: {
+            titleIOwe: 'Kısmi Ödeme',
+            titleTheyOwe: 'Kısmi Tahsilat',
+            subtitle: 'Bu borç için kısmi ödeme kaydet',
+          },
+          fullPayment: {
+            titleIOwe: 'Tam Ödeme',
+            titleTheyOwe: 'Tam Tahsilat',
+            subtitle: 'Kalan tutarın tamamını öde',
+          },
+          extendDate: {
+            title: 'Vadeyi Uzat',
+            subtitle: 'Yeni vade tarihi belirle',
+            currentDue: 'Mevcut vade',
+            noDueDate: 'Vade belirlenmemiş',
+            customDateLabel: 'Veya tarih seçin',
+          },
+          markSettled: {
+            title: 'Ödendi Olarak İşaretle',
+            subtitle: 'Ödeme kaydetmeden borcu ödendi olarak işaretle',
+            descriptionIOwe: 'Borcunuz tamamen ödendi olarak işaretlenecek.',
+            descriptionTheyOwe: 'Size olan borç tamamen ödendi olarak işaretlenecek.',
+            warning: 'Bu işlem geri alınamaz. İşlem kaydı oluşturulmayacak.',
+          },
+          quickOptions: {
+            tomorrow: 'Yarın',
+            nextWeek: 'Gelecek Hafta',
+            nextMonth: 'Gelecek Ay',
+            threeMonths: '3 Ay Sonra',
+          },
+          fields: {
+            amount: 'Tutar',
+            remaining: 'Kalan',
+            paymentDate: 'Ödeme Tarihi',
+            account: 'Hesap',
+            selectAccount: 'Hesap seçin...',
+            note: 'Not',
+            optionalNote: 'İsteğe bağlı not...',
+          },
+          paymentInfo: {
+            expense: 'Bu ödeme hesabınızdan gider olarak kaydedilecek',
+            income: 'Bu ödeme hesabınıza gelir olarak kaydedilecek',
+          },
+          buttons: {
+            cancel: 'İptal',
+            confirm: 'Onayla',
+            done: 'Tamam',
+            setDueDate: 'Vade Belirle',
+            markSettled: 'Ödendi İşaretle',
+          },
+          errors: {
+            error: 'Hata',
+            invalidAmount: 'Geçersiz tutar',
+            enterValidAmount: 'Lütfen geçerli bir tutar girin',
+            amountTooHigh: 'Tutar çok yüksek',
+            maxAmount: 'Maksimum tutar',
+            paymentFailed: 'Ödeme kaydedilemedi. Tekrar deneyin.',
+            dueDateFailed: 'Vade güncellenemedi. Tekrar deneyin.',
+            settleFailed: 'Borç ödendi olarak işaretlenemedi. Tekrar deneyin.',
+          },
+          success: {
+            paymentRecorded: 'Ödeme Kaydedildi',
+            repayment: 'ödeme',
+            collection: 'tahsilat',
+            hasBeenRecorded: 'kaydedildi.',
+            dueDateUpdated: 'Vade Güncellendi',
+            dueDateSetTo: 'Vade belirlendi',
+            debtSettled: 'Borç Ödendi',
+            markedAsSettled: 'Borç tamamen ödendi olarak işaretlendi.',
+          },
         },
         summary: {
           balanceLabel: 'Toplam bakiye',
@@ -6822,7 +9319,198 @@ const t = {
         fullPaymentTitle: 'Borcu tamamen öde',
         fullPaymentDescription: 'Kalan {amount} tutarın tamamı ödendi olarak işaretlenecek.',
         fullPaymentSubmit: 'Tamamını öde',
+        alerts: {
+          linkedTitle: 'Borç bağlı',
+          linkedSingle: 'Bu borç bir hedefe bağlı. Önce bağlantısını kaldırın.',
+          linkedMultiple: 'Bu borç birden fazla hedefe bağlı. Önce bağlantılarını kaldırın.',
+        },
       },
+      },
+    },
+    modals: {
+      lock: {
+        enterPasscode: 'Şifrenizi girin',
+        forgotPasscode: 'Şifrenizi mi unuttunuz?',
+        resetAppLock: 'Uygulama kilidini sıfırla',
+        verifyCode: 'Kodu doğrula',
+        createNewPasscode: 'Yeni şifre oluştur',
+        chooseMethod: 'Doğrulama kodunu nereye göndereceğimizi seçin.',
+        addContact: 'Şifreyi uzaktan sıfırlamak için profilinize e-posta veya telefon numarası ekleyin.',
+        email: 'E-posta',
+        phone: 'Telefon',
+        sendCode: 'Kodu gönder',
+        continue: 'Devam et',
+        changeMethod: 'Yöntemi değiştir',
+        resendCode: 'Kodu tekrar gönder',
+        resendIn: '{n}s içinde tekrar gönder',
+        enterVerificationCode: 'Doğrulama kodunu girin',
+        newPasscode: 'Yeni şifre',
+        confirmPasscode: 'Şifreyi onayla',
+        saveNewPasscode: 'Yeni şifreyi kaydet',
+        noContactMethod: 'İletişim yöntemi mevcut değil. Profilinizi güncelleyin.',
+        enterDigitCode: '{contact} adresine gönderilen {n} haneli kodu girin.',
+        requestNewCode: 'Devam etmek için yeni bir kod isteyin.',
+        codeExpired: 'Kodun süresi doldu. Yenisini isteyin.',
+        incorrectCode: 'Yanlış kod. Tekrar deneyin.',
+        createPasscodeHint: 'Uygulama kilidi için yeni 4 haneli şifre oluşturun.',
+        passcodeMustBe4Digits: 'Şifre 4 haneli olmalıdır.',
+        passcodesDoNotMatch: 'Şifreler eşleşmiyor.',
+        passcodeUpdated: 'Şifre güncellendi',
+        passcodeResetMessage: 'Uygulama kilidi şifreniz sıfırlandı.',
+        unlockLeora: 'Leora\'nın kilidini aç',
+        cancel: 'İptal',
+        usePasscode: 'Şifre kullan',
+      },
+      search: {
+        placeholder: 'Ara...',
+        noResults: 'Sonuç bulunamadı',
+        startTyping: 'Aramak için yazmaya başlayın',
+        suggestions: {
+          improveFocus: 'Odaklanmayı nasıl geliştirebilirim',
+          createTask: 'Yeni görev oluştur',
+          budgetTips: '2025 bütçe ipuçları',
+          planGoals: 'Hedeflerimi planla',
+          aiFinance: 'Finans için AI önerileri',
+          quickExpenses: 'Hızlı harcama listesi',
+          upcomingInvoices: 'Yaklaşan faturalar',
+          trackDebts: 'Borçlarımı takip et',
+        },
+      },
+      notifications: {
+        title: 'Bildirimler',
+        markAllAsRead: 'Tümünü okundu olarak işaretle',
+        noNewNotifications: 'Yeni bildirim yok',
+        justNow: 'şimdi',
+        minutesAgo: '{n}dk önce',
+        hoursAgo: '{n}sa önce',
+        daysAgo: '{n}g önce',
+      },
+      financeExport: {
+        title: 'İstatistikleri dışa aktar',
+        dateRange: 'Tarih aralığı',
+        from: 'Başlangıç',
+        to: 'Bitiş',
+        format: 'Format',
+        exportExcel: 'Excel olarak dışa aktar',
+        exportPdf: 'PDF olarak dışa aktar',
+        exportQueued: 'Dışa aktarma sıraya alındı',
+        preparingReport: '{format} raporu hazırlanıyor',
+      },
+      financeCurrency: {
+        title: 'Genel para birimi',
+        displayCurrency: 'Görüntüleme para birimi',
+        baseCurrency: 'Temel para birimi',
+        convertTo: 'Bu para birimine dönüştür',
+        exchangeRates: 'Döviz kurları (1 birim)',
+        fixedReference: 'Sabit referans',
+        oneEquals: '1 {currency} =',
+        apply: 'Uygula',
+      },
+      financeSearch: {
+        title: 'Finans arama',
+        placeholder: 'Hesaplar, işlemler, bütçeler ara…',
+        noResults: 'Sonuç yok',
+        startTyping: 'Aramak için yazmaya başlayın',
+      },
+      voice: {
+        title: 'Sesli asistan',
+        speakNaturally: 'Doğal konuşun, bir arkadaşınızla konuşur gibi.',
+        listening: 'Dinleniyor',
+        mentionDetails: 'Tutarları, görevleri veya bağlamı belirtin — her ayrıntıyı yakalıyoruz.',
+        analyzing: 'Analiz ediliyor',
+        dataProcessing: 'Veri işleme ve AI eşleştirme devam ediyor.',
+        startTalking: 'Konuşmaya başla',
+        stopAnalyze: 'Durdur ve analiz et',
+        analyzingDots: 'Analiz ediliyor...',
+        leoraVoice: 'LEORA SES',
+        requestsHistory: 'İstek geçmişi',
+        repeatRequest: 'İsteği tekrarla',
+        recognized: 'Tanındı',
+        latestStatement: 'Son ifade',
+        aiMatching: 'AI varlıkları eşleştiriyor',
+        capturedAudio: 'Kaydedilen ses',
+        category: 'Kategori',
+        account: 'Hesap',
+        edit: 'Düzenle',
+        confirm: 'Onayla',
+        microphoneRequired: 'Mikrofon erişimi gereklidir. Leora Voice\'u kullanmak için sistem ayarlarından etkinleştirin.',
+        cancel: 'İPTAL',
+      },
+      changePassword: {
+        createPin: 'PIN oluştur',
+        changePin: 'PIN değiştir',
+        close: 'Kapat',
+        secureYourSpace: 'Alanınızı güvence altına alın',
+        updatePin: 'PIN\'i güncelle',
+        createYour4DigitPin: '4 haneli PIN\'inizi oluşturun',
+        changeYour4DigitPin: '4 haneli PIN\'inizi değiştirin',
+        pinDescription: 'Bu cihazda LEORA\'nın kilidini açmak için bu PIN\'i kullanıyoruz. Gizli tutun ve basit dizilerden kaçının.',
+        pinUsageHint: 'Bu cihazda LEORA\'nın kilidini açmak için bu PIN\'i kullanıyoruz. Gizli tutun ve basit dizilerden kaçının.',
+        currentPin: 'Mevcut PIN',
+        forgotPin: 'PIN\'i mi unuttunuz?',
+        newPin: 'Yeni PIN',
+        confirmPin: 'PIN\'i onayla',
+        pinHint: 'PIN tam olarak 4 rakam içermelidir. Aynı rakamı tekrarlamaktan kaçının.',
+        pinMustBe4Digits: 'PIN tam olarak 4 rakam içermelidir. Aynı rakamı tekrarlamaktan kaçının.',
+        pinsDoNotMatch: 'PIN\'ler eşleşmiyor.',
+        helperText: 'Bu PIN, LEORA\'ya hızlı erişimi korur. Güncellendiğinde, diğer cihazlarınız bir sonraki başlatmada yeni PIN\'i isteyecektir.',
+        pinProtectsAccess: 'Bu PIN, LEORA\'ya hızlı erişimi korur. Güncellendiğinde, diğer cihazlarınız bir sonraki başlatmada yeni PIN\'i isteyecektir.',
+        saveNewPin: 'Yeni PIN\'i kaydet',
+        currentPinIncorrect: 'Mevcut PIN yanlış.',
+        tips: 'İpuçları',
+        tipsContent: '• Yalnızca sizin bildiğiniz bir dizi kullanın. Doğum günlerinden veya belirgin kalıplardan kaçının.\n• Başka birinin gördüğünden şüpheleniyorsanız PIN\'inizi değiştirin.',
+        lostAccessHint: 'Erişimi mi kaybettiniz? Güvenli sıfırlama için kilit ekranında "Şifremi unuttum"u seçin.',
+        footerHint: 'Erişimi mi kaybettiniz? Güvenli sıfırlama için kilit ekranında "Şifremi unuttum"u seçin.',
+      },
+      forgotPasscode: {
+        title: 'Şifremi unuttum',
+        subtitle: 'Güvenilir bir kişiyi onaylayarak ve size gönderdiğimiz tek kullanımlık kodu girerek erişimi kurtarın.',
+        close: 'Kapat',
+        recoverAccess: 'Güvenilir bir kişiyi onaylayarak ve size gönderdiğimiz tek kullanımlık kodu girerek erişimi kurtarın.',
+        contact: 'İletişim',
+        contactHelper: 'Kurtarma kodunu güvenli bir şekilde iletebilmemiz için doğrulanmış bir e-posta veya telefon kullanın.',
+        emailOrPhone: 'E-posta veya telefon numarası',
+        useVerifiedContact: 'Kurtarma kodunu güvenli bir şekilde iletebilmemiz için doğrulanmış bir e-posta veya telefon kullanın.',
+        verificationCode: 'Doğrulama kodu',
+        enterCode: 'Kodu girin',
+        codeHelper: 'Kurtarma kodu için gelen kutunuzu kontrol edin. Kodlar 10 dakika sonra sona erer.',
+        codeSentMessage: 'Kurtarma kodu {contact} adresine gönderildi.',
+        checkInbox: 'Kurtarma kodu için gelen kutunuzu kontrol edin. Kodlar 10 dakika sonra sona erer.',
+        cancel: 'İptal',
+        sendCode: 'Kodu gönder',
+        verify: 'Doğrula',
+      },
+      manageWidget: {
+        title: 'Widget Yönetimi',
+        loadingWidgets: 'Widgetlar yükleniyor...',
+        availableWidgets: 'MEVCUT WİDGETLAR',
+        tapToAdd: 'Eklemek için artıya dokunun',
+        allWidgetsActive: 'Tüm widgetlar aktif',
+        noWidgetsInCategory: 'Bu kategoride widget yok',
+        activeWidgets: 'AKTİF WİDGETLAR',
+        dragToReorder: 'Sıralamak için sürükleyin • Kaldırmak için sola kaydırın',
+        noActiveWidgets: 'Aktif widget yok',
+        addWidgetsFromAbove: 'Yukarıdan widget ekleyin',
+        categories: {
+          planner: 'Planlayıcı',
+          finance: 'Finans',
+          ai: 'Yapay Zeka',
+          health: 'Sağlık',
+          insights: 'Analizler',
+        },
+        widgetTitles: {
+          'daily-tasks': { title: 'Günlük Görevler', description: 'Bugünün görev listesi' },
+          'goals': { title: 'Hedefler', description: 'Hedeflerinizi takip edin' },
+          'habits': { title: 'Alışkanlıklar', description: 'Günlük alışkanlık takipçisi' },
+          'weekly-review': { title: 'Haftalık İnceleme', description: 'Haftalık ilerleme özeti' },
+          'focus-sessions': { title: 'Odak Oturumları', description: 'Pomodoro zamanlayıcı ve takip' },
+          'transactions': { title: 'İşlemler', description: 'Son finansal aktivite' },
+          'spending-summary': { title: 'Harcama Özeti', description: 'Bu ayın en çok harcanan kategorileri' },
+          'budget-progress': { title: 'Bütçe İlerlemesi', description: 'Gerçekleşen vs planlanan' },
+          'cash-flow': { title: 'Nakit Akışı', description: 'Haftalık gelir ve giderler' },
+          'productivity-insights': { title: 'Verimlilik Analizi', description: 'Odak trendi ve tamamlanma' },
+          'wellness-overview': { title: 'Sağlık Özeti', description: 'Enerji ve ruh hali özeti' },
+        },
       },
     },
   },

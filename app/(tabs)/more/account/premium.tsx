@@ -1,6 +1,6 @@
 // app/(tabs)/more/account/premium.tsx
-import React, { useMemo, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAppTheme, createThemedStyles } from '@/constants/theme';
 import GradientText from '@/components/ui/GradientText';
@@ -20,19 +20,6 @@ type PremiumProps = {
   onSelectMonthly?: () => void;
   onSelectYearly?: () => void;
 };
-
-type Benefit =
-  | {
-    label: string;
-    kind: 'compare';
-    premium: string;
-    free: string;
-  }
-  | {
-    label: string;
-    kind: 'check';
-    premiumHas: boolean;
-  };
 
 export default function Premium({
   variant = 'premium',

@@ -1,3 +1,5 @@
+import type { ShowStatus } from '../shared/showStatus';
+
 export type DecimalString = string;
 
 export type AccountType =
@@ -18,7 +20,8 @@ export interface Account {
   initialBalance: number;
   currentBalance: number;
   linkedGoalId?: string;
-  isArchived: boolean;
+  isArchived: boolean; // DEPRECATED: Use showStatus instead
+  showStatus?: ShowStatus; // Defaults to 'active' in database schema
   customTypeId?: string;
   isPending?: boolean;
   createdAt: string;
@@ -45,6 +48,7 @@ export interface Transaction {
   id: string;
   userId: string;
   type: TransactionType;
+  showStatus?: ShowStatus; // Defaults to 'active' in database schema
   accountId?: string;
   fromAccountId?: string;
   toAccountId?: string;
@@ -60,6 +64,7 @@ export interface Transaction {
   feeCategoryId?: string;
   categoryId?: string;
   subcategoryId?: string;
+  name?: string;
   description?: string;
   date: string;
   time?: string;
@@ -67,6 +72,7 @@ export interface Transaction {
   budgetId?: string;
   debtId?: string;
   habitId?: string;
+  counterpartyId?: string;
   splits?: TransactionSplit[];
   recurringId?: string;
   attachments?: string[];
@@ -77,6 +83,10 @@ export interface Transaction {
   relatedDebtId?: string;
   plannedAmount?: number;
   paidAmount?: number;
+  // Debt payment: original currency and conversion info
+  originalCurrency?: string; // Qarz valyutasi (masalan USD)
+  originalAmount?: number; // Qarz valyutasidagi summa (masalan 10 USD)
+  conversionRate?: number; // Konvertatsiya kursi (masalan 12500 UZS/USD)
   isPending?: boolean;
   createdAt: string;
   updatedAt: string;
@@ -104,7 +114,8 @@ export interface Budget {
   remainingAmount: number;
   percentUsed: number;
   rolloverMode?: 'none' | 'carryover';
-  isArchived: boolean;
+  isArchived: boolean; // DEPRECATED: Use showStatus instead
+  showStatus?: ShowStatus; // Defaults to 'active' in database schema
   notifyOnExceed?: boolean;
   contributionTotal?: number;
   currentBalance?: number;
@@ -130,6 +141,8 @@ export interface Counterparty {
   id: string;
   userId: string;
   displayName: string;
+  phoneNumber?: string;
+  comment?: string;
   searchKeywords?: string;
   isPending?: boolean;
   createdAt: string;
@@ -150,6 +163,10 @@ export interface Debt {
   baseCurrency: string;
   rateOnStart: number;
   principalBaseValue: number;
+  repaymentCurrency?: string;
+  repaymentAmount?: number;
+  repaymentRateOnStart?: number;
+  isFixedRepaymentAmount?: boolean;
   startDate: string;
   dueDate?: string;
   interestMode?: 'simple' | 'compound';
@@ -162,6 +179,7 @@ export interface Debt {
   reminderEnabled?: boolean;
   reminderTime?: string;
   status: DebtStatus;
+  showStatus?: ShowStatus; // Defaults to 'active' in database schema
   isPending?: boolean;
   createdAt: string;
   updatedAt: string;
@@ -190,12 +208,19 @@ export interface FxRate {
   date: string;
   fromCurrency: string;
   toCurrency: string;
-  rate: number;
-  source: 'central_bank' | 'market_api' | 'manual';
+  rate: number;                    // Asosiy kurs (backward compatibility)
+  rateMid?: number;                // O'rta kurs (markaziy bank rasmiy kursi)
+  rateBid?: number;                // Sotib olish kursi (bank sotib oladi)
+  rateAsk?: number;                // Sotish kursi (bank sotadi)
+  nominal?: number;                // Nominal (odatda 1, ba'zi valyutalar uchun 100)
+  spreadPercent?: number;          // Spread foizi
+  source: 'cbu' | 'cbr' | 'tcmb' | 'sama' | 'cbuae' | 'ecb' | 'fed' | 'boe' | 'market_api' | 'manual';
   isOverridden: boolean;
   createdAt: string;
   updatedAt: string;
 }
+
+export type FxDirection = 'buy' | 'sell';
 
 export interface FinanceSummaryDaily {
   date: string;

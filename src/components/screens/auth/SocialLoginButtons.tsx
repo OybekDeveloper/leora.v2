@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, TouchableOpacity, StyleSheet, Text } from 'react-native';
-import { Apple } from 'lucide-react-native';
+// Apple icon imported below from custom assets
 import Svg, { Path } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import { AppleIcon } from '@assets/icons';
@@ -35,7 +35,7 @@ interface SocialLoginButtonsProps {
 
 export const SocialLoginButtons: React.FC<SocialLoginButtonsProps> = ({
   onGooglePress,
-  onFacebookPress,
+  onFacebookPress: _onFacebookPress,
   onApplePress,
   dividerLabel = 'Or continue with',
 }) => {

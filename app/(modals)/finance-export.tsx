@@ -3,18 +3,27 @@ import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useShallow } from 'zustand/shallow';
 
 import DateChangeModal from '@/components/modals/DateChangeModal';
 import { BottomSheetHandle } from '@/components/modals/BottomSheet';
 import { useAppTheme } from '@/constants/theme';
+import { useLocalization } from '@/localization/useLocalization';
+import { useFinanceDomainStore } from '@/stores/useFinanceDomainStore';
+import { addDays, startOfMonth, startOfWeek, toISODateKey } from '@/utils/calendar';
+import type { CalendarEventMap, CalendarIndicatorsMap, CalendarProgressMap, HomeDataStatus, ProgressData } from '@/types/home';
 
 type ActiveField = 'from' | 'to' | null;
 
 const FinanceExportModal = () => {
   const theme = useAppTheme();
   const router = useRouter();
+  const { strings } = useLocalization();
+  const exportStrings = strings.modals.financeExport;
   const styles = useMemo(() => createStyles(theme), [theme]);
   const dateModalRef = useRef<BottomSheetHandle>(null);
+
+  const transactions = useFinanceDomainStore(useShallow((state) => state.transactions));
 
   const [activeField, setActiveField] = useState<ActiveField>(null);
   const [dateRange, setDateRange] = useState(() => {
@@ -49,46 +58,116 @@ const FinanceExportModal = () => {
 
   const handleExport = (format: 'excel' | 'pdf') => {
     Alert.alert(
-      'Export queued',
-      `Preparing ${format.toUpperCase()} report\n${formatLabel(dateRange.from)} → ${formatLabel(dateRange.to)}`,
+      exportStrings.exportQueued,
+      exportStrings.preparingReport
+        .replace('{format}', format.toUpperCase())
+        .replace('{from}', formatLabel(dateRange.from))
+        .replace('{to}', formatLabel(dateRange.to)),
     );
   };
+
+  const currentPickerDate = activeField === 'from' ? dateRange.from : dateRange.to;
+
+  const { calendarEvents, calendarProgress, calendarIndicators } = useMemo(() => {
+    const events: CalendarEventMap = {};
+    const dateKeys = new Set<string>();
+
+    // Generate all 42 days for calendar view
+    const monthStart = startOfMonth(currentPickerDate);
+    const calendarStart = startOfWeek(monthStart);
+    for (let i = 0; i < 42; i++) {
+      dateKeys.add(toISODateKey(addDays(calendarStart, i)));
+    }
+
+    // Add transaction dates
+    transactions.forEach((txn) => {
+      if (!txn.date) return;
+      const date = new Date(txn.date);
+      if (Number.isNaN(date.getTime())) return;
+      const iso = toISODateKey(date);
+      dateKeys.add(iso);
+      if (!events[iso]) {
+        events[iso] = {};
+      }
+      events[iso]!.finance = (events[iso]!.finance ?? 0) + 1;
+    });
+
+    // Compute progress - for finance, show transaction activity
+    const progressMap: CalendarProgressMap = {};
+    const indicators: CalendarIndicatorsMap = {};
+
+    const mapValueToStatus = (value: number): HomeDataStatus => {
+      if (value >= 70) return 'success';
+      if (value >= 40) return 'warning';
+      if (value > 0) return 'danger';
+      return 'muted';
+    };
+
+    dateKeys.forEach((key) => {
+      const dayTransactions = transactions.filter((txn) => {
+        if (!txn.date) return false;
+        return toISODateKey(new Date(txn.date)) === key;
+      });
+
+      // For finance: show activity level (has transactions = some progress)
+      const hasActivity = dayTransactions.length > 0;
+      const activityScore = hasActivity ? Math.min(100, dayTransactions.length * 25) : 0;
+
+      const dayProgress: ProgressData = {
+        tasks: 0,
+        budget: activityScore,
+        focus: 0,
+      };
+
+      progressMap[key] = dayProgress;
+      indicators[key] = [
+        'muted', // tasks
+        mapValueToStatus(activityScore), // budget/finance
+        'muted', // habits
+      ];
+    });
+
+    return { calendarEvents: events, calendarProgress: progressMap, calendarIndicators: indicators };
+  }, [currentPickerDate, transactions]);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['bottom']}>
       <View style={styles.header}>
-        <Text style={styles.title}>Export statistics</Text>
+        <Text style={styles.title}>{exportStrings.title}</Text>
         <Pressable onPress={() => router.back()} hitSlop={12}>
           <Ionicons name="close" size={22} color={theme.colors.textPrimary} />
         </Pressable>
       </View>
 
       <View style={styles.content}>
-        <Text style={styles.sectionLabel}>Date range</Text>
+        <Text style={styles.sectionLabel}>{exportStrings.dateRange}</Text>
         <View style={styles.rangeCard}>
           <Pressable style={styles.dateRow} onPress={() => handleOpenPicker('from')}>
-            <Text style={styles.rowLabel}>From</Text>
+            <Text style={styles.rowLabel}>{exportStrings.from}</Text>
             <Text style={styles.rowValue}>{formatLabel(dateRange.from)}</Text>
           </Pressable>
           <View style={styles.divider} />
           <Pressable style={styles.dateRow} onPress={() => handleOpenPicker('to')}>
-            <Text style={styles.rowLabel}>To</Text>
+            <Text style={styles.rowLabel}>{exportStrings.to}</Text>
             <Text style={styles.rowValue}>{formatLabel(dateRange.to)}</Text>
           </Pressable>
         </View>
 
-        <Text style={styles.sectionLabel}>Format</Text>
+        <Text style={styles.sectionLabel}>{exportStrings.format}</Text>
         <Pressable style={[styles.exportButton, { backgroundColor: theme.colors.primary + '1A' }]} onPress={() => handleExport('excel')}>
-          <Text style={[styles.exportLabel, { color: theme.colors.primary }]}>Export as Excel</Text>
+          <Text style={[styles.exportLabel, { color: theme.colors.primary }]}>{exportStrings.exportExcel}</Text>
         </Pressable>
         <Pressable style={[styles.exportButton, { backgroundColor: theme.colors.card }]} onPress={() => handleExport('pdf')}>
-          <Text style={[styles.exportLabel, { color: theme.colors.textPrimary }]}>Export as PDF</Text>
+          <Text style={[styles.exportLabel, { color: theme.colors.textPrimary }]}>{exportStrings.exportPdf}</Text>
         </Pressable>
       </View>
 
       <DateChangeModal
         ref={dateModalRef}
-        selectedDate={activeField === 'from' ? dateRange.from : dateRange.to}
+        selectedDate={currentPickerDate}
+        events={calendarEvents}
+        progress={calendarProgress}
+        indicators={calendarIndicators}
         onSelectDate={handleSelectDate}
       />
     </SafeAreaView>

@@ -1,7 +1,14 @@
 {
   "title": "New Task",
+  "editTitle": "Edit Task",
+  "createTitle": "Create Task",
+  "close": "Close",
+  "cancel": "Cancel",
+  "update": "Update",
+  "create": "Create",
   "nameLabel": "Task title",
   "namePlaceholder": "Title",
+  "titleRequired": "*",
   "whenLabel": "When",
   "whenOptions": {
     "today": "Today",
@@ -14,16 +21,24 @@
   "time": "Time",
   "notes": "Description",
   "notesPlaceholder": "Description (not necessary)",
+  "descriptionLabel": "Description",
+  "descriptionPlaceholder": "Description (not necessary)",
   "project": "Project",
   "projectPlaceholder": "Choose your project",
   "context": "Context",
-  "energy": "Energy",
+  "energy": "Energy Level",
+  "energyOptions": {
+    "low": "Low",
+    "medium": "Medium",
+    "high": "High"
+  },
   "priority": "Priority",
   "additional": "Additional",
   "reminder": "Reminder before",
+  "reminderBefore": "Reminder before",
   "repeat": "Repeat",
-  "needFocus": "Need focus",
-  "subtasks": "Subtasks",
+  "needFocus": "Need FOCUS",
+  "subtasks": "Subtasks:",
   "subtaskPlaceholder": "Add a subtask",
   "submit": "Create task",
   "submitMore": "Create and more",
@@ -41,5 +56,19 @@
   },
   "goalLabel": "Linked goal",
   "goalUnset": "No goal",
-  "goalHelper": "Attach a goal so insights keep your progress connected."
+  "goalHelper": "Attach a goal so insights keep your progress connected.",
+  "financeAction": "Finance Action",
+  "financeOptions": {
+    "recordExpenses": "Record expenses",
+    "payDebt": "Pay debt",
+    "reviewBudget": "Review budget",
+    "transferMoney": "Transfer money",
+    "none": "None"
+  },
+  "validation": {
+    "selectDate": "Please select a date",
+    "pastDate": "Cannot pick a past date",
+    "futureTime": "Time must be in the future"
+  },
+  "done": "Done"
 }

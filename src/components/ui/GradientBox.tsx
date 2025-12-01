@@ -1,5 +1,4 @@
 import React from 'react';
-import { StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
 export default function GradientBox({ children, style }: { children?: React.ReactNode, style?: object }) {

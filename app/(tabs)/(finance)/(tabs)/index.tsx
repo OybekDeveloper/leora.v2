@@ -21,6 +21,7 @@ import {
 import { PieChart } from 'react-native-chart-kit';
 import * as Progress from 'react-native-progress';
 import { AdaptiveGlassView } from '@/components/ui/AdaptiveGlassView';
+import EmptyState from '@/components/shared/EmptyState';
 
 import { useAppTheme } from '@/constants/theme';
 import { Table, TableColumn } from '@/components/ui/Table';
@@ -281,7 +282,17 @@ export default function FinanceReviewScreen() {
       0,
     );
 
-    const enrichedBudgets = budgets.map((budget) => {
+    // Budgetlarni filterlash - agar accountId bo'lsa, tanlangan accountlarga mos kelishi kerak
+    const filteredBudgets = budgets.filter((budget) => {
+      // Agar budget accountga bog'lanmagan bo'lsa - barcha accountlar uchun
+      if (!budget.accountId) return true;
+      // Agar hech qanday account tanlanmagan bo'lsa - barchasini ko'rsatish
+      if (filteredAccounts.length === accounts.length) return true;
+      // Agar budget accountId tanlangan accountlar ichida bo'lsa
+      return filteredAccountIds.has(budget.accountId);
+    });
+
+    const enrichedBudgets = filteredBudgets.map((budget) => {
       const state = budget.limitAmount > 0 && budget.spentAmount > budget.limitAmount ? 'exceeding' : 'within';
       return {
         ...budget,
@@ -331,8 +342,9 @@ export default function FinanceReviewScreen() {
         };
       });
 
+    // Expense structure - faqat tanlangan accountlar uchun
     const categoryTotals = transactions
-      .filter((transaction) => transaction.type === 'expense')
+      .filter((transaction) => transaction.type === 'expense' && includesSelectedAccount(transaction))
       .reduce<Record<string, number>>((acc, transaction) => {
         const key = transaction.categoryId ?? transaction.description ?? 'Other';
         const currency = resolveTransactionCurrency(transaction);
@@ -352,7 +364,17 @@ export default function FinanceReviewScreen() {
     const formatValue = (value: number) =>
       formatFinanceCurrency(value, { fromCurrency: globalCurrency, convert: false });
 
-    const upcomingDebts: FinanceEvent[] = debts
+    // Debtlarni filterlash - agar fundingAccountId bo'lsa, tanlangan accountlarga mos kelishi kerak
+    const filteredDebts = debts.filter((debt) => {
+      // Agar debt accountga bog'lanmagan bo'lsa - barchasini ko'rsatish
+      if (!debt.fundingAccountId) return true;
+      // Agar hech qanday account tanlanmagan bo'lsa - barchasini ko'rsatish
+      if (filteredAccounts.length === accounts.length) return true;
+      // Agar debt fundingAccountId tanlangan accountlar ichida bo'lsa
+      return filteredAccountIds.has(debt.fundingAccountId);
+    });
+
+    const upcomingDebts: FinanceEvent[] = filteredDebts
       .filter((debt) => debt.status !== 'paid')
       .sort((a, b) => {
         const aTime = a.dueDate ? new Date(a.dueDate).getTime() : Number.MAX_SAFE_INTEGER;
@@ -395,15 +417,7 @@ export default function FinanceReviewScreen() {
       incomeCard: { amount: incomeCurrent, change: calcChange(incomeCurrent, incomePrev) },
       outcomeCard: { amount: outcomeCurrent, change: calcChange(outcomeCurrent, outcomePrev) },
       progress: { used: progressUsedGlobal, percentage: progressPercentage },
-      pie: expenseChartData.length
-        ? expenseChartData
-        : CATEGORY_COLORS.map((color, index) => ({
-            name: `Category ${index + 1}`,
-            population: 1,
-            color,
-            legendFontColor: theme.colors.textSecondary,
-            legendFontSize: 13,
-          })),
+      pie: expenseChartData,
       recentTransactions,
       events: upcomingDebts.length ? upcomingDebts : fallbackEvents,
     };
@@ -470,6 +484,7 @@ export default function FinanceReviewScreen() {
 
   const pieChartData = summary.pie;
 
+  const isEmpty = accounts.length === 0 && transactions.length === 0;
 
   const chartConfig = {
     backgroundGradientFrom: theme.colors.surface,
@@ -487,6 +502,12 @@ export default function FinanceReviewScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.contentContainer}
       >
+        {isEmpty ? (
+          <EmptyState
+            title={reviewStrings.empty.title}
+            subtitle={reviewStrings.empty.subtitle}
+          />
+        ) : (
         <Animated.View style={{ opacity: fadeAnim }}>
         {/* 1. Balance Section */}
         <View style={styles.balanceSection}>
@@ -603,19 +624,25 @@ export default function FinanceReviewScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{reviewStrings.expenseStructure}</Text>
           <AdaptiveGlassView style={[styles.glassSurface, styles.expenseContainer]}>
-            <PieChart
-              data={pieChartData}
-              width={screenWidth - 64}
-              height={220}
-              chartConfig={chartConfig}
-              accessor="population"
-              backgroundColor="transparent"
-              paddingLeft="15"
-              center={[10, 0]}
-              absolute={false}
-              hasLegend={true}
-              style={styles.pieChart}
-            />
+            {pieChartData.length > 0 ? (
+              <PieChart
+                data={pieChartData}
+                width={screenWidth - 64}
+                height={220}
+                chartConfig={chartConfig}
+                accessor="population"
+                backgroundColor="transparent"
+                paddingLeft="15"
+                center={[10, 0]}
+                absolute={false}
+                hasLegend={true}
+                style={styles.pieChart}
+              />
+            ) : (
+              <View style={styles.emptyChartContainer}>
+                <Text style={styles.emptyChartText}>{reviewStrings.noExpenseData}</Text>
+              </View>
+            )}
           </AdaptiveGlassView>
         </View>
 
@@ -655,6 +682,7 @@ export default function FinanceReviewScreen() {
 
         <View style={styles.bottomSpacer} />
       </Animated.View>
+        )}
       </ScrollView>
     </>
   );
@@ -836,6 +864,15 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>) =>
     },
     pieChart: {
       borderRadius: 16,
+    },
+    emptyChartContainer: {
+      height: 220,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    emptyChartText: {
+      fontSize: 14,
+      color: theme.colors.textSecondary,
     },
 
     // Transactions (styles used by Table component)

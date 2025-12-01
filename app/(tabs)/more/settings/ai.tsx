@@ -29,6 +29,7 @@ import {
 
 import { AdaptiveGlassView } from '@/components/ui/AdaptiveGlassView';
 import { Theme, useAppTheme } from '@/constants/theme';
+import { useAISettingsLocalization } from '@/localization/more/settings';
 
 type LucideIcon = React.ComponentType<{ color?: string; size?: number; strokeWidth?: number }>;
 
@@ -301,6 +302,7 @@ const createStyles = (theme: Theme) =>
 const AISettingsScreen: React.FC = () => {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const t = useAISettingsLocalization();
 
   const rippleColor =
     theme.mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(15,23,42,0.08)';
@@ -465,80 +467,84 @@ const AISettingsScreen: React.FC = () => {
         contentContainerStyle={{ paddingBottom: 28 }}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.sectionTitle}>Core Assistant</Text>
+        <Text style={styles.sectionTitle}>{t.sections.coreAssistant}</Text>
         <SegmentedRow
           icon={Brain}
-          label="Help level"
-          options={['Minimal', 'Medium', 'Maximum']}
-          value={helpLevel}
-          onChange={(v) => setHelpLevel(v as typeof helpLevel)}
+          label={t.coreAssistant.helpLevel}
+          options={[t.coreAssistant.levels.minimal, t.coreAssistant.levels.medium, t.coreAssistant.levels.maximum]}
+          value={helpLevel === 'Minimal' ? t.coreAssistant.levels.minimal : helpLevel === 'Medium' ? t.coreAssistant.levels.medium : t.coreAssistant.levels.maximum}
+          onChange={(v) => {
+            if (v === t.coreAssistant.levels.minimal) setHelpLevel('Minimal');
+            else if (v === t.coreAssistant.levels.medium) setHelpLevel('Medium');
+            else setHelpLevel('Maximum');
+          }}
         />
 
-        <Text style={styles.sectionTitle}>Areas of Application</Text>
+        <Text style={styles.sectionTitle}>{t.sections.areasOfApplication}</Text>
         <View style={styles.cardContent}>
           <ToggleRow
             icon={Mic}
-            label="Voice recognition"
-            description="Capture and transcribe commands instantly."
+            label={t.areasOfApplication.voiceRecognition.label}
+            description={t.areasOfApplication.voiceRecognition.description}
             value={voiceRec}
             onChange={setVoiceRec}
           />
           <ToggleRow
             icon={ListChecks}
-            label="Transaction categories"
-            description="Auto-sort expenses into smart folders."
+            label={t.areasOfApplication.transactionCategories.label}
+            description={t.areasOfApplication.transactionCategories.description}
             value={trxCat}
             onChange={setTrxCat}
             right={
               <View style={styles.rowRight}>
-                <Chip text="Accuracy 90%" />
+                <Chip text={`${t.areasOfApplication.transactionCategories.accuracy} 90%`} />
                 <Chip icon={trxCat ? Check : X} tone={trxCat ? 'positive' : 'negative'} />
               </View>
             }
           />
           <ToggleRow
             icon={Bell}
-            label="Smart reminders"
-            description="Surface nudges when timing matters."
+            label={t.areasOfApplication.smartReminders.label}
+            description={t.areasOfApplication.smartReminders.description}
             value={smartRem}
             onChange={setSmartRem}
           />
           <ToggleRow
             icon={TrendingUp}
-            label="Predictions & Analytics"
-            description="Forecast balances and spending trends."
+            label={t.areasOfApplication.predictionsAnalytics.label}
+            description={t.areasOfApplication.predictionsAnalytics.description}
             value={predAnalytics}
             onChange={setPredAnalytics}
           />
           <ToggleRow
             icon={MessageCircle}
-            label="Motivational messages"
-            description="Stay encouraged with micro-coaching."
+            label={t.areasOfApplication.motivationalMessages.label}
+            description={t.areasOfApplication.motivationalMessages.description}
             value={motivMsg}
             onChange={setMotivMsg}
           />
           <ToggleRow
             icon={CalendarDays}
-            label="Schedule optimization"
-            description="Re-balance your routines automatically."
+            label={t.areasOfApplication.scheduleOptimization.label}
+            description={t.areasOfApplication.scheduleOptimization.description}
             value={scheduleOpt}
             onChange={setScheduleOpt}
           />
         </View>
 
-        <Text style={styles.sectionTitle}>Personalization</Text>
+        <Text style={styles.sectionTitle}>{t.sections.personalization}</Text>
         <View style={styles.cardContent}>
           <InputRow
             icon={Users}
-            label="Assistant name"
+            label={t.personalization.assistantName.label}
             value={name}
-            placeholder="Assistant name"
+            placeholder={t.personalization.assistantName.placeholder}
             onChangeText={setName}
           />
           <OptionRow
             icon={MessageSquare}
-            label="Talk style"
-            value={talkStyle}
+            label={t.personalization.talkStyle.label}
+            value={talkStyle === 'Friendly' ? t.personalization.talkStyle.options.friendly : talkStyle === 'Formal' ? t.personalization.talkStyle.options.formal : t.personalization.talkStyle.options.casual}
             onPress={() =>
               setTalkStyle((prev) =>
                 prev === 'Friendly' ? 'Formal' : prev === 'Formal' ? 'Casual' : 'Friendly',
@@ -547,32 +553,36 @@ const AISettingsScreen: React.FC = () => {
           />
           <OptionRow
             icon={Languages}
-            label="Language"
+            label={t.personalization.language}
             value={language}
             onPress={() => setLanguage((prev) => (prev === 'English' ? 'Uzbek' : 'English'))}
           />
         </View>
 
-        <Text style={styles.sectionTitle}>Speech Settings</Text>
+        <Text style={styles.sectionTitle}>{t.sections.speechSettings}</Text>
         <View style={styles.cardContent}>
           <ToggleRow
             icon={Keyboard}
-            label="Voice typing"
-            description="Replace manual typing with dictation."
+            label={t.speechSettings.voiceTyping.label}
+            description={t.speechSettings.voiceTyping.description}
             value={voiceTyping}
             onChange={setVoiceTyping}
-            right={<Chip text={voiceTyping ? 'Enabled' : 'Muted'} />}
+            right={<Chip text={voiceTyping ? t.speechSettings.voiceTyping.enabled : t.speechSettings.voiceTyping.muted} />}
           />
           <SegmentedRow
             icon={Sparkles}
-            label="Input mode"
-            options={['Button', 'Gesture', 'Sentence']}
-            value={inputMode}
-            onChange={(v) => setInputMode(v as typeof inputMode)}
+            label={t.speechSettings.inputMode.label}
+            options={[t.speechSettings.inputMode.options.button, t.speechSettings.inputMode.options.gesture, t.speechSettings.inputMode.options.sentence]}
+            value={inputMode === 'Button' ? t.speechSettings.inputMode.options.button : inputMode === 'Gesture' ? t.speechSettings.inputMode.options.gesture : t.speechSettings.inputMode.options.sentence}
+            onChange={(v) => {
+              if (v === t.speechSettings.inputMode.options.button) setInputMode('Button');
+              else if (v === t.speechSettings.inputMode.options.gesture) setInputMode('Gesture');
+              else setInputMode('Sentence');
+            }}
           />
           <OptionRow
             icon={Globe}
-            label="Speech language"
+            label={t.speechSettings.speechLanguage}
             value={speechLang}
             onPress={() => setSpeechLang((prev) => (prev === 'English' ? 'Uzbek' : 'English'))}
           />
@@ -583,39 +593,39 @@ const AISettingsScreen: React.FC = () => {
                 <Sparkles size={18} color={theme.colors.iconText} />
               </View>
               <View style={styles.labelGroup}>
-                <Text style={styles.rowLabel}>Voice training</Text>
-                <Text style={styles.rowDescription}>Teach Leora to match your tone.</Text>
+                <Text style={styles.rowLabel}>{t.speechSettings.voiceTraining.label}</Text>
+                <Text style={styles.rowDescription}>{t.speechSettings.voiceTraining.description}</Text>
               </View>
             </View>
-            <Chip text="Start" />
+            <Chip text={t.speechSettings.voiceTraining.start} />
           </AdaptiveGlassView>
         </View>
 
-        <Text style={styles.sectionTitle}>AI Training</Text>
+        <Text style={styles.sectionTitle}>{t.sections.aiTraining}</Text>
         <View style={styles.cardContent}>
           <View style={styles.statLine}>
-            <Text style={styles.statKey}>Last update</Text>
-            <Text style={styles.statVal}>3 days ago</Text>
+            <Text style={styles.statKey}>{t.aiTraining.lastUpdate}</Text>
+            <Text style={styles.statVal}>3 {t.aiTraining.daysAgo}</Text>
           </View>
           <View style={styles.statLine}>
-            <Text style={styles.statKey}>Categorizing accuracy</Text>
+            <Text style={styles.statKey}>{t.aiTraining.categorizingAccuracy}</Text>
             <Text style={styles.statVal}>94%</Text>
           </View>
           <View style={styles.statLine}>
-            <Text style={styles.statKey}>Personal rules</Text>
+            <Text style={styles.statKey}>{t.aiTraining.personalRules}</Text>
             <Text style={styles.statVal}>12</Text>
           </View>
           <Pressable
             android_ripple={{ color: rippleColor }}
             style={({ pressed }) => [styles.rulesRow, pressed && styles.pressed]}
           >
-            <Text style={styles.rulesText}>Rule settings ›</Text>
+            <Text style={styles.rulesText}>{t.aiTraining.ruleSettings} ›</Text>
           </Pressable>
         </View>
 
         <View style={styles.inlineHeader}>
-          <Text style={styles.sectionTitle}>Virtual mentors</Text>
-          <Text style={styles.inlineCounter}>Active {mentors.length}/10</Text>
+          <Text style={styles.sectionTitle}>{t.sections.virtualMentors}</Text>
+          <Text style={styles.inlineCounter}>{t.virtualMentors.active} {mentors.length}/10</Text>
         </View>
 
         <View style={styles.cardContent}>
@@ -639,17 +649,17 @@ const AISettingsScreen: React.FC = () => {
             onPress={() =>
               setMentors((prev) => [
                 ...prev,
-                { id: String(prev.length + 1), name: 'Add new mentor', tag: 'Custom' },
+                { id: String(prev.length + 1), name: 'Add new mentor', tag: t.virtualMentors.tags.custom },
               ])
             }
             style={({ pressed }) => [styles.mentorAdd, pressed && styles.pressed]}
           >
-            <Text style={styles.mentorAddText}>+ Add new mentor</Text>
+            <Text style={styles.mentorAddText}>{t.virtualMentors.addNewMentor}</Text>
           </Pressable>
         </View>
 
         <Pressable style={({ pressed }) => [styles.resetBtn, pressed && styles.pressed]}>
-          <Text style={styles.resetText}>Reset AI settings</Text>
+          <Text style={styles.resetText}>{t.actions.resetAiSettings}</Text>
         </Pressable>
       </ScrollView>
     </SafeAreaView>

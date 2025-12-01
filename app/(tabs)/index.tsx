@@ -36,6 +36,7 @@ export default function HomeScreen() {
     loading,
     refreshing,
     calendarIndicators,
+    calendarProgress,
     calendarEvents,
     refresh,
   } = useHomeDashboard();
@@ -98,6 +99,7 @@ export default function HomeScreen() {
           selectedDate={selectedDate}
           onSelectDate={handleDateChange}
           calendarIndicators={calendarIndicators}
+          calendarProgress={calendarProgress}
           calendarEvents={calendarEvents}
           networkStatusTone={statusTone}
         />

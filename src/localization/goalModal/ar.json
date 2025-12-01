@@ -1,6 +1,8 @@
 {
   "title": "إنشاء هدف",
+  "editTitle": "تعديل الهدف",
   "subtitle": "حوّل خططك الطويلة إلى تقدم يمكن قياسه.",
+  "close": "إغلاق",
   "scenarioSection": {
     "title": "السيناريو",
     "subtitle": "القوالب تضبط المقياس والمدة تلقائياً"
@@ -26,6 +28,51 @@
       "title": "مخصص",
       "subtitle": "اختر المقياس المناسب لك"
     }
+  },
+  "wizardSteps": {
+    "basics": "الأساسيات",
+    "measure": "القياس",
+    "timeline": "الجدول الزمني",
+    "connect": "الربط"
+  },
+  "step1": {
+    "title": "ما الذي تريد تحقيقه؟",
+    "categoryLabel": "الفئة",
+    "whyLabel": "لماذا هذا مهم؟ (اختياري)",
+    "placeholder": "مثال: \"ادخار للسفر\"، \"ركض ماراثون\"، \"تعلم الإسبانية\"",
+    "motivationPlaceholder": "دافعك...",
+    "hint": "الأهداف ذات السبب الواضح تنجح بنسبة 60% أكثر",
+    "characterCount": "/100"
+  },
+  "step2": {
+    "title": "كيف ستتابع تقدمك؟",
+    "goalTypeLabel": "نوع الهدف",
+    "currencyInherited": "العملة موروثة من الميزانية المرتبطة",
+    "progressHint": "يتم تحديث التقدم تلقائياً بناءً على معاملاتك"
+  },
+  "step3": {
+    "title": "متى تريد تحقيق هذا الهدف؟",
+    "deadlineHint": "الأهداف ذات المواعيد النهائية أكثر نجاحاً بنسبة 42%",
+    "quickSelect": "اختيار سريع"
+  },
+  "step4": {
+    "title": "الربط بالمالية (اختياري)",
+    "subtitle": "اربط بالميزانيات أو الديون للتتبع التلقائي",
+    "livePreview": "معاينة مباشرة",
+    "budgetBalance": "رصيد الميزانية",
+    "goalProgress": "تقدم الهدف",
+    "debtRemaining": "الدين المتبقي",
+    "savingsLink": "ربط بميزانية الادخار",
+    "debtLink": "أي دين تسدده؟",
+    "budgetCategoryLink": "ربط بفئة الميزانية",
+    "noBudget": "لا توجد ميزانية",
+    "noDebt": "لا يوجد دين",
+    "addBudget": "إضافة ميزانية",
+    "createDebt": "إنشاء دين جديد",
+    "noBudgetsHint": "لا توجد ميزانيات متاحة. أنشئ واحدة للربط التلقائي.",
+    "noDebtsHint": "لا توجد ديون نشطة. أنشئ واحداً في قسم المالية.",
+    "autoPaymentHint": "يتم تحديث التقدم تلقائياً عند السداد",
+    "nonFinanceHint": "الربط المالي متاح فقط للأهداف المالية. يمكنك إضافة العادات والمهام لاحقاً من شاشة تفاصيل الهدف."
   },
   "detailsSection": {
     "title": "التفاصيل",
@@ -74,14 +121,45 @@
     "empty": "لا توجد معالم بعد",
     "delete": "إزالة"
   },
+  "goalTypes": {
+    "financial": { "label": "المال", "examples": ["ادخار 5000$", "سداد الديون"] },
+    "career": { "label": "المهنة", "examples": ["الحصول على ترقية", "إطلاق مشروع"] },
+    "personal": { "label": "شخصي", "examples": ["التأمل يومياً", "زيارة 5 دول"] }
+  },
+  "financeModes": {
+    "save": { "label": "ادخار المال", "description": "بناء المدخرات" },
+    "spend": { "label": "حد الميزانية", "description": "التحكم في الإنفاق" },
+    "debt_close": { "label": "سداد الدين", "description": "التخلص من الديون" }
+  },
+  "metricKinds": {
+    "amount": { "label": "المال", "description": "أهداف مالية" },
+    "count": { "label": "العدد", "description": "تتبع الكميات" },
+    "duration": { "label": "المدة", "description": "أهداف زمنية" },
+    "weight": { "label": "الوزن", "description": "تتبع الوزن" },
+    "custom": { "label": "مخصص", "description": "مقياسك الخاص" }
+  },
+  "deadlinePresets": {
+    "week1": "أسبوع واحد",
+    "month1": "شهر واحد",
+    "month3": "3 أشهر",
+    "month6": "6 أشهر",
+    "year1": "سنة واحدة"
+  },
   "actions": {
     "cancel": "إغلاق",
+    "back": "رجوع",
+    "next": "التالي ←",
     "create": "إنشاء الهدف",
     "createMore": "إنشاء ومتابعة",
-    "update": "حفظ التغييرات"
+    "update": "حفظ التغييرات",
+    "done": "تم"
   },
   "alerts": {
     "missingTitle": "يرجى تسمية الهدف أولاً.",
-    "invalidTarget": "أدخل قيمة مستهدفة أكبر من الصفر."
+    "titleTooShort": "العنوان قصير جداً. كن أكثر تحديداً!",
+    "invalidTarget": "يجب أن يكون الهدف رقماً صحيحاً",
+    "targetSameAsCurrent": "يجب أن يختلف الهدف عن القيمة الحالية",
+    "selectBudget": "اختر أو أنشئ ميزانية لهذا الهدف.",
+    "selectDebt": "اربط ديناً لتتبع المدفوعات."
   }
 }

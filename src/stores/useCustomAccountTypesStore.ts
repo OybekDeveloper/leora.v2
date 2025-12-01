@@ -15,7 +15,7 @@ interface CustomAccountTypesStore {
 
 export const useCustomAccountTypesStore = create<CustomAccountTypesStore>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       customTypes: [],
       addCustomType: (label, icon) => {
         const trimmed = label.trim();

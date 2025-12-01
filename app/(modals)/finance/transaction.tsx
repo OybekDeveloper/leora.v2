@@ -12,11 +12,12 @@ import {
 } from 'react-native';
 import DateTimePicker, { DateTimePickerAndroid, DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
-import { ArrowRightLeft, Wallet } from 'lucide-react-native';
+import { ArrowRightLeft } from 'lucide-react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { AdaptiveGlassView } from '@/components/ui/AdaptiveGlassView';
+import AccountPicker from '@/components/shared/AccountPicker';
 import { useAppTheme } from '@/constants/theme';
 import { useFinanceDomainStore } from '@/stores/useFinanceDomainStore';
 import { useFinancePreferencesStore } from '@/stores/useFinancePreferencesStore';
@@ -36,7 +37,23 @@ const formatDisplayCurrency = (value: number, currency: string = 'USD') => {
   }
 };
 
-type AccountPickerContext = 'from' | 'to' | null;
+// Exchange rate ni to'liq aniqlikda formatlash
+// Katta sonlar uchun 2-4 raqam, kichik sonlar uchun barcha significant digits
+const formatExchangeRate = (rate: number): string => {
+  if (rate >= 1) {
+    // Katta sonlar uchun 4 ta decimal
+    return rate.toFixed(4).replace(/\.?0+$/, '') || '0';
+  }
+  // Kichik sonlar uchun - barcha significant digits ko'rsatish
+  // Masalan: 0.0000802 -> "0.0000802"
+  const str = rate.toPrecision(6);
+  // Scientific notation ni oddiy ko'rinishga o'zgartirish
+  const num = parseFloat(str);
+  // Kerakli aniqlikni hisoblash - birinchi nol bo'lmagan raqamgacha + 4 ta raqam
+  const log = Math.floor(Math.log10(Math.abs(rate)));
+  const decimals = Math.max(4, -log + 3);
+  return num.toFixed(Math.min(decimals, 10));
+};
 
 type LocalParams = {
   id?: string;
@@ -79,7 +96,6 @@ export default function TransferModal() {
     [transactions, editingId],
   );
 
-  const [accountPickerContext, setAccountPickerContext] = useState<AccountPickerContext>(null);
   const [fromAccountId, setFromAccountId] = useState<string | null>(accounts[0]?.id ?? null);
   const [toAccountId, setToAccountId] = useState<string | null>(accounts[1]?.id ?? null);
   const [amount, setAmount] = useState('');
@@ -87,7 +103,6 @@ export default function TransferModal() {
   const [transferDate, setTransferDate] = useState(new Date());
   const [pickerMode, setPickerMode] = useState<'date' | 'time' | null>(null);
   const [customExchangeRate, setCustomExchangeRate] = useState('');
-  const [accountModalVisible, setAccountModalVisible] = useState(false);
 
   const fromAccount = useMemo(
     () => accounts.find((account) => account.id === fromAccountId) ?? accounts[0] ?? null,
@@ -152,11 +167,15 @@ export default function TransferModal() {
     [toAccount],
   );
 
+  // Exchange rate: 1 FROM currency = X TO currency
+  // Masalan: 1 USD = 12500 UZS yoki 1 UZS = 0.00008 USD
   const autoExchangeRate = useMemo(() => {
     if (!needsConversion || !normalizedFromCurrency || !normalizedToCurrency) {
       return 1;
     }
-    const ratio = convertAmount(1, normalizedToCurrency, normalizedFromCurrency);
+    // FROM dan TO ga konvertatsiya qilish uchun rate
+    // Masalan: USD dan UZS ga - 1 USD = 12500 UZS
+    const ratio = convertAmount(1, normalizedFromCurrency, normalizedToCurrency);
     if (!Number.isFinite(ratio) || ratio <= 0) {
       return 1;
     }
@@ -172,6 +191,8 @@ export default function TransferModal() {
     return autoExchangeRate;
   }, [needsConversion, customExchangeRate, autoExchangeRate]);
 
+  // Konvertatsiya: FROM amount * rate = TO amount
+  // Masalan: 100 USD * 12500 = 1,250,000 UZS
   const convertedAmount = useMemo(() => {
     if (!needsConversion) {
       return amountNumber;
@@ -179,7 +200,7 @@ export default function TransferModal() {
     if (!currentExchangeRate || currentExchangeRate <= 0) {
       return 0;
     }
-    return amountNumber / currentExchangeRate;
+    return amountNumber * currentExchangeRate;
   }, [needsConversion, amountNumber, currentExchangeRate]);
 
   useEffect(() => {
@@ -280,22 +301,12 @@ export default function TransferModal() {
     }
   }, [transferDate]);
 
-  const handleSelectAccount = useCallback(
-    (accountId: string) => {
-      if (accountPickerContext === 'from') {
-        setFromAccountId(accountId);
-      } else if (accountPickerContext === 'to') {
-        setToAccountId(accountId);
-      }
-      setAccountModalVisible(false);
-      setAccountPickerContext(null);
-    },
-    [accountPickerContext],
-  );
+  const handleFromAccountSelect = useCallback((account: typeof accounts[0] | null) => {
+    setFromAccountId(account?.id ?? null);
+  }, []);
 
-  const handleOpenAccountPicker = useCallback((context: AccountPickerContext) => {
-    setAccountPickerContext(context);
-    setAccountModalVisible(true);
+  const handleToAccountSelect = useCallback((account: typeof accounts[0] | null) => {
+    setToAccountId(account?.id ?? null);
   }, []);
 
   const handleClose = useCallback(() => {
@@ -316,14 +327,17 @@ export default function TransferModal() {
 
     let finalNote = note.trim();
     if (needsConversion && amountNumber > 0) {
+      // Rate info: 1 FROM = X TO
+      // Masalan: 1 USD = 12500 UZS
       const rateInfoTemplate = transferStrings.rateInfoTemplate as string | undefined;
+      const formattedRate = formatExchangeRate(currentExchangeRate);
       const rateInfo = rateInfoTemplate
         ? rateInfoTemplate
-            .replace('{toCurrency}', toAccount.currency)
-            .replace('{rate}', currentExchangeRate.toFixed(4))
             .replace('{fromCurrency}', fromAccount.currency)
+            .replace('{rate}', formattedRate)
+            .replace('{toCurrency}', toAccount.currency)
             .replace('{amount}', formatDisplayCurrency(recipientAmount, toAccount.currency))
-        : `Exchange rate: 1 ${toAccount.currency} = ${currentExchangeRate.toFixed(4)} ${fromAccount.currency}. Received: ${formatDisplayCurrency(recipientAmount, toAccount.currency)}`;
+        : `Exchange rate: 1 ${fromAccount.currency} = ${formattedRate} ${toAccount.currency}. Received: ${formatDisplayCurrency(recipientAmount, toAccount.currency)}`;
       finalNote = finalNote ? `${rateInfo}. ${finalNote}` : rateInfo;
     }
 
@@ -376,11 +390,6 @@ export default function TransferModal() {
     setToAccountId(fromAccountId);
   }, [fromAccountId, toAccountId]);
 
-  const accountModalTitle =
-    accountPickerContext === 'from'
-      ? transferStrings.fromAccount ?? 'From account'
-      : transferStrings.toAccount ?? 'To account';
-
   return (
     <>
       <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.background }]} edges={['bottom', "top"]}>
@@ -401,64 +410,32 @@ export default function TransferModal() {
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}
           >
-            <View style={styles.section}>
-              <Text style={[styles.label, { color: theme.colors.textSecondary }]}>
-                {transferStrings.fromAccount ?? 'From account'}
-              </Text>
-              <Pressable onPress={() => handleOpenAccountPicker('from')} style={({ pressed }) => [pressed && styles.pressed]}>
-                <AdaptiveGlassView style={styles.accountCard}>
-                  <View style={styles.accountInfo}>
-                    <View style={styles.accountNameRow}>
-                      <Text style={styles.accountName}>
-                        {fromAccount?.name ?? transferStrings.selectAccount ?? 'Select account'}
-                      </Text>
-                      {fromAccount && (
-                        <View style={styles.currencyBadge}>
-                          <Text style={styles.currencyBadgeText}>{fromAccount.currency}</Text>
-                        </View>
-                      )}
-                    </View>
-                    <Text style={styles.accountBalance}>
-                      {fromAccount ? formatDisplayCurrency(fromAccount.currentBalance, fromAccount.currency) : '—'}
-                    </Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color="#7E8B9A" />
-                </AdaptiveGlassView>
-              </Pressable>
+            <View style={[styles.section, { zIndex: 9999 }]}>
+              <AccountPicker
+                selectedAccountId={fromAccountId}
+                onSelect={handleFromAccountSelect}
+                label={transferStrings.fromAccount ?? 'From account'}
+                placeholder={transferStrings.selectAccount ?? 'Select account...'}
+                excludeAccountId={toAccountId ?? undefined}
+              />
             </View>
 
             <View style={styles.swapContainer}>
               <Pressable onPress={handleSwapAccounts} style={({ pressed }) => [styles.swapButton, pressed && styles.pressed]}>
-                <AdaptiveGlassView style={styles.swapButtonInner}>
-                  <ArrowRightLeft size={20} color="#FFFFFF" />
+                <AdaptiveGlassView style={[styles.swapButtonInner, { backgroundColor: theme.colors.card }]}>
+                  <ArrowRightLeft size={20} color={theme.colors.textPrimary} />
                 </AdaptiveGlassView>
               </Pressable>
             </View>
 
-            <View style={styles.section}>
-              <Text style={[styles.label, { color: theme.colors.textSecondary }]}>
-                {transferStrings.toAccount ?? 'To account'}
-              </Text>
-              <Pressable onPress={() => handleOpenAccountPicker('to')} style={({ pressed }) => [pressed && styles.pressed]}>
-                <AdaptiveGlassView style={styles.accountCard}>
-                  <View style={styles.accountInfo}>
-                    <View style={styles.accountNameRow}>
-                      <Text style={styles.accountName}>
-                        {toAccount?.name ?? transferStrings.selectAccount ?? 'Select account'}
-                      </Text>
-                      {toAccount && (
-                        <View style={styles.currencyBadge}>
-                          <Text style={styles.currencyBadgeText}>{toAccount.currency}</Text>
-                        </View>
-                      )}
-                    </View>
-                    <Text style={styles.accountBalance}>
-                      {toAccount ? formatDisplayCurrency(toAccount.currentBalance, toAccount.currency) : '—'}
-                    </Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color="#7E8B9A" />
-                </AdaptiveGlassView>
-              </Pressable>
+            <View style={[styles.section, { zIndex: 8888 }]}>
+              <AccountPicker
+                selectedAccountId={toAccountId}
+                onSelect={handleToAccountSelect}
+                label={transferStrings.toAccount ?? 'To account'}
+                placeholder={transferStrings.selectAccount ?? 'Select account...'}
+                excludeAccountId={fromAccountId ?? undefined}
+              />
             </View>
 
             <View style={styles.section}>
@@ -478,7 +455,7 @@ export default function TransferModal() {
             </View>
 
             {needsConversion && fromAccount && toAccount && (
-              <View style={styles.section}>
+              <View style={[styles.section, { zIndex: 1 }]}>
                 <View style={styles.exchangeRateLabelRow}>
                   <Text style={[styles.label, { color: theme.colors.textSecondary }]}>
                     {transferStrings.exchangeRate ?? 'Exchange rate'}
@@ -489,37 +466,32 @@ export default function TransferModal() {
                     </View>
                   )}
                 </View>
-                <AdaptiveGlassView style={styles.exchangeRateContainer}>
+                <AdaptiveGlassView style={[styles.exchangeRateContainer, { backgroundColor: theme.colors.card }]}>
                   <View style={styles.exchangeRateRow}>
-                    <Text style={styles.exchangeRateLabel}>1 {toAccount.currency} =</Text>
+                    <Text style={[styles.exchangeRateLabel, { color: theme.colors.textPrimary }]}>1 {fromAccount.currency} =</Text>
                     <TextInput
-                      value={customExchangeRate || autoExchangeRate.toFixed(4)}
+                      value={customExchangeRate || formatExchangeRate(autoExchangeRate)}
                       onChangeText={handleExchangeRateChange}
-                      placeholder={autoExchangeRate.toFixed(4)}
-                      placeholderTextColor="#7E8B9A"
+                      placeholder={formatExchangeRate(autoExchangeRate)}
+                      placeholderTextColor={theme.colors.textMuted}
                       keyboardType="numeric"
-                      style={styles.exchangeRateInput}
+                      style={[styles.exchangeRateInput, { color: theme.colors.textPrimary }]}
                     />
-                    <Text style={styles.exchangeRateLabel}>{fromAccount.currency}</Text>
+                    <Text style={[styles.exchangeRateLabel, { color: theme.colors.textPrimary }]}>{toAccount.currency}</Text>
                   </View>
 
                   {amountNumber > 0 && (
                     <View style={styles.conversionInfo}>
-                      <Ionicons name="arrow-forward" size={16} color="#7E8B9A" />
-                      <Text style={styles.conversionText}>
-                        {transferStrings.conversionInfo
-                          ? (transferStrings.conversionInfo as string).replace(
-                              '{amount}',
-                              formatDisplayCurrency(convertedAmount, toAccount.currency),
-                            )
-                          : `${formatDisplayCurrency(convertedAmount, toAccount.currency)} will be received`}
+                      <Ionicons name="arrow-forward" size={16} color={theme.colors.textMuted} />
+                      <Text style={[styles.conversionText, { color: theme.colors.textSecondary }]}>
+                        {formatDisplayCurrency(amountNumber, fromAccount.currency)} → {formatDisplayCurrency(convertedAmount, toAccount.currency)}
                       </Text>
                     </View>
                   )}
 
                   {customExchangeRate && (
                     <Pressable onPress={() => setCustomExchangeRate('')} style={styles.resetRateButton}>
-                      <Text style={styles.resetRateText}>
+                      <Text style={[styles.resetRateText, { color: theme.colors.textMuted }]}>
                         {transferStrings.resetRate ?? 'Reset to auto rate'}
                       </Text>
                     </Pressable>
@@ -607,70 +579,6 @@ export default function TransferModal() {
           </View>
         </Modal>
       )}
-
-      <Modal
-        transparent
-        animationType="fade"
-        visible={accountModalVisible}
-        onRequestClose={() => {
-          setAccountModalVisible(false);
-          setAccountPickerContext(null);
-        }}
-      >
-        <View style={styles.modalOverlay}>
-          <Pressable
-            style={styles.modalBackdrop}
-            onPress={() => {
-              setAccountModalVisible(false);
-              setAccountPickerContext(null);
-            }}
-          />
-          <AdaptiveGlassView style={[styles.glassSurface, styles.accountModalCard,{backgroundColor:theme.colors.card}]}>
-            <View style={styles.modalHeaderRow}>
-              <Text style={[styles.modalTitle, { color: theme.colors.textPrimary }]}>{accountModalTitle}</Text>
-              <Pressable
-                onPress={() => {
-                  setAccountModalVisible(false);
-                  setAccountPickerContext(null);
-                }}
-                hitSlop={10}
-              >
-                <Ionicons name="close" size={22} color="#7E8B9A" />
-              </Pressable>
-            </View>
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.accountList}>
-              {accounts.map((account) => {
-                const selected =
-                  accountPickerContext === 'from'
-                    ? account.id === fromAccount?.id
-                    : account.id === toAccount?.id;
-                return (
-                  <Pressable
-                    key={account.id}
-                    onPress={() => handleSelectAccount(account.id)}
-                    style={({ pressed }) => [styles.accountRowItem, pressed && styles.pressed]}
-                  >
-                    <AdaptiveGlassView
-                      style={[styles.glassSurface, styles.accountCardRow, { opacity: selected ? 1 : 0.7 }]}
-                    >
-                      <View style={styles.accountPickerIcon}>
-                        <Wallet size={18} color="#7E8B9A" />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.accountName}>{account.name}</Text>
-                        <Text style={styles.accountBalance}>
-                          {formatDisplayCurrency(account.currentBalance, account.currency)}
-                        </Text>
-                      </View>
-                      {selected && <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />}
-                    </AdaptiveGlassView>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-          </AdaptiveGlassView>
-        </View>
-      </Modal>
     </>
   );
 }
@@ -706,44 +614,6 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 13,
     fontWeight: '600',
-  },
-  accountCard: {
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  accountInfo: {
-    flex: 1,
-  },
-  accountNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  accountName: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  currencyBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 8,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-  },
-  currencyBadgeText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  accountBalance: {
-    fontSize: 13,
-    fontWeight: '400',
-    color: '#7E8B9A',
-    marginTop: 4,
   },
   swapContainer: {
     alignItems: 'center',
@@ -927,52 +797,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'center',
-    padding: 20,
-  },
-  modalBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  accountModalCard: {
-    borderRadius: 20,
-    padding: 16,
-    maxHeight: '70%',
-  },
-  modalHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  accountList: {
-    paddingVertical: 8,
-    gap: 10,
-  },
-  accountRowItem: {
-    borderRadius: 16,
-  },
-  accountCardRow: {
-    borderRadius: 16,
-    padding: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  accountPickerIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.1)',
   },
   glassSurface: {
     borderWidth: StyleSheet.hairlineWidth,

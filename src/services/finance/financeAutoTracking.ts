@@ -19,7 +19,6 @@ type GoalFinanceTransactionInput = {
 };
 
 const getFinancePreferences = () => useFinancePreferencesStore.getState();
-const getBaseCurrency = () => getFinancePreferences().baseCurrency;
 
 const resolveRateToBase = (
   convertAmount: (amount: number, fromCurrency?: FinanceCurrency, toCurrency?: FinanceCurrency) => number,

@@ -286,21 +286,23 @@ export default function BudgetModal() {
     updateBudget,
   ]);
 
+  const budgetAlerts = strings.financeScreens.budgets.form.alerts;
+
   const handleDeleteCurrentBudget = useCallback(() => {
     if (!editingBudget) return;
     const linkedGoals = goals.filter((goal) => goal.linkedBudgetId === editingBudget.id);
     if (linkedGoals.length > 0) {
       Alert.alert(
-        'Budget is linked',
+        budgetAlerts.linkedTitle,
         linkedGoals.length === 1
-          ? 'This budget is linked to a goal. Unlink it before deleting.'
-          : 'This budget is linked to multiple goals. Unlink them before deleting.',
+          ? budgetAlerts.linkedSingle
+          : budgetAlerts.linkedMultiple,
       );
       return;
     }
     archiveBudget(editingBudget.id);
     handleClose();
-  }, [archiveBudget, editingBudget, goals, handleClose]);
+  }, [archiveBudget, budgetAlerts, editingBudget, goals, handleClose]);
 
   const periodOptions: BudgetPeriodType[] = ['weekly', 'monthly', 'custom_range'];
   const periodLabels: Record<BudgetPeriodType, string> = {

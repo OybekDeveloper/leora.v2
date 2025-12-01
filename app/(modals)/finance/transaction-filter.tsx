@@ -44,10 +44,10 @@ export default function FinanceTransactionFilterModal() {
   const theme = useAppTheme();
   const insets = useSafeAreaInsets();
   const { strings } = useLocalization();
-  const commonStrings = (strings as any).common ?? {};
-  const filterStrings = (strings.financeScreens.transactions.filterSheet as any) ?? {};
+  const commonStrings = strings.common;
+  const filterStrings = strings.financeScreens.transactions.filterSheet;
   const clearHint = filterStrings.clearHint ?? 'Hold to clear';
-  const closeLabel = filterStrings.close ?? commonStrings.close ?? 'Close';
+  const closeLabel = filterStrings.close ?? commonStrings.close;
   const { accounts, categories } = useFinanceDomainStore(
     useShallow((state) => ({
       accounts: state.accounts,

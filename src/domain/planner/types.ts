@@ -1,3 +1,5 @@
+import type { ShowStatus } from '../shared/showStatus';
+
 export type GoalType = 'financial' | 'health' | 'education' | 'productivity' | 'personal';
 export type GoalStatus = 'active' | 'paused' | 'completed' | 'archived';
 export type MetricKind = 'none' | 'amount' | 'weight' | 'count' | 'duration' | 'custom';
@@ -40,6 +42,7 @@ export interface Goal {
   description?: string;
   goalType: GoalType;
   status: GoalStatus;
+  showStatus?: ShowStatus; // Defaults to 'active' in database schema
   metricType: MetricKind;
   unit?: string;
   initialValue?: number;
@@ -70,6 +73,9 @@ export type HabitStatus = 'active' | 'paused' | 'archived';
 export type HabitType = 'health' | 'finance' | 'productivity' | 'education' | 'personal' | 'custom';
 export type Frequency = 'daily' | 'weekly' | 'custom';
 export type CompletionMode = 'boolean' | 'numeric';
+export type HabitCountingType = 'create' | 'quit';
+export type HabitDifficulty = 'easy' | 'medium' | 'hard';
+export type HabitPriority = 'low' | 'medium' | 'high';
 
 export type HabitFinanceRule =
   | { type: 'no_spend_in_categories'; categoryIds: string[] }
@@ -92,6 +98,7 @@ export interface Habit {
   iconId?: string;
   habitType: HabitType;
   status: HabitStatus;
+  showStatus?: ShowStatus; // Defaults to 'active' in database schema
   goalId?: string;
   linkedGoalIds?: string[];
   frequency: Frequency;
@@ -103,6 +110,11 @@ export interface Habit {
   unit?: string;
   financeRule?: HabitFinanceRule;
   challengeLengthDays?: number;
+  countingType?: HabitCountingType;
+  difficulty?: HabitDifficulty;
+  priority?: HabitPriority;
+  reminderEnabled?: boolean;
+  reminderTime?: string;
   streakCurrent: number;
   streakBest: number;
   completionRate30d: number;
@@ -152,6 +164,7 @@ export interface Task {
   userId: string;
   title: string;
   status: TaskStatus;
+  showStatus?: ShowStatus; // Defaults to 'active' in database schema
   priority: TaskPriority;
   goalId?: string;
   habitId?: string;

@@ -17,7 +17,7 @@ interface LanguageSelectorControlProps {
 
 export const LanguageSelectorControl: React.FC<LanguageSelectorControlProps> = ({
   label,
-  helper,
+  helper: _helper,
   value,
   onChange,
   containerStyle,

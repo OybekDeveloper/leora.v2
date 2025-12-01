@@ -1,6 +1,8 @@
 {
   "title": "Create goal",
+  "editTitle": "Edit Goal",
   "subtitle": "Break long-term ambitions into measurable progress.",
+  "close": "Close",
   "scenarioSection": {
     "title": "Scenario",
     "subtitle": "Templates adjust metric and timeline automatically."
@@ -26,6 +28,51 @@
       "title": "Custom",
       "subtitle": "Choose your own metric"
     }
+  },
+  "wizardSteps": {
+    "basics": "Basics",
+    "measure": "Measure",
+    "timeline": "Timeline",
+    "connect": "Connect"
+  },
+  "step1": {
+    "title": "What do you want to achieve?",
+    "categoryLabel": "Category",
+    "whyLabel": "Why is this important? (optional)",
+    "placeholder": "E.g., \"Save for vacation\", \"Run a marathon\", \"Learn Spanish\"",
+    "motivationPlaceholder": "Your motivation...",
+    "hint": "Goals with clear 'why' are 60% more likely to succeed",
+    "characterCount": "/100"
+  },
+  "step2": {
+    "title": "How will you track it?",
+    "goalTypeLabel": "Goal Type",
+    "currencyInherited": "Currency inherited from linked budget",
+    "progressHint": "Progress will update automatically based on your transactions"
+  },
+  "step3": {
+    "title": "When do you want to achieve this?",
+    "deadlineHint": "Goals with deadlines are 42% more successful",
+    "quickSelect": "Quick select"
+  },
+  "step4": {
+    "title": "Connect to finances (optional)",
+    "subtitle": "Link to budgets or debts to track progress automatically",
+    "livePreview": "Live preview",
+    "budgetBalance": "Budget balance",
+    "goalProgress": "Goal progress",
+    "debtRemaining": "Debt remaining",
+    "savingsLink": "Link to savings budget",
+    "debtLink": "Which debt are you paying off?",
+    "budgetCategoryLink": "Link to budget category",
+    "noBudget": "No budget",
+    "noDebt": "No debt",
+    "addBudget": "Add Budget",
+    "createDebt": "Create New Debt",
+    "noBudgetsHint": "No budgets available. Create one below to link automatically.",
+    "noDebtsHint": "No active debts. Create one in Finance tab.",
+    "autoPaymentHint": "Progress updates automatically when you make payments",
+    "nonFinanceHint": "Finance linking is only available for financial goals. You can add habits and tasks later from the goal details screen."
   },
   "detailsSection": {
     "title": "Details",
@@ -74,14 +121,45 @@
     "empty": "No milestones yet",
     "delete": "Remove"
   },
+  "goalTypes": {
+    "financial": { "label": "Money", "examples": ["Save $5000", "Pay off debt"] },
+    "career": { "label": "Career", "examples": ["Get promoted", "Launch side project"] },
+    "personal": { "label": "Personal", "examples": ["Meditate daily", "Travel to 5 countries"] }
+  },
+  "financeModes": {
+    "save": { "label": "Save money", "description": "Build savings" },
+    "spend": { "label": "Budget limit", "description": "Control spending" },
+    "debt_close": { "label": "Pay off debt", "description": "Eliminate debt" }
+  },
+  "metricKinds": {
+    "amount": { "label": "Money", "description": "Financial goals" },
+    "count": { "label": "Count", "description": "Track quantities" },
+    "duration": { "label": "Duration", "description": "Time-based goals" },
+    "weight": { "label": "Weight", "description": "Weight tracking" },
+    "custom": { "label": "Custom", "description": "Your metric" }
+  },
+  "deadlinePresets": {
+    "week1": "1 week",
+    "month1": "1 month",
+    "month3": "3 months",
+    "month6": "6 months",
+    "year1": "1 year"
+  },
   "actions": {
     "cancel": "Close",
-    "create": "Create goal",
+    "back": "Back",
+    "next": "Next →",
+    "create": "Create Goal",
     "createMore": "Create & add another",
-    "update": "Save changes"
+    "update": "Save changes",
+    "done": "Done"
   },
   "alerts": {
     "missingTitle": "Name the goal first.",
-    "invalidTarget": "Specify a target value greater than zero."
+    "titleTooShort": "Title is too short. Be more specific!",
+    "invalidTarget": "Target must be a valid number",
+    "targetSameAsCurrent": "Target should be different from current value",
+    "selectBudget": "Select or create a budget for this goal.",
+    "selectDebt": "Link a debt to track repayments."
   }
 }

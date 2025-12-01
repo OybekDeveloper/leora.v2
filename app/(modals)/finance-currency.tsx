@@ -7,10 +7,13 @@ import { useRouter } from 'expo-router';
 import { useAppTheme } from '@/constants/theme';
 import { useFinanceCurrency } from '@/hooks/useFinanceCurrency';
 import { AVAILABLE_FINANCE_CURRENCIES, type FinanceCurrency } from '@/stores/useFinancePreferencesStore';
+import { useLocalization } from '@/localization/useLocalization';
 
 const FinanceCurrencyModal = () => {
   const theme = useAppTheme();
   const router = useRouter();
+  const { strings } = useLocalization();
+  const currencyStrings = strings.modals.financeCurrency;
   const styles = useMemo(() => createStyles(theme), [theme]);
   const {
     baseCurrency,
@@ -53,14 +56,14 @@ const FinanceCurrencyModal = () => {
   return (
     <SafeAreaView style={styles.safeArea} edges={['bottom']}>
       <View style={styles.header}>
-        <Text style={styles.title}>Global currency</Text>
+        <Text style={styles.title}>{currencyStrings.title}</Text>
         <Pressable onPress={() => router.back()} hitSlop={12}>
           <Ionicons name="close" size={22} color={theme.colors.textPrimary} />
         </Pressable>
       </View>
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.sectionLabel}>Display currency</Text>
+        <Text style={styles.sectionLabel}>{currencyStrings.displayCurrency}</Text>
         <View style={styles.card}>
           {AVAILABLE_FINANCE_CURRENCIES.map((currency) => (
             <Pressable
@@ -74,7 +77,7 @@ const FinanceCurrencyModal = () => {
               <View>
                 <Text style={styles.currencyCode}>{currency}</Text>
                 <Text style={styles.currencyHint}>
-                  {currency === baseCurrency ? 'Base currency' : 'Convert to this currency'}
+                  {currency === baseCurrency ? currencyStrings.baseCurrency : currencyStrings.convertTo}
                 </Text>
               </View>
               <View
@@ -89,7 +92,7 @@ const FinanceCurrencyModal = () => {
           ))}
         </View>
 
-        <Text style={styles.sectionLabel}>Exchange rates (1 unit)</Text>
+        <Text style={styles.sectionLabel}>{currencyStrings.exchangeRates}</Text>
         <View style={styles.card}>
           {AVAILABLE_FINANCE_CURRENCIES.map((currency) => (
             <View key={`rate-${currency}`} style={styles.rateRow}>
@@ -97,7 +100,7 @@ const FinanceCurrencyModal = () => {
                 <Text style={styles.rateLabel}>{currency}</Text>
                 <Text style={styles.rateHint}>
                   {currency === baseCurrency
-                    ? 'Fixed reference'
+                    ? currencyStrings.fixedReference
                     : `1 ${currency} =`}
                 </Text>
               </View>
@@ -120,7 +123,7 @@ const FinanceCurrencyModal = () => {
       </ScrollView>
 
       <Pressable style={styles.saveButton} onPress={handleSave}>
-        <Text style={styles.saveButtonLabel}>Apply</Text>
+        <Text style={styles.saveButtonLabel}>{currencyStrings.apply}</Text>
       </Pressable>
     </SafeAreaView>
   );

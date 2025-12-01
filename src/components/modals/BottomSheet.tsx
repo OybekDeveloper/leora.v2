@@ -22,7 +22,6 @@ import { Platform, StyleProp, StyleSheet, View, ViewStyle, useWindowDimensions }
 
 import { useAppTheme, type Theme } from '@/constants/theme';
 import { applyOpacity } from '@/utils/color';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 export interface BottomSheetHandle {
   present: () => void;

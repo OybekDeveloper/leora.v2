@@ -12,14 +12,10 @@
  */
 
 import type { Transaction } from '@/domain/finance/types';
-import type { Habit, HabitFinanceRule } from '@/domain/planner/types';
+import type { Habit } from '@/domain/planner/types';
 import { usePlannerDomainStore } from '@/stores/usePlannerDomainStore';
 import { useFinanceDomainStore } from '@/stores/useFinanceDomainStore';
 import { plannerEventBus } from '@/events/plannerEventBus';
-import { startOfDay } from '@/utils/calendar';
-
-const dateKeyFromDate = (date: Date) => startOfDay(date).toISOString().split('T')[0]!;
-
 /**
  * Evaluates a single habit against its finance rule for a given date
  */
@@ -41,7 +37,7 @@ function evaluateHabitForDate(
     case 'no_spend_in_categories': {
       // PASS if NO transactions in specified categories
       const hasSpendInCategories = dayTransactions.some(tx =>
-        tx.type === 'expense' && rule.categoryIds.includes(tx.category)
+        tx.type === 'expense' && tx.categoryId && rule.categoryIds.includes(tx.categoryId)
       );
       return hasSpendInCategories ? 'miss' : 'done';
     }
@@ -49,7 +45,7 @@ function evaluateHabitForDate(
     case 'spend_in_categories': {
       // PASS if HAS transactions in categories (optionally >= minAmount)
       const relevantTransactions = dayTransactions.filter(tx =>
-        rule.categoryIds.includes(tx.category)
+        tx.categoryId && rule.categoryIds.includes(tx.categoryId)
       );
 
       if (relevantTransactions.length === 0) return 'miss';
@@ -72,7 +68,7 @@ function evaluateHabitForDate(
       }
 
       const hasTransactionInAccounts = dayTransactions.some(tx =>
-        rule.accountIds?.includes(tx.accountId)
+        tx.accountId && rule.accountIds?.includes(tx.accountId)
       );
       return hasTransactionInAccounts ? 'done' : 'miss';
     }
@@ -132,11 +128,9 @@ function evaluateHabitsForTransaction(transaction: Transaction) {
 
       // Publish event
       plannerEventBus.publish('planner.habit.day_evaluated', {
-        habitId: habit.id,
+        habit,
         date: transactionDate,
-        result,
-        evaluatedBy: 'auto',
-        ruleType: habit.financeRule?.type,
+        status: result,
       });
     }
   });
@@ -165,11 +159,9 @@ export function reevaluateHabitsForDate(dateStr: string) {
       }
 
       plannerEventBus.publish('planner.habit.day_evaluated', {
-        habitId: habit.id,
+        habit,
         date: dateStr,
-        result,
-        evaluatedBy: 'auto-reevaluate',
-        ruleType: habit.financeRule?.type,
+        status: result,
       });
     }
   });
@@ -184,7 +176,7 @@ export function initHabitAutoEvaluator() {
 
   // Subscribe to finance transaction events
   plannerEventBus.subscribe('finance.tx.created', (event) => {
-    const { transaction } = event.payload || event;
+    const { transaction } = event;
     console.log(`[HabitAutoEvaluator] Transaction created: ${transaction?.id || 'unknown'}`);
     if (transaction) {
       evaluateHabitsForTransaction(transaction);
@@ -192,7 +184,7 @@ export function initHabitAutoEvaluator() {
   });
 
   plannerEventBus.subscribe('finance.tx.updated', (event) => {
-    const { transaction } = event.payload || event;
+    const { transaction } = event;
     console.log(`[HabitAutoEvaluator] Transaction updated: ${transaction?.id || 'unknown'}`);
     if (transaction) {
       // Re-evaluate for the transaction date
@@ -202,11 +194,11 @@ export function initHabitAutoEvaluator() {
   });
 
   plannerEventBus.subscribe('finance.tx.deleted', (event) => {
-    const { transactionId, date } = event.payload || event;
-    console.log(`[HabitAutoEvaluator] Transaction deleted: ${transactionId || 'unknown'}`);
-    if (date) {
+    const { transaction } = event;
+    console.log(`[HabitAutoEvaluator] Transaction deleted: ${transaction?.id || 'unknown'}`);
+    if (transaction?.date) {
       // Re-evaluate for the transaction date
-      const transactionDate = new Date(date).toISOString().split('T')[0];
+      const transactionDate = new Date(transaction.date).toISOString().split('T')[0];
       reevaluateHabitsForDate(transactionDate);
     }
   });

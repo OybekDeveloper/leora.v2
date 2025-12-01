@@ -6,7 +6,7 @@
  */
 
 import type { Task, Habit, Goal } from '@/domain/planner/types';
-import { startOfDay, isSameDay } from '@/utils/calendar';
+import { startOfDay } from '@/utils/calendar';
 
 const getHabitStatus = (entry?: Habit['completionHistory'] extends Record<string, infer V> ? V : never) =>
   typeof entry === 'string' ? entry : entry?.status;
@@ -14,18 +14,53 @@ const getHabitStatus = (entry?: Habit['completionHistory'] extends Record<string
 /**
  * Calculate task completion progress for a given day.
  *
- * Returns 0 when there are no tasks scheduled to avoid phantom 100% scores.
+ * Tasks are filtered by their createdAt date - showing tasks created
+ * on or before the selected date to match the Planner UI behavior.
+ * Returns 0 when there are no tasks to avoid phantom 100% scores.
+ *
+ * Excludes archived and deleted tasks from the progress calculation.
  */
-const isTaskExcluded = (task: Task) => task.status === 'archived' || task.status === 'deleted';
+const isTaskExcluded = (task: Task) =>
+  task.status === 'archived' ||
+  task.status === 'deleted' ||
+  task.showStatus === 'archived' ||
+  task.showStatus === 'deleted';
 
 export function calculateTaskProgress(tasks: Task[], targetDate: Date = new Date()): number {
-  const day = startOfDay(targetDate);
+  const dayStart = startOfDay(targetDate).getTime();
 
   const dayTasks = tasks.filter((task) => {
+    // Exclude archived/deleted tasks
+    if (isTaskExcluded(task)) return false;
+    if (!task.createdAt) return false;
+    // Include tasks created on or before the selected day
+    const taskCreatedDay = startOfDay(new Date(task.createdAt)).getTime();
+    return taskCreatedDay <= dayStart;
+  });
+
+  if (dayTasks.length === 0) return 0;
+
+  const completedTasks = dayTasks.filter((task) => task.status === 'completed');
+  return Math.round((completedTasks.length / dayTasks.length) * 100);
+}
+
+/**
+ * Calculate task completion progress for tasks DUE on a specific day.
+ *
+ * This is used for calendar indicators where we want to show
+ * progress for tasks scheduled/due on that specific date.
+ * Returns 0 when there are no tasks due to avoid phantom 100% scores.
+ */
+export function calculateTaskProgressByDueDate(tasks: Task[], targetDate: Date = new Date()): number {
+  const dayStart = startOfDay(targetDate).getTime();
+
+  const dayTasks = tasks.filter((task) => {
+    // Exclude archived/deleted tasks
     if (isTaskExcluded(task)) return false;
     if (!task.dueDate) return false;
-    const taskDate = startOfDay(new Date(task.dueDate));
-    return isSameDay(taskDate, day);
+    // Include tasks due on the selected day
+    const taskDueDay = startOfDay(new Date(task.dueDate)).getTime();
+    return taskDueDay === dayStart;
   });
 
   if (dayTasks.length === 0) return 0;

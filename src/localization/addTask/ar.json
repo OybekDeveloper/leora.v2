@@ -1,7 +1,14 @@
 {
   "title": "مهمة جديدة",
+  "editTitle": "تعديل المهمة",
+  "createTitle": "إنشاء مهمة",
+  "close": "إغلاق",
+  "cancel": "إلغاء",
+  "update": "تحديث",
+  "create": "إنشاء",
   "nameLabel": "عنوان المهمة",
   "namePlaceholder": "العنوان",
+  "titleRequired": "*",
   "whenLabel": "الموعد",
   "whenOptions": {
     "today": "اليوم",
@@ -14,16 +21,24 @@
   "time": "الوقت",
   "notes": "الوصف",
   "notesPlaceholder": "الوصف (اختياري)",
+  "descriptionLabel": "الوصف",
+  "descriptionPlaceholder": "الوصف (اختياري)",
   "project": "المشروع",
   "projectPlaceholder": "اختر مشروعك",
   "context": "السياق",
-  "energy": "الطاقة",
+  "energy": "مستوى الطاقة",
+  "energyOptions": {
+    "low": "منخفض",
+    "medium": "متوسط",
+    "high": "عالٍ"
+  },
   "priority": "الأولوية",
   "additional": "إعدادات إضافية",
   "reminder": "تذكير قبل",
+  "reminderBefore": "تذكير قبل",
   "repeat": "تكرار",
   "needFocus": "بحاجة إلى تركيز",
-  "subtasks": "المهام الفرعية",
+  "subtasks": "المهام الفرعية:",
   "subtaskPlaceholder": "أضف مهمة فرعية",
   "submit": "إنشاء المهمة",
   "submitMore": "إنشاء ومتابعة",
@@ -41,5 +56,19 @@
   },
   "goalLabel": "الهدف المرتبط",
   "goalUnset": "بدون هدف",
-  "goalHelper": "اربط هدفاً ليتابع الذكاء الاصطناعي والتقارير تقدمك."
+  "goalHelper": "اربط هدفاً ليتابع الذكاء الاصطناعي والتقارير تقدمك.",
+  "financeAction": "الإجراء المالي",
+  "financeOptions": {
+    "recordExpenses": "تسجيل المصروفات",
+    "payDebt": "سداد الدين",
+    "reviewBudget": "مراجعة الميزانية",
+    "transferMoney": "تحويل الأموال",
+    "none": "لا شيء"
+  },
+  "validation": {
+    "selectDate": "الرجاء اختيار تاريخ",
+    "pastDate": "لا يمكن اختيار تاريخ ماضٍ",
+    "futureTime": "يجب أن يكون الوقت في المستقبل"
+  },
+  "done": "تم"
 }

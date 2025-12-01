@@ -51,12 +51,14 @@ export default function AccountFilterModal() {
   }, [router]);
 
   const handleApply = useCallback(() => {
-    // Navigate back with updated params
-    router.setParams({
-      selectedAccountIds: selectedAccountIds.join(','),
-      balanceCurrency,
+    // Navigate back to finance review with updated params
+    router.replace({
+      pathname: '/(tabs)/(finance)/(tabs)',
+      params: {
+        selectedAccountIds: selectedAccountIds.join(','),
+        balanceCurrency,
+      },
     });
-    router.back();
   }, [router, selectedAccountIds, balanceCurrency]);
 
   const handleSelectAll = useCallback(() => {
@@ -84,7 +86,7 @@ export default function AccountFilterModal() {
           {reviewStrings.accountFilterTitle}
         </Text>
         <Pressable onPress={handleClose} hitSlop={12}>
-          <Text style={[styles.closeText, { color: theme.colors.textSecondary }]}>Close</Text>
+          <Text style={[styles.closeText, { color: theme.colors.textSecondary }]}>{strings.common.close}</Text>
         </Pressable>
       </View>
 

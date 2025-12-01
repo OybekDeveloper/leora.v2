@@ -9,6 +9,7 @@ import { useFinanceDomainStore } from '@/stores/useFinanceDomainStore';
 import { useFinanceCurrency } from '@/hooks/useFinanceCurrency';
 import { normalizeFinanceCurrency } from '@/utils/financeCurrency';
 import { useShallow } from 'zustand/react/shallow';
+import { useLocalization } from '@/localization/useLocalization';
 
 type ResultType = 'account' | 'transaction' | 'budget' | 'debt';
 
@@ -24,6 +25,8 @@ interface SearchResult {
 const FinanceSearchModal = () => {
   const theme = useAppTheme();
   const router = useRouter();
+  const { strings } = useLocalization();
+  const searchStrings = strings.modals.financeSearch;
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [query, setQuery] = useState('');
 
@@ -140,7 +143,7 @@ const FinanceSearchModal = () => {
   return (
     <SafeAreaView style={styles.safeArea} edges={['bottom']}>
       <View style={styles.header}>
-        <Text style={styles.title}>Search finance data</Text>
+        <Text style={styles.title}>{searchStrings.title}</Text>
         <Pressable onPress={() => router.back()} hitSlop={12}>
           <Ionicons name="close" size={22} color={theme.colors.textPrimary} />
         </Pressable>
@@ -149,7 +152,7 @@ const FinanceSearchModal = () => {
       <View style={styles.searchBar}>
         <Ionicons name="search" size={18} color={theme.colors.textSecondary} />
         <TextInput
-          placeholder="Search accounts, transactions, budgets…"
+          placeholder={searchStrings.placeholder}
           placeholderTextColor={theme.colors.textSecondary}
           style={styles.searchInput}
           value={query}
@@ -178,9 +181,9 @@ const FinanceSearchModal = () => {
         )}
         ListEmptyComponent={
           query ? (
-            <Text style={styles.emptyText}>No results</Text>
+            <Text style={styles.emptyText}>{searchStrings.noResults}</Text>
           ) : (
-            <Text style={styles.emptyText}>Start typing to search</Text>
+            <Text style={styles.emptyText}>{searchStrings.startTyping}</Text>
           )
         }
       />

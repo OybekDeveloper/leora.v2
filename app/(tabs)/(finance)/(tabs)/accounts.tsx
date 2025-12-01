@@ -32,6 +32,7 @@ import { useRouter } from 'expo-router';
 
 import { useAppTheme } from '@/constants/theme';
 import { AdaptiveGlassView } from '@/components/ui/AdaptiveGlassView';
+import EmptyState from '@/components/shared/EmptyState';
 import { useFinanceDomainStore } from '@/stores/useFinanceDomainStore';
 import type {
   AccountIconId,
@@ -735,6 +736,8 @@ export default function AccountsTab() {
     [accountItems],
   );
 
+  const isEmpty = preparedAccounts.length === 0;
+
   const handleCardPress = (id: string) => {
     if (actionModeId === id) {
       // Exit action mode
@@ -808,21 +811,28 @@ export default function AccountsTab() {
           </View>
 
 
-          {preparedAccounts.map((account) => (
-            <AccountCard
-              key={account.id}
-              account={account}
-              isExpanded={expandedId === account.id}
-              isActionMode={actionModeId === account.id}
-              onPress={() => handleCardPress(account.id)}
-              onLongPress={() => handleLongPress(account.id)}
-              onEdit={() => handleEdit(account.id)}
-              onArchive={() => handleArchive(account.id)}
-              onDelete={() => handleDelete(account.id)}
-              theme={theme}
-              strings={accountStrings}
+          {isEmpty ? (
+            <EmptyState
+              title={accountStrings.empty.title}
+              subtitle={accountStrings.empty.subtitle}
             />
-          ))}
+          ) : (
+            preparedAccounts.map((account) => (
+              <AccountCard
+                key={account.id}
+                account={account}
+                isExpanded={expandedId === account.id}
+                isActionMode={actionModeId === account.id}
+                onPress={() => handleCardPress(account.id)}
+                onLongPress={() => handleLongPress(account.id)}
+                onEdit={() => handleEdit(account.id)}
+                onArchive={() => handleArchive(account.id)}
+                onDelete={() => handleDelete(account.id)}
+                theme={theme}
+                strings={accountStrings}
+              />
+            ))
+          )}
 
           {/* Add New Button */}
           <AdaptiveGlassView style={[styles.glassSurface, styles.glass1]}>

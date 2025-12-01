@@ -1,0 +1,93 @@
+{
+  "focusMode": {
+    "header": {
+      "title": "وضع التركيز",
+      "settings": "الإعدادات"
+    },
+    "status": {
+      "ready": "جاهز",
+      "inProgress": "قيد التنفيذ",
+      "paused": "متوقف مؤقتاً"
+    },
+    "timer": {
+      "start": "البداية",
+      "end": "النهاية"
+    },
+    "task": {
+      "cardLabel": "التركيز الحالي على",
+      "goalTag": "الهدف: {goal}"
+    },
+    "toggles": {
+      "notifications": "إيقاف الإشعارات",
+      "backgroundMusic": "موسيقى خلفية",
+      "appBlock": "حظر التطبيقات",
+      "dynamicIsland": "الجزيرة الديناميكية"
+    },
+    "statistics": {
+      "title": "إحصائيات اليوم",
+      "focusTime": "وقت التركيز:",
+      "sessionsCompleted": "الجلسات المكتملة:",
+      "productivity": "الإنتاجية:"
+    },
+    "buttons": {
+      "reset": "إعادة تعيين",
+      "finish": "إنهاء"
+    },
+    "alerts": {
+      "resetTitle": "إعادة تعيين المؤقت؟",
+      "resetMessage": "سيتم إعادة تعيين المؤقت وحذف التقدم الحالي.",
+      "cancel": "إلغاء",
+      "resetConfirm": "إعادة تعيين"
+    },
+    "time": {
+      "hours": "س",
+      "minutes": "د"
+    }
+  },
+  "focusSettings": {
+    "header": {
+      "title": "إعدادات التركيز",
+      "close": "إغلاق"
+    },
+    "technique": {
+      "label": "التقنية",
+      "pomodoro": "بومودورو",
+      "pomodoroSummary": "25د + 5د",
+      "blocs": "كتل",
+      "blocsSummary": "50د + 10د",
+      "free": "مؤقت حر",
+      "freeSummary": "بدون حد"
+    },
+    "session": {
+      "label": "مدة الجلسة",
+      "workTime": "وقت العمل (د)",
+      "breakTime": "وقت الاستراحة (د)",
+      "sessionsUntilBigBreak": "جلسات حتى الاستراحة الكبيرة",
+      "bigBreakTime": "الاستراحة الكبيرة (د)"
+    },
+    "locks": {
+      "label": "الأقفال",
+      "notifications": "الإشعارات",
+      "social": "قفل الشبكات الاجتماعية",
+      "apps": "قفل جميع التطبيقات",
+      "autoReply": "الرد التلقائي على الرسائل"
+    },
+    "motivation": {
+      "label": "التحفيز",
+      "progress": "إظهار التقدم",
+      "sound": "صوت الإكمال",
+      "vibration": "الاهتزاز",
+      "music": "موسيقى للتركيز"
+    },
+    "buttons": {
+      "reset": "إعادة تعيين",
+      "confirm": "تأكيد"
+    },
+    "alerts": {
+      "resetTitle": "إعادة تعيين إعدادات التركيز؟",
+      "resetMessage": "سيتم استعادة الإعدادات الافتراضية.",
+      "cancel": "إلغاء",
+      "resetConfirm": "إعادة تعيين"
+    }
+  }
+}

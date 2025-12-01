@@ -13,34 +13,18 @@ import { Check, MonitorCog, Moon, Sun } from 'lucide-react-native';
 import { AdaptiveGlassView } from '@/components/ui/AdaptiveGlassView';
 import { Theme, useAppTheme } from '@/constants/theme';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useThemeSettingsLocalization } from '@/localization/more/settings';
 import { useSettingsStore } from '@/stores/useSettingsStore';
 
 type ThemeOption = {
   value: 'dark' | 'light' | 'auto';
-  label: string;
-  description: string;
   icon: React.ComponentType<{ color?: string; size?: number; strokeWidth?: number }>;
 };
 
 const THEME_OPTIONS: ThemeOption[] = [
-  {
-    value: 'dark',
-    label: 'Dark',
-    description: 'Deep contrast for OLED and night sessions.',
-    icon: Moon,
-  },
-  {
-    value: 'light',
-    label: 'Light',
-    description: 'Bright surfaces for daylight clarity.',
-    icon: Sun,
-  },
-  {
-    value: 'auto',
-    label: 'System',
-    description: 'Match your device’s appearance automatically.',
-    icon: MonitorCog,
-  },
+  { value: 'dark', icon: Moon },
+  { value: 'light', icon: Sun },
+  { value: 'auto', icon: MonitorCog },
 ];
 
 const createStyles = (theme: Theme) =>
@@ -152,12 +136,17 @@ const ThemeSettingsScreen: React.FC = () => {
   const appTheme = useAppTheme();
   const styles = useMemo(() => createStyles(appTheme), [appTheme]);
   const colorScheme = useColorScheme();
+  const t = useThemeSettingsLocalization();
 
   const currentTheme = useSettingsStore((state) => state.theme);
   const setStoredTheme = useSettingsStore((state) => state.setTheme);
   const { setTheme: setContextTheme } = useTheme();
   const rippleColor =
     appTheme.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.12)';
+
+  const getOptionLocalization = (value: ThemeOption['value']) => {
+    return t.options[value];
+  };
 
   const handleSelect = useCallback(
     (value: ThemeOption['value']) => {
@@ -179,11 +168,12 @@ const ThemeSettingsScreen: React.FC = () => {
         contentContainerStyle={{ paddingBottom: 32 }}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.sectionTitle}>Appearance</Text>
+        <Text style={styles.sectionTitle}>{t.sectionTitle}</Text>
         <View style={styles.card}>
           {THEME_OPTIONS.map((option) => {
             const selected = currentTheme === option.value;
             const Icon = option.icon;
+            const optionT = getOptionLocalization(option.value);
             return (
               <Pressable
                 key={option.value}
@@ -201,8 +191,8 @@ const ThemeSettingsScreen: React.FC = () => {
                       <Icon color={appTheme.colors.iconText} size={18} />
                     </View>
                     <View style={styles.optionTexts}>
-                      <Text style={styles.optionLabel}>{option.label}</Text>
-                      <Text style={styles.optionDescription}>{option.description}</Text>
+                      <Text style={styles.optionLabel}>{optionT.label}</Text>
+                      <Text style={styles.optionDescription}>{optionT.description}</Text>
                     </View>
                   </View>
                   <View
@@ -220,11 +210,8 @@ const ThemeSettingsScreen: React.FC = () => {
         </View>
 
         <AdaptiveGlassView style={styles.helperCard}>
-          <Text style={styles.helperTitle}>Heads up</Text>
-          <Text style={styles.helperText}>
-            Switching to System mode will follow your device appearance automatically. Dark reduces
-            eye strain at night, while Light keeps cards bright for daytime viewing.
-          </Text>
+          <Text style={styles.helperTitle}>{t.headsUp.title}</Text>
+          <Text style={styles.helperText}>{t.headsUp.description}</Text>
         </AdaptiveGlassView>
       </ScrollView>
     </SafeAreaView>

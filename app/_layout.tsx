@@ -29,7 +29,6 @@ import { initDebtTransactionLinker } from '@/services/debtTransactionLinker';
 import ProfileHeader from './(tabs)/more/_components/ProfileHeader';
 import { useLocalization } from '@/localization/useLocalization';
 import LoadingOverlay from '@/components/ui/LoadingOverlay';
-import FocusSettingsModal from '@/components/modals/FocusSettingsModal';
 import { useModalStore } from '@/stores/useModalStore';
 import { RealmProvider } from '@/utils/RealmContext';
 import { useRealmDiagnostics } from '@/hooks/useRealmDiagnostics';
@@ -496,6 +495,15 @@ function RootNavigator({
             headerShown: false,
           }}
         />
+        {/* Focus Settings Modal */}
+        <Stack.Screen
+          name="(modals)/focus/settings"
+          options={{
+            presentation: 'modal',
+            headerShown: false,
+            animation: "slide_from_bottom",
+          }}
+        />
         {/* Finance Screen Modals */}
         <Stack.Screen
           name="(modals)/finance-currency"
@@ -591,6 +599,22 @@ function RootNavigator({
           }}
         />
         <Stack.Screen
+          name="(modals)/finance/debt-detail"
+          options={{
+            presentation: 'modal',
+            headerShown: false,
+            animation: "slide_from_bottom",
+          }}
+        />
+        <Stack.Screen
+          name="(modals)/finance/debt-actions"
+          options={{
+            presentation: 'modal',
+            headerShown: false,
+            animation: "slide_from_bottom",
+          }}
+        />
+        <Stack.Screen
           name="(modals)/finance/fx-override"
           options={{
             presentation: 'modal',
@@ -634,7 +658,6 @@ function RootNavigator({
       <>
         {navigatorContent}
         <LoadingOverlay />
-        <FocusSettingsModal />
       </>
     </NavigationThemeProvider>
   );

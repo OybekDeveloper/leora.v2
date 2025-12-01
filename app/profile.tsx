@@ -33,7 +33,7 @@ import {
 } from '@/stores/useFinancePreferencesStore';
 import { useShallow } from 'zustand/react/shallow';
 import { BottomSheetTextInput } from '@gorhom/bottom-sheet';
-import type { FxProviderId } from '@/services/fx/providers';
+import { type FxProviderId, getProviderForRegion } from '@/services/fx/providers';
 
 type VisibilityOption = NonNullable<User['visibility']> | 'public' | 'friends' | 'private';
 type EditProfileFormState = {
@@ -106,7 +106,6 @@ const ProfileScreen = () => {
   const [overrideInput, setOverrideInput] = useState('');
   const [overrideError, setOverrideError] = useState<string | null>(null);
   const [overrideSuccess, setOverrideSuccess] = useState<string | null>(null);
-  const [selectedProvider, setSelectedProvider] = useState<FxProviderId>('central_bank_stub');
   const [fxSyncStatus, setFxSyncStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
 
@@ -129,6 +128,10 @@ const ProfileScreen = () => {
       overrideExchangeRate: state.overrideExchangeRate,
     })),
   );
+
+  const defaultProvider = getProviderForRegion(financeRegion);
+  const [selectedProvider, setSelectedProvider] = useState<FxProviderId>(defaultProvider);
+
   const [overrideCurrency, setOverrideCurrency] = useState<FinanceCurrency>(() => {
     if (globalCurrency !== baseCurrency) {
       return globalCurrency;
@@ -217,12 +220,11 @@ const ProfileScreen = () => {
       : profileStrings.finance.currencySheetTitle;
   const currencySheetActiveCode = currencySheetMode === 'override' ? overrideCurrency : globalCurrency;
   const providerOptions = useMemo(
-    () =>
-      [
-        { id: 'central_bank_stub' as FxProviderId, label: profileStrings.finance.fxProviders.central_bank_stub },
-        { id: 'market_stub' as FxProviderId, label: profileStrings.finance.fxProviders.market_stub },
-      ],
-    [profileStrings.finance.fxProviders],
+    () => [
+      { id: defaultProvider, label: profileStrings.finance.fxProviders.central_bank ?? 'Central Bank' },
+      { id: 'market_api' as FxProviderId, label: profileStrings.finance.fxProviders.market ?? 'Market API' },
+    ],
+    [profileStrings.finance.fxProviders, defaultProvider],
   );
   const lastSyncLabel = useMemo(() => {
     if (!lastSyncedAt) {

@@ -25,6 +25,7 @@ const mapGoal = (record: any): Goal => ({
   description: record.description ?? undefined,
   goalType: record.goalType,
   status: record.status,
+  showStatus: record.showStatus ?? (record.status === 'archived' ? 'archived' : 'active'),
   metricType: record.metricType,
   direction: record.direction ?? 'increase',
   unit: record.unit ?? undefined,
@@ -77,6 +78,7 @@ const mapHabit = (record: any): Habit => ({
   iconId: record.iconId ?? undefined,
   habitType: record.habitType,
   status: record.status,
+  showStatus: record.showStatus ?? (record.status === 'archived' ? 'archived' : 'active'),
   goalId: fromObjectId(record.goalId),
   linkedGoalIds: record.linkedGoalIds?.map((id: BSON.ObjectId) => id.toHexString()) ?? [],
   frequency: record.frequency,
@@ -99,11 +101,18 @@ const mapHabit = (record: any): Habit => ({
   updatedAt: toISODate(record.updatedAt)!,
 });
 
+const deriveTaskShowStatus = (status: string): 'active' | 'archived' | 'deleted' => {
+  if (status === 'deleted') return 'deleted';
+  if (status === 'archived') return 'archived';
+  return 'active';
+};
+
 const mapTask = (record: any): Task => ({
   id: fromObjectId(record._id)!,
   userId: record.userId ?? defaultUserId,
   title: record.title,
   status: record.status,
+  showStatus: record.showStatus ?? deriveTaskShowStatus(record.status),
   priority: record.priority,
   goalId: fromObjectId(record.goalId),
   habitId: fromObjectId(record.habitId),

@@ -14,6 +14,7 @@ import { useRouter } from 'expo-router';
 
 import { AdaptiveGlassView } from '@/components/ui/AdaptiveGlassView';
 import { Theme, useAppTheme } from '@/constants/theme';
+import { useLocalization } from '@/localization/useLocalization';
 
 type RecoveryStep = 'contact' | 'code';
 
@@ -137,6 +138,8 @@ const createStyles = (theme: Theme) =>
 
 const ForgotPasscodeModal: React.FC = () => {
   const theme = useAppTheme();
+  const { strings } = useLocalization();
+  const forgotStrings = strings.modals.forgotPasscode;
   const styles = useMemo(() => createStyles(theme), [theme]);
   const router = useRouter();
 
@@ -155,7 +158,7 @@ const ForgotPasscodeModal: React.FC = () => {
   const handleSendCode = () => {
     if (!contactValid) return;
     setStatus(
-      `We sent a short recovery code to ${contactValue.trim()}. Enter it below to finish resetting your passcode.`,
+      forgotStrings.codeSentMessage.replace('{contact}', contactValue.trim()),
     );
     setStep('code');
   };
@@ -180,20 +183,19 @@ const ForgotPasscodeModal: React.FC = () => {
         >
           <View style={styles.header}>
             <View style={styles.titleRow}>
-              <Text style={styles.title}>Forgot passcode</Text>
+              <Text style={styles.title}>{forgotStrings.title}</Text>
               <Pressable style={styles.closeButton} onPress={handleClose}>
-                <Text style={styles.closeButtonText}>Close</Text>
+                <Text style={styles.closeButtonText}>{forgotStrings.close}</Text>
               </Pressable>
             </View>
             <Text style={styles.subtitle}>
-              Recover access by confirming a trusted contact and entering the
-              one-time code we send you.
+              {forgotStrings.subtitle}
             </Text>
           </View>
 
           <View style={styles.card}>
             <View>
-              <Text style={styles.sectionLabel}>Contact</Text>
+              <Text style={styles.sectionLabel}>{forgotStrings.contact}</Text>
               <AdaptiveGlassView
                 style={styles.input}
               >
@@ -201,7 +203,7 @@ const ForgotPasscodeModal: React.FC = () => {
                   value={contactValue}
                   style={styles.inputIn}
                   onChangeText={setContactValue}
-                  placeholder="Email or phone number"
+                  placeholder={forgotStrings.emailOrPhone}
                   placeholderTextColor={theme.colors.textMuted}
                   autoCapitalize="none"
                   keyboardType="email-address"
@@ -209,35 +211,33 @@ const ForgotPasscodeModal: React.FC = () => {
                 />
               </AdaptiveGlassView>
               <Text style={styles.helper}>
-                Use a verified email or phone so we can securely deliver the
-                recovery code.
+                {forgotStrings.contactHelper}
               </Text>
             </View>
 
             {step === 'code' && (
               <View>
-                <Text style={styles.sectionLabel}>Verification code</Text>
+                <Text style={styles.sectionLabel}>{forgotStrings.verificationCode}</Text>
                 <AdaptiveGlassView style={styles.input}>
                   <TextInput
                     value={codeValue}
                     onChangeText={setCodeValue}
                     style={styles.inputIn}
-                    placeholder="Enter code"
+                    placeholder={forgotStrings.enterCode}
                     placeholderTextColor={theme.colors.textMuted}
                     keyboardType="number-pad"
                     maxLength={6}
                   />
                 </AdaptiveGlassView>
                 <Text style={styles.helper}>
-                  {status ??
-                    'Check your inbox for the recovery code. Codes expire after 10 minutes.'}
+                  {status ?? forgotStrings.codeHelper}
                 </Text>
               </View>
             )}
 
             <View style={styles.buttonRow}>
               <Pressable style={styles.buttonGhost} onPress={handleClose}>
-                <Text style={styles.buttonGhostText}>Cancel</Text>
+                <Text style={styles.buttonGhostText}>{forgotStrings.cancel}</Text>
               </Pressable>
               {step === 'contact' ? (
                 <Pressable
@@ -262,7 +262,7 @@ const ForgotPasscodeModal: React.FC = () => {
                       },
                     ]}
                   >
-                    Send code
+                    {forgotStrings.sendCode}
                   </Text>
                 </Pressable>
               ) : (
@@ -288,7 +288,7 @@ const ForgotPasscodeModal: React.FC = () => {
                       },
                     ]}
                   >
-                    Verify
+                    {forgotStrings.verify}
                   </Text>
                 </Pressable>
               )}

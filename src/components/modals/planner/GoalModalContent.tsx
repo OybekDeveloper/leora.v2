@@ -40,6 +40,7 @@ import { StepIndicator } from '@/components/modals/StepIndicator';
 import { SmartHint } from '@/components/modals/SmartHint';
 import { FloatList, type FloatListItem } from '@/components/ui/FloatList';
 import { useLocalization } from '@/localization/useLocalization';
+import { useGoalModalContentLocalization } from '@/localization/planner/goalModalContent';
 import type { FinanceMode, GoalType, MetricKind } from '@/domain/planner/types';
 import { usePlannerDomainStore } from '@/stores/usePlannerDomainStore';
 import { useFinanceDomainStore } from '@/stores/useFinanceDomainStore';
@@ -58,13 +59,6 @@ type WizardStep = {
   label: string;
   icon: string;
 };
-
-const WIZARD_STEPS: WizardStep[] = [
-  { id: 1, key: 'what', label: 'What', icon: 'target' },
-  { id: 2, key: 'measure', label: 'Measure', icon: 'chart' },
-  { id: 3, key: 'when', label: 'When', icon: 'calendar' },
-  { id: 4, key: 'connect', label: 'Connect', icon: 'link' },
-];
 
 // Form Data Types
 type GoalFormData = {
@@ -99,38 +93,6 @@ type MilestoneFormValue = {
 };
 
 type DatePickerTarget = { type: 'start' } | { type: 'due' } | { type: 'milestone'; id: string };
-
-const GOAL_TYPES: { id: GoalType; label: string; icon: string; examples: string[] }[] = [
-  { id: 'financial', label: 'Money', icon: 'dollar', examples: ['Save $5000', 'Pay off debt'] },
-  { id: 'health', label: 'Health', icon: 'heart', examples: ['Lose 10kg', 'Run 5km'] },
-  { id: 'education', label: 'Learning', icon: 'book', examples: ['Read 24 books', 'Master React'] },
-  {
-    id: 'productivity',
-    label: 'Career',
-    icon: 'briefcase',
-    examples: ['Get promoted', 'Launch side project'],
-  },
-  {
-    id: 'personal',
-    label: 'Personal',
-    icon: 'target',
-    examples: ['Meditate daily', 'Travel to 5 countries'],
-  },
-];
-
-const FINANCE_MODES: { id: FinanceMode; label: string; icon: string; description: string }[] = [
-  { id: 'save', label: 'Save money', icon: 'banknote', description: 'Build savings' },
-  { id: 'spend', label: 'Budget limit', icon: 'shopping', description: 'Control spending' },
-  { id: 'debt_close', label: 'Pay off debt', icon: 'credit', description: 'Eliminate debt' },
-];
-
-const METRIC_OPTIONS: { id: MetricKind; label: string; icon: string; description: string }[] = [
-  { id: 'amount', label: 'Money', icon: 'dollar', description: 'Financial goals' },
-  { id: 'count', label: 'Number', icon: 'hash', description: 'Count-based' },
-  { id: 'duration', label: 'Time', icon: 'timer', description: 'Time-based' },
-  { id: 'weight', label: 'Weight', icon: 'scale', description: 'Weight tracking' },
-  { id: 'custom', label: 'Custom', icon: 'settings', description: 'Your metric' },
-];
 
 const parseNumericInput = (value: string) => {
   const cleaned = value.replace(/[^0-9.]/g, '');
@@ -196,8 +158,8 @@ const renderIcon = (iconId: string, size: number, color: string) => {
 export function GoalModalContent({ goalId }: Props) {
   const styles = useStyles();
   const theme = useAppTheme();
-  const { locale, strings } = useLocalization();
-  const financeStrings = (strings as any).financeScreens ?? {};
+  const { locale } = useLocalization();
+  const t = useGoalModalContentLocalization();
   const router = useRouter();
 
   const { goals, createGoal, updateGoal } = usePlannerDomainStore(
@@ -218,6 +180,15 @@ export function GoalModalContent({ goalId }: Props) {
   );
 
   const baseCurrency = useFinancePreferencesStore((state) => state.baseCurrency);
+
+  // Wizard steps with localized labels
+  const wizardSteps = useMemo<WizardStep[]>(() => [
+    { id: 1, key: 'what', label: t.wizardSteps.what, icon: 'target' },
+    { id: 2, key: 'measure', label: t.wizardSteps.measure, icon: 'chart' },
+    { id: 3, key: 'when', label: t.wizardSteps.when, icon: 'calendar' },
+    { id: 4, key: 'connect', label: t.wizardSteps.connect, icon: 'link' },
+  ], [t]);
+
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState<GoalFormData>({
     title: '',
@@ -237,24 +208,20 @@ export function GoalModalContent({ goalId }: Props) {
   );
 
   // FloatList items for goal types
-  const goalTypeItems = useMemo<(FloatListItem & { id: GoalType })[]>(() =>
-    GOAL_TYPES.map((type) => ({
-      id: type.id,
-      label: type.label,
-      icon: renderIcon(type.icon, 16, formData.goalType === type.id ? theme.colors.primary : theme.colors.textSecondary),
-    })),
-    [formData.goalType, theme.colors.primary, theme.colors.textSecondary],
-  );
+  const goalTypeItems = useMemo<(FloatListItem & { id: GoalType })[]>(() => [
+    { id: 'financial', label: t.goalTypes.money, icon: renderIcon('dollar', 16, formData.goalType === 'financial' ? theme.colors.primary : theme.colors.textSecondary) },
+    { id: 'health', label: t.goalTypes.health, icon: renderIcon('heart', 16, formData.goalType === 'health' ? theme.colors.primary : theme.colors.textSecondary) },
+    { id: 'education', label: t.goalTypes.learning, icon: renderIcon('book', 16, formData.goalType === 'education' ? theme.colors.primary : theme.colors.textSecondary) },
+    { id: 'productivity', label: t.goalTypes.career, icon: renderIcon('briefcase', 16, formData.goalType === 'productivity' ? theme.colors.primary : theme.colors.textSecondary) },
+    { id: 'personal', label: t.goalTypes.personal, icon: renderIcon('target', 16, formData.goalType === 'personal' ? theme.colors.primary : theme.colors.textSecondary) },
+  ], [formData.goalType, theme.colors.primary, theme.colors.textSecondary, t]);
 
   // FloatList items for finance modes
-  const financeModeItems = useMemo<(FloatListItem & { id: FinanceMode })[]>(() =>
-    FINANCE_MODES.map((mode) => ({
-      id: mode.id,
-      label: mode.label,
-      icon: renderIcon(mode.icon, 16, formData.financeMode === mode.id ? theme.colors.primary : theme.colors.textSecondary),
-    })),
-    [formData.financeMode, theme.colors.primary, theme.colors.textSecondary],
-  );
+  const financeModeItems = useMemo<(FloatListItem & { id: FinanceMode })[]>(() => [
+    { id: 'save', label: t.financeModes.save.label, icon: renderIcon('banknote', 16, formData.financeMode === 'save' ? theme.colors.primary : theme.colors.textSecondary) },
+    { id: 'spend', label: t.financeModes.spend.label, icon: renderIcon('shopping', 16, formData.financeMode === 'spend' ? theme.colors.primary : theme.colors.textSecondary) },
+    { id: 'debt_close', label: t.financeModes.debtClose.label, icon: renderIcon('credit', 16, formData.financeMode === 'debt_close' ? theme.colors.primary : theme.colors.textSecondary) },
+  ], [formData.financeMode, theme.colors.primary, theme.colors.textSecondary, t]);
 
   // FloatList items for currencies
   const currencyItems = useMemo<FloatListItem[]>(() =>
@@ -266,22 +233,20 @@ export function GoalModalContent({ goalId }: Props) {
   );
 
   // FloatList items for metric kinds (non-financial)
-  const metricKindItems = useMemo<(FloatListItem & { id: MetricKind })[]>(() =>
-    METRIC_OPTIONS.filter((m) => m.id !== 'amount').map((metric) => ({
-      id: metric.id,
-      label: metric.label,
-      icon: renderIcon(metric.icon, 16, formData.metricKind === metric.id ? theme.colors.primary : theme.colors.textSecondary),
-    })),
-    [formData.metricKind, theme.colors.primary, theme.colors.textSecondary],
-  );
+  const metricKindItems = useMemo<(FloatListItem & { id: MetricKind })[]>(() => [
+    { id: 'count', label: t.metricOptions.number.label, icon: renderIcon('hash', 16, formData.metricKind === 'count' ? theme.colors.primary : theme.colors.textSecondary) },
+    { id: 'duration', label: t.metricOptions.time.label, icon: renderIcon('timer', 16, formData.metricKind === 'duration' ? theme.colors.primary : theme.colors.textSecondary) },
+    { id: 'weight', label: t.metricOptions.weight.label, icon: renderIcon('scale', 16, formData.metricKind === 'weight' ? theme.colors.primary : theme.colors.textSecondary) },
+    { id: 'custom', label: t.metricOptions.custom.label, icon: renderIcon('settings', 16, formData.metricKind === 'custom' ? theme.colors.primary : theme.colors.textSecondary) },
+  ], [formData.metricKind, theme.colors.primary, theme.colors.textSecondary, t]);
 
   // FloatList items for deadline presets
   const deadlinePresetItems = useMemo<FloatListItem[]>(() => [
-    { id: '1m', label: '1 month' },
-    { id: '3m', label: '3 months' },
-    { id: '6m', label: '6 months' },
-    { id: '1y', label: '1 year' },
-  ], []);
+    { id: '1m', label: t.deadlinePresets.oneMonth },
+    { id: '3m', label: t.deadlinePresets.threeMonths },
+    { id: '6m', label: t.deadlinePresets.sixMonths },
+    { id: '1y', label: t.deadlinePresets.oneYear },
+  ], [t]);
 
   const [datePickerVisible, setDatePickerVisible] = useState(false);
   const [datePickerTarget, setDatePickerTarget] = useState<DatePickerTarget | null>(null);
@@ -426,35 +391,35 @@ export function GoalModalContent({ goalId }: Props) {
 
       if (step === 1) {
         if (!formData.title.trim()) {
-          newErrors.title = 'Title is required';
+          newErrors.title = t.validation.titleRequired;
         } else if (formData.title.length < 3) {
-          newErrors.title = 'Title is too short. Be more specific!';
+          newErrors.title = t.validation.titleTooShort;
         }
       }
 
       if (step === 2) {
         if (isNaN(formData.targetValue)) {
-          newErrors.targetValue = 'Target must be a valid number';
+          newErrors.targetValue = t.validation.targetInvalid;
         }
         if (formData.targetValue === formData.currentValue) {
-          newErrors.targetValue = 'Target should be different from current value';
+          newErrors.targetValue = t.validation.targetSameAsCurrent;
         }
       }
 
       if (step === 4 && formData.goalType === 'financial') {
         const requiresBudget = formData.financeMode !== 'debt_close';
         if (requiresBudget && !formData.linkedBudgetId) {
-          newErrors.linkedBudgetId = 'Select or create a budget for this goal.';
+          newErrors.linkedBudgetId = t.validation.budgetRequired;
         }
         if (formData.financeMode === 'debt_close' && !formData.linkedDebtId) {
-          newErrors.linkedDebtId = 'Link a debt to track repayments.';
+          newErrors.linkedDebtId = t.validation.debtRequired;
         }
       }
 
       setErrors(newErrors);
       return Object.keys(newErrors).length === 0;
     },
-    [formData],
+    [formData, t],
   );
 
   const goToNextStep = useCallback(() => {
@@ -689,9 +654,14 @@ export function GoalModalContent({ goalId }: Props) {
     }
   };
 
+  const getGoalExamples = (goalType: GoalType): string => {
+    const examples = t.goalExamples[goalType];
+    return examples ? examples.join(', ') : '';
+  };
+
   const renderStep1 = () => (
     <View style={styles.stepContainer}>
-      <Text style={styles.stepTitle}>What do you want to achieve?</Text>
+      <Text style={styles.stepTitle}>{t.step1.title}</Text>
 
       <View style={styles.fieldContainer}>
         <AdaptiveGlassView style={styles.glassInputContainer}>
@@ -699,7 +669,7 @@ export function GoalModalContent({ goalId }: Props) {
             style={[styles.glassInput, errors.title && styles.inputError]}
             value={formData.title}
             onChangeText={(text) => updateField('title', text)}
-            placeholder='E.g., "Save for vacation", "Run a marathon", "Learn Spanish"'
+            placeholder={t.step1.titlePlaceholder}
             placeholderTextColor={styles.placeholder.color}
             maxLength={100}
             autoFocus
@@ -710,7 +680,7 @@ export function GoalModalContent({ goalId }: Props) {
       </View>
 
       <View style={styles.fieldContainer}>
-        <Text style={styles.fieldLabel}>Category</Text>
+        <Text style={styles.fieldLabel}>{t.step1.category}</Text>
         <FloatList
           items={goalTypeItems}
           selectedId={formData.goalType}
@@ -721,26 +691,26 @@ export function GoalModalContent({ goalId }: Props) {
         {formData.goalType && (
           <SmartHint
             type="tip"
-            message={`Examples: ${GOAL_TYPES.find((t) => t.id === formData.goalType)?.examples.join(', ')}`}
+            message={`Examples: ${getGoalExamples(formData.goalType)}`}
           />
         )}
       </View>
 
       <View style={styles.fieldContainer}>
-        <Text style={styles.fieldLabel}>Why is this important? (optional)</Text>
+        <Text style={styles.fieldLabel}>{t.step1.whyImportant}</Text>
         <AdaptiveGlassView style={styles.glassInputContainer}>
           <TextInput
             style={[styles.glassTextArea]}
             value={formData.description}
             onChangeText={(text) => updateField('description', text)}
-            placeholder="Your motivation..."
+            placeholder={t.step1.motivationPlaceholder}
             placeholderTextColor={styles.placeholder.color}
             multiline
             numberOfLines={3}
             maxLength={500}
           />
         </AdaptiveGlassView>
-        <SmartHint type="info" message="Goals with clear 'why' are 60% more likely to succeed" />
+        <SmartHint type="info" message={t.step1.whyHint} />
       </View>
     </View>
   );
@@ -750,12 +720,12 @@ export function GoalModalContent({ goalId }: Props) {
 
     return (
       <View style={styles.stepContainer}>
-        <Text style={styles.stepTitle}>How will you track it?</Text>
+        <Text style={styles.stepTitle}>{t.step2.title}</Text>
 
         {isFinancial ? (
           <>
             <View style={styles.fieldContainer}>
-              <Text style={styles.fieldLabel}>Goal Type</Text>
+              <Text style={styles.fieldLabel}>{t.step2.goalType}</Text>
               <FloatList
                 items={financeModeItems}
                 selectedId={formData.financeMode}
@@ -766,7 +736,7 @@ export function GoalModalContent({ goalId }: Props) {
             </View>
 
             <View style={styles.fieldContainer}>
-              <Text style={styles.fieldLabel}>Currency</Text>
+              <Text style={styles.fieldLabel}>{t.step2.currency}</Text>
               {formData.linkedBudgetId && (() => {
                 const linkedBudget = budgets.find((b) => b.id === formData.linkedBudgetId);
                 if (linkedBudget) {
@@ -776,7 +746,7 @@ export function GoalModalContent({ goalId }: Props) {
                         <Text style={styles.currencyInheritedText}>{linkedBudget.currency}</Text>
                       </AdaptiveGlassView>
                       <Text style={[styles.fieldLabel, { opacity: 0.6, marginTop: 6 }]}>
-                        Currency inherited from linked budget
+                        {t.step2.currencyInherited}
                       </Text>
                     </View>
                   );
@@ -797,7 +767,7 @@ export function GoalModalContent({ goalId }: Props) {
             <View style={styles.fieldContainer}>
               <View style={styles.row}>
                 <View style={styles.halfField}>
-                  <Text style={styles.fieldLabel}>Current</Text>
+                  <Text style={styles.fieldLabel}>{t.step2.current}</Text>
                   <AdaptiveGlassView style={styles.glassInputContainer}>
                     <TextInput
                       style={styles.glassInput}
@@ -810,7 +780,7 @@ export function GoalModalContent({ goalId }: Props) {
                   </AdaptiveGlassView>
                 </View>
                 <View style={styles.halfField}>
-                  <Text style={styles.fieldLabel}>Target *</Text>
+                  <Text style={styles.fieldLabel}>{t.step2.target}</Text>
                   <AdaptiveGlassView style={[styles.glassInputContainer, errors.targetValue && styles.inputError]}>
                     <TextInput
                       style={styles.glassInput}
@@ -826,12 +796,12 @@ export function GoalModalContent({ goalId }: Props) {
               {errors.targetValue && <Text style={styles.errorText}>{errors.targetValue}</Text>}
             </View>
 
-            <SmartHint type="success" message="Progress will update automatically based on your transactions" />
+            <SmartHint type="success" message={t.step2.progressAutoHint} />
           </>
         ) : (
           <>
             <View style={styles.fieldContainer}>
-              <Text style={styles.fieldLabel}>What will you measure?</Text>
+              <Text style={styles.fieldLabel}>{t.step2.whatMeasure}</Text>
               <FloatList
                 items={metricKindItems}
                 selectedId={formData.metricKind}
@@ -843,13 +813,13 @@ export function GoalModalContent({ goalId }: Props) {
 
             {(formData.metricKind === 'count' || formData.metricKind === 'duration') && (
               <View style={styles.fieldContainer}>
-                <Text style={styles.fieldLabel}>Unit</Text>
+                <Text style={styles.fieldLabel}>{t.step2.unit}</Text>
                 <AdaptiveGlassView style={styles.glassInputContainer}>
                   <TextInput
                     style={styles.glassInput}
                     value={formData.unit ?? ''}
                     onChangeText={(text) => updateField('unit', text)}
-                    placeholder={formData.metricKind === 'count' ? 'workouts, books, km...' : 'hours, minutes...'}
+                    placeholder={formData.metricKind === 'count' ? t.step2.unitPlaceholderCount : t.step2.unitPlaceholderDuration}
                     placeholderTextColor={styles.placeholder.color}
                   />
                 </AdaptiveGlassView>
@@ -859,7 +829,7 @@ export function GoalModalContent({ goalId }: Props) {
             <View style={styles.fieldContainer}>
               <View style={styles.row}>
                 <View style={styles.halfField}>
-                  <Text style={styles.fieldLabel}>Current</Text>
+                  <Text style={styles.fieldLabel}>{t.step2.current}</Text>
                   <AdaptiveGlassView style={styles.glassInputContainer}>
                     <TextInput
                       style={styles.glassInput}
@@ -872,7 +842,7 @@ export function GoalModalContent({ goalId }: Props) {
                   </AdaptiveGlassView>
                 </View>
                 <View style={styles.halfField}>
-                  <Text style={styles.fieldLabel}>Target *</Text>
+                  <Text style={styles.fieldLabel}>{t.step2.target}</Text>
                   <AdaptiveGlassView style={[styles.glassInputContainer, errors.targetValue && styles.inputError]}>
                     <TextInput
                       style={styles.glassInput}
@@ -895,10 +865,10 @@ export function GoalModalContent({ goalId }: Props) {
 
   const renderStep3 = () => (
     <View style={styles.stepContainer}>
-      <Text style={styles.stepTitle}>When do you want to achieve this?</Text>
+      <Text style={styles.stepTitle}>{t.step3.title}</Text>
 
       <View style={styles.fieldContainer}>
-        <Text style={styles.fieldLabel}>Deadline (optional)</Text>
+        <Text style={styles.fieldLabel}>{t.step3.deadline}</Text>
         <AdaptiveGlassView style={styles.glassDateButton}>
           <Pressable
             style={styles.dateButtonInner}
@@ -906,16 +876,16 @@ export function GoalModalContent({ goalId }: Props) {
           >
             <CalendarIcon size={20} color={theme.colors.textSecondary} />
             <Text style={styles.dateButtonText}>
-              {formData.targetDate ? formData.targetDate.toLocaleDateString(locale) : 'Select date'}
+              {formData.targetDate ? formData.targetDate.toLocaleDateString(locale) : t.step3.selectDate}
             </Text>
           </Pressable>
         </AdaptiveGlassView>
-        <SmartHint type="tip" message="Goals with deadlines are 42% more successful" />
+        <SmartHint type="tip" message={t.step3.deadlineHint} />
       </View>
 
       {!formData.targetDate && (
         <View style={styles.fieldContainer}>
-          <Text style={styles.fieldLabel}>Quick select</Text>
+          <Text style={styles.fieldLabel}>{t.step3.quickSelect}</Text>
           <FloatList
             items={deadlinePresetItems}
             onSelect={handleDeadlinePresetSelect}
@@ -926,7 +896,7 @@ export function GoalModalContent({ goalId }: Props) {
       )}
 
       <View style={styles.fieldContainer}>
-        <Text style={styles.fieldLabel}>Milestones (optional)</Text>
+        <Text style={styles.fieldLabel}>{t.step3.milestones}</Text>
         {formData.milestones.map((milestone, index) => (
           <View key={milestone.id} style={styles.milestoneItem}>
             <AdaptiveGlassView style={[styles.glassInputContainer, { flex: 1 }]}>
@@ -934,7 +904,7 @@ export function GoalModalContent({ goalId }: Props) {
                 style={styles.glassInput}
                 value={milestone.title}
                 onChangeText={(text) => updateMilestone(milestone.id, { title: text })}
-                placeholder={`Milestone ${index + 1}`}
+                placeholder={t.step3.milestonePlaceholder(index + 1)}
                 placeholderTextColor={styles.placeholder.color}
               />
             </AdaptiveGlassView>
@@ -945,7 +915,7 @@ export function GoalModalContent({ goalId }: Props) {
         ))}
         <Pressable style={styles.addButton} onPress={addMilestone}>
           <PlusCircle size={20} color={styles.addButtonText.color} />
-          <Text style={styles.addButtonText}>Add milestone</Text>
+          <Text style={styles.addButtonText}>{t.step3.addMilestone}</Text>
         </Pressable>
       </View>
     </View>
@@ -971,23 +941,23 @@ export function GoalModalContent({ goalId }: Props) {
 
     return (
       <View style={styles.stepContainer}>
-        <Text style={styles.stepTitle}>Connect to finances (optional)</Text>
-        <Text style={styles.stepSubtitle}>Link to budgets or debts to track progress automatically</Text>
+        <Text style={styles.stepTitle}>{t.step4.title}</Text>
+        <Text style={styles.stepSubtitle}>{t.step4.subtitle}</Text>
 
         {isFinancial && (selectedBudget || selectedDebt) && (
           <AdaptiveGlassView style={styles.previewCard}>
-            <Text style={styles.previewLabel}>Live preview</Text>
+            <Text style={styles.previewLabel}>{t.step4.livePreview}</Text>
             {selectedBudget && (
               <Text style={styles.previewValue}>
-                Budget balance:{' '}
+                {t.step4.budgetBalance}:{' '}
                 {(selectedBudget.currentBalance ?? selectedBudget.remainingAmount ?? selectedBudget.limitAmount).toFixed(2)}{' '}
                 {selectedBudget.currency}
               </Text>
             )}
-            <Text style={styles.previewValue}>Goal progress: {progressPreview.toFixed(0)}%</Text>
+            <Text style={styles.previewValue}>{t.step4.goalProgress}: {progressPreview.toFixed(0)}%</Text>
             {selectedDebt && (
               <Text style={styles.previewValue}>
-                Debt remaining: {selectedDebt.principalAmount.toFixed(2)} {selectedDebt.principalCurrency}
+                {t.step4.debtRemaining}: {selectedDebt.principalAmount.toFixed(2)} {selectedDebt.principalCurrency}
               </Text>
             )}
           </AdaptiveGlassView>
@@ -997,7 +967,7 @@ export function GoalModalContent({ goalId }: Props) {
           <>
             {isSaveMode && (
               <View style={styles.fieldContainer}>
-                <Text style={styles.fieldLabel}>Link to savings budget</Text>
+                <Text style={styles.fieldLabel}>{t.step4.linkSavingsBudget}</Text>
                 {activeBudgets.length > 0 ? (
                   <>
                     <View style={styles.listContainer}>
@@ -1010,7 +980,7 @@ export function GoalModalContent({ goalId }: Props) {
                         ) : (
                           <Circle size={20} color={styles.textSecondary.color} />
                         )}
-                        <Text style={styles.listItemText}>No budget</Text>
+                        <Text style={styles.listItemText}>{t.step4.noBudget}</Text>
                       </Pressable>
                       {activeBudgets.map((budget) => (
                         <Pressable
@@ -1034,15 +1004,15 @@ export function GoalModalContent({ goalId }: Props) {
                     </View>
                     <Pressable style={styles.addButton} onPress={handleCreateBudgetLink}>
                       <PlusCircle size={20} color={styles.addButtonText.color} />
-                      <Text style={styles.addButtonText}>Add Budget</Text>
+                      <Text style={styles.addButtonText}>{t.step4.addBudget}</Text>
                     </Pressable>
                   </>
                 ) : (
                   <>
-                    <SmartHint type="info" message="No budgets available. Create one below to link automatically." />
+                    <SmartHint type="info" message={t.step4.noBudgetsHint} />
                     <Pressable style={styles.addButton} onPress={handleCreateBudgetLink}>
                       <PlusCircle size={20} color={styles.addButtonText.color} />
-                      <Text style={styles.addButtonText}>Add Budget</Text>
+                      <Text style={styles.addButtonText}>{t.step4.addBudget}</Text>
                     </Pressable>
                 </>
               )}
@@ -1052,7 +1022,7 @@ export function GoalModalContent({ goalId }: Props) {
 
             {isDebtMode && (
               <View style={styles.fieldContainer}>
-                <Text style={styles.fieldLabel}>Which debt are you paying off?</Text>
+                <Text style={styles.fieldLabel}>{t.step4.whichDebt}</Text>
                 {activeDebts.length > 0 ? (
                   <View style={styles.listContainer}>
                     <Pressable
@@ -1064,7 +1034,7 @@ export function GoalModalContent({ goalId }: Props) {
                       ) : (
                         <Circle size={20} color={styles.textSecondary.color} />
                       )}
-                      <Text style={styles.listItemText}>No debt</Text>
+                      <Text style={styles.listItemText}>{t.step4.noDebt}</Text>
                     </Pressable>
                     {activeDebts.map((debt) => (
                       <Pressable
@@ -1087,23 +1057,23 @@ export function GoalModalContent({ goalId }: Props) {
                     ))}
                   </View>
                 ) : (
-                  <SmartHint type="info" message="No active debts. Create one in Finance tab." />
+                  <SmartHint type="info" message={t.step4.noDebtsHint} />
                 )}
                 <Pressable
                   style={styles.addButton}
                   onPress={handleCreateDebt}
                 >
                   <PlusCircle size={20} color={styles.addButtonText.color} />
-                  <Text style={styles.addButtonText}>Create New Debt</Text>
+                  <Text style={styles.addButtonText}>{t.step4.createNewDebt}</Text>
                 </Pressable>
                 {errors.linkedDebtId && <Text style={styles.errorText}>{errors.linkedDebtId}</Text>}
-                <SmartHint type="success" message="Progress updates automatically when you make payments" />
+                <SmartHint type="success" message={t.step4.debtProgressHint} />
               </View>
             )}
 
             {isSpendMode && (
               <View style={styles.fieldContainer}>
-                <Text style={styles.fieldLabel}>Link to budget category</Text>
+                <Text style={styles.fieldLabel}>{t.step4.linkBudgetCategory}</Text>
                 {activeBudgets.length > 0 ? (
                   <>
                     <View style={styles.listContainer}>
@@ -1116,7 +1086,7 @@ export function GoalModalContent({ goalId }: Props) {
                         ) : (
                           <Circle size={20} color={styles.textSecondary.color} />
                         )}
-                        <Text style={styles.listItemText}>No budget</Text>
+                        <Text style={styles.listItemText}>{t.step4.noBudget}</Text>
                       </Pressable>
                       {activeBudgets.map((budget) => (
                         <Pressable
@@ -1140,15 +1110,15 @@ export function GoalModalContent({ goalId }: Props) {
                     </View>
                     <Pressable style={styles.addButton} onPress={handleCreateBudgetLink}>
                       <PlusCircle size={20} color={styles.addButtonText.color} />
-                      <Text style={styles.addButtonText}>Add Budget</Text>
+                      <Text style={styles.addButtonText}>{t.step4.addBudget}</Text>
                     </Pressable>
                   </>
                 ) : (
                   <>
-                    <SmartHint type="info" message="No budgets available. Create one below to link automatically." />
+                    <SmartHint type="info" message={t.step4.noBudgetsHint} />
                     <Pressable style={styles.addButton} onPress={handleCreateBudgetLink}>
                       <PlusCircle size={20} color={styles.addButtonText.color} />
-                      <Text style={styles.addButtonText}>Add Budget</Text>
+                      <Text style={styles.addButtonText}>{t.step4.addBudget}</Text>
                     </Pressable>
                   </>
                 )}
@@ -1159,14 +1129,14 @@ export function GoalModalContent({ goalId }: Props) {
         ) : (
           <SmartHint
             type="info"
-            message="Finance linking is only available for financial goals. You can add habits and tasks later from the goal details screen."
+            message={t.step4.nonFinancialHint}
           />
         )}
 
         {goalId && isFinancial && (
           <View style={styles.fieldContainer}>
             <Text style={styles.fieldLabel}>
-              {financeStrings.goalActions?.connectFinance ?? 'Connect finance'}
+              {t.step4.connectFinance}
             </Text>
             <View style={styles.listContainer}>
               <Pressable
@@ -1174,7 +1144,7 @@ export function GoalModalContent({ goalId }: Props) {
                 onPress={handleCreateBudgetLink}
               >
                 <Text style={styles.listItemText}>
-                  {financeStrings.goalActions?.createBudget ?? 'Create budget for this goal'}
+                  {t.step4.createBudgetForGoal}
                 </Text>
               </Pressable>
               <Pressable
@@ -1182,7 +1152,7 @@ export function GoalModalContent({ goalId }: Props) {
                 onPress={handleAddFinanceContribution}
               >
                 <Text style={styles.listItemText}>
-                  {financeStrings.goalActions?.addContribution ?? 'Add contribution'}
+                  {t.step4.addContribution}
                 </Text>
               </Pressable>
             </View>
@@ -1195,13 +1165,13 @@ export function GoalModalContent({ goalId }: Props) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>{goalId ? 'Edit Goal' : 'Create Goal'}</Text>
+        <Text style={styles.headerTitle}>{goalId ? t.header.editGoal : t.header.createGoal}</Text>
         <Pressable onPress={router.back} hitSlop={12}>
-          <Text style={styles.closeText}>Close</Text>
+          <Text style={styles.closeText}>{t.header.close}</Text>
         </Pressable>
       </View>
 
-      <StepIndicator currentStep={currentStep} totalSteps={4} steps={WIZARD_STEPS} />
+      <StepIndicator currentStep={currentStep} totalSteps={4} steps={wizardSteps} />
 
       <ScrollView
         style={styles.scrollView}
@@ -1214,14 +1184,14 @@ export function GoalModalContent({ goalId }: Props) {
       <View style={styles.footer}>
         {currentStep > 1 && (
           <Pressable style={[styles.button, styles.buttonSecondary]} onPress={goToPreviousStep}>
-            <Text style={styles.buttonSecondaryText}>Back</Text>
+            <Text style={styles.buttonSecondaryText}>{t.buttons.back}</Text>
           </Pressable>
         )}
         <Pressable
           style={[styles.button, styles.buttonPrimary, currentStep === 1 && styles.buttonPrimaryFull]}
           onPress={goToNextStep}
         >
-          <Text style={styles.buttonPrimaryText}>{currentStep < 4 ? 'Next →' : 'Create Goal'}</Text>
+          <Text style={styles.buttonPrimaryText}>{currentStep < 4 ? t.buttons.next : t.buttons.createGoal}</Text>
         </Pressable>
       </View>
 
@@ -1240,7 +1210,7 @@ export function GoalModalContent({ goalId }: Props) {
             onChange={handleDateChange}
           />
           <Pressable style={styles.datePickerDone} onPress={closeDatePicker}>
-            <Text style={styles.datePickerDoneText}>Done</Text>
+            <Text style={styles.datePickerDoneText}>{t.buttons.done}</Text>
           </Pressable>
         </View>
       )}

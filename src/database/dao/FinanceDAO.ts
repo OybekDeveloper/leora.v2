@@ -33,6 +33,7 @@ const mapAccount = (record: any): Account => ({
   linkedGoalId: fromObjectId(record.linkedGoalId),
   customTypeId: record.customTypeId ?? undefined,
   isArchived: Boolean(record.isArchived),
+  showStatus: record.showStatus ?? (record.isArchived ? 'archived' : 'active'),
   createdAt: toISODate(record.createdAt)!,
   updatedAt: toISODate(record.updatedAt)!,
 });
@@ -47,6 +48,7 @@ const mapTransaction = (record: any): Transaction => ({
   id: fromObjectId(record._id)!,
   userId: record.userId ?? defaultUserId,
   type: record.type as TransactionType,
+  showStatus: record.showStatus ?? (record.deletedAt ? 'deleted' : 'active'),
   accountId: fromObjectId(record.accountId),
   fromAccountId: fromObjectId(record.fromAccountId),
   toAccountId: fromObjectId(record.toAccountId),
@@ -62,6 +64,7 @@ const mapTransaction = (record: any): Transaction => ({
   feeCategoryId: record.feeCategoryId ?? undefined,
   categoryId: record.categoryId ?? undefined,
   subcategoryId: record.subcategoryId ?? undefined,
+  name: record.name ?? undefined,
   description: record.description ?? undefined,
   date: toISODate(record.date)!,
   time: record.time ?? undefined,
@@ -69,12 +72,16 @@ const mapTransaction = (record: any): Transaction => ({
   budgetId: fromObjectId(record.budgetId),
   debtId: fromObjectId(record.debtId),
   habitId: fromObjectId(record.habitId),
+  counterpartyId: fromObjectId(record.counterpartyId),
   goalName: record.goalName ?? undefined,
   goalType: record.goalType ?? undefined,
   relatedBudgetId: fromObjectId(record.relatedBudgetId),
   relatedDebtId: fromObjectId(record.relatedDebtId),
   plannedAmount: record.plannedAmount ?? undefined,
   paidAmount: record.paidAmount ?? undefined,
+  originalCurrency: record.originalCurrency ?? undefined,
+  originalAmount: record.originalAmount ?? undefined,
+  conversionRate: record.conversionRate ?? undefined,
   splits: record.splits?.map(mapSplit),
   recurringId: record.recurringId ?? undefined,
   attachments: record.attachments ?? [],
@@ -104,6 +111,7 @@ const mapBudget = (record: any): Budget => ({
   currentBalance: record.currentBalance ?? record.remainingAmount ?? record.limitAmount,
   rolloverMode: record.rolloverMode ?? undefined,
   isArchived: Boolean(record.isArchived),
+  showStatus: record.showStatus ?? (record.isArchived ? 'archived' : 'active'),
   notifyOnExceed: Boolean(record.notifyOnExceed),
   createdAt: toISODate(record.createdAt)!,
   updatedAt: toISODate(record.updatedAt)!,
@@ -132,6 +140,10 @@ const mapDebt = (record: any): Debt => ({
   baseCurrency: record.baseCurrency,
   rateOnStart: record.rateOnStart ?? 1,
   principalBaseValue: record.principalBaseValue ?? record.principalAmount,
+  repaymentCurrency: record.repaymentCurrency ?? undefined,
+  repaymentAmount: record.repaymentAmount ?? undefined,
+  repaymentRateOnStart: record.repaymentRateOnStart ?? undefined,
+  isFixedRepaymentAmount: Boolean(record.isFixedRepaymentAmount),
   startDate: toISODate(record.startDate)!,
   dueDate: toISODate(record.dueDate) ?? undefined,
   interestMode: record.interestMode ?? undefined,
@@ -144,6 +156,7 @@ const mapDebt = (record: any): Debt => ({
   reminderEnabled: Boolean(record.reminderEnabled),
   reminderTime: record.reminderTime ?? undefined,
   status: record.status,
+  showStatus: record.showStatus ?? 'active',
   createdAt: toISODate(record.createdAt)!,
   updatedAt: toISODate(record.updatedAt)!,
 });
@@ -171,6 +184,11 @@ const mapFxRate = (record: any): FxRate => ({
   fromCurrency: record.fromCurrency,
   toCurrency: record.toCurrency,
   rate: record.rate,
+  rateMid: record.rateMid ?? record.rate,
+  rateBid: record.rateBid,
+  rateAsk: record.rateAsk,
+  nominal: record.nominal ?? 1,
+  spreadPercent: record.spreadPercent ?? 0.5,
   source: record.source,
   isOverridden: Boolean(record.isOverridden),
   date: toISODate(record.date)!,
@@ -182,6 +200,8 @@ const mapCounterparty = (record: any): Counterparty => ({
   id: fromObjectId(record._id)!,
   userId: record.userId ?? defaultUserId,
   displayName: record.displayName,
+  phoneNumber: record.phoneNumber ?? undefined,
+  comment: record.comment ?? undefined,
   searchKeywords: record.searchKeywords ?? undefined,
   createdAt: toISODate(record.createdAt)!,
   updatedAt: toISODate(record.updatedAt)!,
@@ -264,6 +284,18 @@ export class AccountDAO {
     if (!account) return;
     this.realm.write(() => {
       (account as any).isArchived = archived;
+      (account as any).showStatus = archived ? 'archived' : 'active';
+      (account as any).updatedAt = new Date();
+    });
+  }
+
+  setShowStatus(id: string, showStatus: 'active' | 'archived' | 'deleted') {
+    const account = this.realm.objectForPrimaryKey('Account', toObjectId(id)!);
+    if (!account) return;
+    this.realm.write(() => {
+      (account as any).showStatus = showStatus;
+      // Sync deprecated field for backward compatibility
+      (account as any).isArchived = showStatus === 'archived';
       (account as any).updatedAt = new Date();
     });
   }
@@ -309,6 +341,7 @@ export class TransactionDAO {
         feeCategoryId: input.feeCategoryId ?? null,
         categoryId: input.categoryId ?? null,
         subcategoryId: input.subcategoryId ?? null,
+        name: input.name ?? null,
         description: input.description ?? null,
         date: new Date(input.date),
         time: input.time ?? null,
@@ -316,12 +349,16 @@ export class TransactionDAO {
         budgetId: toObjectId(input.budgetId),
         debtId: toObjectId(input.debtId),
         habitId: toObjectId(input.habitId),
+        counterpartyId: toObjectId(input.counterpartyId),
         goalName: input.goalName ?? null,
         goalType: input.goalType ?? null,
         relatedBudgetId: toObjectId(input.relatedBudgetId),
         relatedDebtId: toObjectId(input.relatedDebtId),
         plannedAmount: input.plannedAmount ?? null,
         paidAmount: input.paidAmount ?? null,
+        originalCurrency: input.originalCurrency ?? null,
+        originalAmount: input.originalAmount ?? null,
+        conversionRate: input.conversionRate ?? null,
         recurringId: input.recurringId ?? null,
         attachments: input.attachments ?? [],
         tags: input.tags ?? [],
@@ -359,6 +396,17 @@ export class TransactionDAO {
     if (!record) return;
     this.realm.write(() => {
       this.realm.delete(record);
+    });
+  }
+
+  setShowStatus(id: string, showStatus: 'active' | 'archived' | 'deleted') {
+    const record = this.realm.objectForPrimaryKey('Transaction', toObjectId(id)!);
+    if (!record) return;
+    this.realm.write(() => {
+      (record as any).showStatus = showStatus;
+      // Sync deprecated field for backward compatibility
+      (record as any).deletedAt = showStatus === 'deleted' ? new Date() : null;
+      (record as any).updatedAt = new Date();
     });
   }
 }
@@ -436,6 +484,18 @@ export class BudgetDAO {
     if (!record) return;
     this.realm.write(() => {
       (record as any).isArchived = archived;
+      (record as any).showStatus = archived ? 'archived' : 'active';
+      (record as any).updatedAt = new Date();
+    });
+  }
+
+  setShowStatus(id: string, showStatus: 'active' | 'archived' | 'deleted') {
+    const record = this.realm.objectForPrimaryKey('Budget', toObjectId(id)!);
+    if (!record) return;
+    this.realm.write(() => {
+      (record as any).showStatus = showStatus;
+      // Sync deprecated field for backward compatibility
+      (record as any).isArchived = showStatus === 'archived';
       (record as any).updatedAt = new Date();
     });
   }
@@ -550,6 +610,10 @@ export class DebtDAO {
         baseCurrency: input.baseCurrency,
         rateOnStart: input.rateOnStart ?? 1,
         principalBaseValue: input.principalBaseValue ?? input.principalAmount,
+        repaymentCurrency: input.repaymentCurrency ?? null,
+        repaymentAmount: input.repaymentAmount ?? null,
+        repaymentRateOnStart: input.repaymentRateOnStart ?? null,
+        isFixedRepaymentAmount: input.isFixedRepaymentAmount ?? false,
         startDate: new Date(input.startDate),
         dueDate: input.dueDate ? new Date(input.dueDate) : null,
         interestMode: input.interestMode ?? null,
@@ -630,6 +694,15 @@ export class DebtDAO {
     });
   }
 
+  setShowStatus(id: string, showStatus: 'active' | 'archived' | 'deleted') {
+    const record = this.realm.objectForPrimaryKey('Debt', toObjectId(id)!);
+    if (!record) return;
+    this.realm.write(() => {
+      (record as any).showStatus = showStatus;
+      (record as any).updatedAt = new Date();
+    });
+  }
+
   delete(id: string) {
     const record = this.realm.objectForPrimaryKey('Debt', toObjectId(id)!);
     if (!record) return;
@@ -688,6 +761,11 @@ export class FxRateDAO {
       if (existing.length > 0) {
         record = existing[0];
         record.rate = input.rate;
+        record.rateMid = input.rateMid ?? input.rate;
+        record.rateBid = input.rateBid;
+        record.rateAsk = input.rateAsk;
+        record.nominal = input.nominal ?? 1;
+        record.spreadPercent = input.spreadPercent ?? 0.5;
         record.source = input.source;
         record.isOverridden = input.isOverridden;
         record.updatedAt = now;
@@ -698,6 +776,11 @@ export class FxRateDAO {
           fromCurrency: input.fromCurrency,
           toCurrency: input.toCurrency,
           rate: input.rate,
+          rateMid: input.rateMid ?? input.rate,
+          rateBid: input.rateBid,
+          rateAsk: input.rateAsk,
+          nominal: input.nominal ?? 1,
+          spreadPercent: input.spreadPercent ?? 0.5,
           source: input.source,
           isOverridden: input.isOverridden ?? false,
           idempotencyKey: (input as any).idempotencyKey ?? null,
@@ -709,11 +792,86 @@ export class FxRateDAO {
     });
     return mapFxRate(record);
   }
+
+  // Create new FxRate record for journal (always creates new, never updates)
+  create(input: FxRateInput): FxRate | null {
+    if (!hasRealmInstance(this.realm)) {
+      return null;
+    }
+    let record: any;
+    const now = new Date();
+    this.realm.write(() => {
+      record = this.realm.create('FxRate', {
+        _id: new BSON.ObjectId(),
+        date: new Date(input.date),
+        fromCurrency: input.fromCurrency,
+        toCurrency: input.toCurrency,
+        rate: input.rate,
+        rateMid: input.rateMid ?? input.rate,
+        rateBid: input.rateBid,
+        rateAsk: input.rateAsk,
+        nominal: input.nominal ?? 1,
+        spreadPercent: input.spreadPercent ?? 0.5,
+        source: input.source,
+        isOverridden: input.isOverridden ?? false,
+        idempotencyKey: (input as any).idempotencyKey ?? null,
+        createdAt: now,
+        updatedAt: now,
+        syncStatus: 'local',
+      });
+    });
+    return mapFxRate(record);
+  }
+
+  // Update existing FxRate by id
+  update(id: string, input: Partial<FxRateInput>): FxRate | null {
+    if (!hasRealmInstance(this.realm)) {
+      return null;
+    }
+    let record: any = null;
+    this.realm.write(() => {
+      const existing = this.realm
+        .objects('FxRate')
+        .filtered('_id = $0', new BSON.ObjectId(id))[0];
+      if (existing) {
+        if (input.rate !== undefined) existing.rate = input.rate;
+        if (input.rateMid !== undefined) existing.rateMid = input.rateMid;
+        if (input.rateBid !== undefined) existing.rateBid = input.rateBid;
+        if (input.rateAsk !== undefined) existing.rateAsk = input.rateAsk;
+        if (input.nominal !== undefined) existing.nominal = input.nominal;
+        if (input.source !== undefined) existing.source = input.source;
+        if (input.isOverridden !== undefined) existing.isOverridden = input.isOverridden;
+        existing.updatedAt = new Date();
+        record = existing;
+      }
+    });
+    return record ? mapFxRate(record) : null;
+  }
+
+  // Delete FxRate by id
+  delete(id: string): boolean {
+    if (!hasRealmInstance(this.realm)) {
+      return false;
+    }
+    let deleted = false;
+    this.realm.write(() => {
+      const existing = this.realm
+        .objects('FxRate')
+        .filtered('_id = $0', new BSON.ObjectId(id))[0];
+      if (existing) {
+        this.realm.delete(existing);
+        deleted = true;
+      }
+    });
+    return deleted;
+  }
 }
 
 export type CounterpartyCreateInput = {
   userId?: string;
   displayName: string;
+  phoneNumber?: string;
+  comment?: string;
   searchKeywords?: string;
 };
 
@@ -727,6 +885,23 @@ export class CounterpartyDAO {
     return this.realm.objects('Counterparty').map(mapCounterparty);
   }
 
+  search(query: string): Counterparty[] {
+    if (!hasRealmInstance(this.realm)) {
+      return [];
+    }
+    if (!query.trim()) {
+      return this.list();
+    }
+    const needle = query.toLowerCase();
+    return this.realm
+      .objects('Counterparty')
+      .filtered(
+        'displayName CONTAINS[c] $0 OR searchKeywords CONTAINS[c] $0 OR phoneNumber CONTAINS[c] $0',
+        needle
+      )
+      .map(mapCounterparty);
+  }
+
   create(input: CounterpartyCreateInput): Counterparty {
     let record: any;
     this.realm.write(() => {
@@ -734,6 +909,8 @@ export class CounterpartyDAO {
         _id: new BSON.ObjectId(),
         userId: input.userId ?? defaultUserId,
         displayName: input.displayName,
+        phoneNumber: input.phoneNumber ?? null,
+        comment: input.comment ?? null,
         searchKeywords: input.searchKeywords ?? null,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -749,7 +926,7 @@ export class CounterpartyDAO {
     this.realm.write(() => {
       Object.entries(updates).forEach(([key, value]) => {
         if (value === undefined) return;
-        (record as any)[key] = value;
+        (record as any)[key] = value ?? null;
       });
       (record as any).updatedAt = new Date();
     });

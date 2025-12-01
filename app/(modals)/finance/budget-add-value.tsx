@@ -18,10 +18,10 @@ const BudgetAddValueModal = () => {
   const insets = useSafeAreaInsets();
   const theme = useAppTheme();
   const { strings } = useLocalization();
-  const financeStrings = (strings as any).financeScreens ?? {};
-  const detailStrings = financeStrings.budgets?.detail ?? {};
-  const transactionsStrings = financeStrings.transactions ?? {};
-  const commonStrings = (strings as any).common ?? {};
+  const financeStrings = strings.financeScreens;
+  const detailStrings = financeStrings.budgets.detail;
+  const transactionsStrings = financeStrings.transactions;
+  const commonStrings = strings.common;
   const { budgetId } = useLocalSearchParams<LocalParams>();
   const normalizedBudgetId = Array.isArray(budgetId) ? budgetId[0] : budgetId ?? null;
 
@@ -148,7 +148,7 @@ const BudgetAddValueModal = () => {
           </View>
 
           <View style={styles.section}>
-            <Text style={[styles.label, { color: theme.colors.textSecondary }]}>{financeStrings.debts?.modal?.accountLabel ?? 'Account'}</Text>
+            <Text style={[styles.label, { color: theme.colors.textSecondary }]}>{financeStrings.debts.modal.accountLabel}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.accountScroll}>
               {accounts.map((account) => {
                 const active = account.id === selectedAccountId;

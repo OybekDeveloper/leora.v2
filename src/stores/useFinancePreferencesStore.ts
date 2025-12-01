@@ -3,7 +3,8 @@ import type { StateCreator } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 
 import { mmkvStorageAdapter } from '@/utils/storage';
-import { FxService, type FxProviderId } from '@/services/fx';
+import { FxService, type FxProviderId, type TransferRateInfo } from '@/services/fx';
+import { getProviderForRegion } from '@/services/fx/providers';
 
 export type FinanceCurrency =
   | 'UZS'
@@ -113,12 +114,15 @@ interface FinancePreferencesStore {
   baseCurrency: FinanceCurrency;
   globalCurrency: FinanceCurrency;
   exchangeRates: ExchangeRateMap;
+  spreadPercent: number;
   defaultDebtAccounts: Record<DebtPreferenceType, string | undefined>;
   setRegion: (region: FinanceRegion, options?: { syncDisplayCurrency?: boolean }) => void;
   setGlobalCurrency: (currency: FinanceCurrency) => void;
   setExchangeRate: (currency: FinanceCurrency, rate: number) => void;
+  setSpreadPercent: (percent: number) => void;
   setDefaultDebtAccount: (type: DebtPreferenceType, accountId: string) => void;
   convertAmount: (amount: number, fromCurrency?: FinanceCurrency, toCurrency?: FinanceCurrency) => number;
+  getTransferRate: (fromCurrency: FinanceCurrency, toCurrency: FinanceCurrency) => TransferRateInfo;
   formatCurrency: (
     amount: number,
     options?: Intl.NumberFormatOptions & {
@@ -128,7 +132,7 @@ interface FinancePreferencesStore {
     },
   ) => string;
   hydrateFxRates: () => void;
-  syncExchangeRates: (providerId: FxProviderId) => Promise<void>;
+  syncExchangeRates: (providerId?: FxProviderId) => Promise<void>;
   overrideExchangeRate: (currency: FinanceCurrency, rate: number) => void;
 }
 
@@ -191,10 +195,11 @@ const inferRegionFromCurrency = (currency: FinanceCurrency): FinanceRegion => {
 const DEFAULT_REGION = resolveRegionPreset(DEFAULT_REGION_ID);
 
 const createFinancePreferencesStore: StateCreator<FinancePreferencesStore> = (set, get) => ({
-  region: DEFAULT_REGION.id,
+  region: DEFAULT_REGION.id as FinanceRegion,
   baseCurrency: DEFAULT_REGION.currency,
   globalCurrency: 'USD',
   exchangeRates: { ...DEFAULT_EXCHANGE_RATES },
+  spreadPercent: 0.5,
   defaultDebtAccounts: { borrowed: undefined, lent: undefined },
 
   setRegion: (region, options) => {
@@ -233,6 +238,12 @@ const createFinancePreferencesStore: StateCreator<FinancePreferencesStore> = (se
     }));
   },
 
+  setSpreadPercent: (percent) => {
+    const clampedPercent = Math.max(0, Math.min(percent, 5)); // 0% - 5% oralig'ida
+    FxService.getInstance().setSpreadPercent(clampedPercent);
+    set({ spreadPercent: clampedPercent });
+  },
+
   setDefaultDebtAccount: (type, accountId) =>
     set((state) => ({
       defaultDebtAccounts: {
@@ -253,11 +264,13 @@ const createFinancePreferencesStore: StateCreator<FinancePreferencesStore> = (se
       return amount;
     }
 
-    const fromRate = state.exchangeRates[sourceCurrency] ?? 1;
-    const toRate = state.exchangeRates[targetCurrency] ?? 1;
+    // FxService orqali kursni olish - yangi va to'g'ri usul
+    const rate = FxService.getInstance().getRate(sourceCurrency, targetCurrency);
+    return amount * rate;
+  },
 
-    const baseValue = amount * fromRate;
-    return baseValue / toRate;
+  getTransferRate: (fromCurrency, toCurrency) => {
+    return FxService.getInstance().getTransferRate(fromCurrency, toCurrency);
   },
 
   formatCurrency: (amount, options) => {
@@ -295,8 +308,11 @@ const createFinancePreferencesStore: StateCreator<FinancePreferencesStore> = (se
       // keep existing values
     }
   },
-  syncExchangeRates: async (providerId: FxProviderId) => {
-    await FxService.getInstance().syncProvider(providerId);
+  syncExchangeRates: async (providerId?: FxProviderId) => {
+    const state = get();
+    // Agar provider ko'rsatilmagan bo'lsa, regionga mos providerni tanlash
+    const actualProviderId = providerId ?? getProviderForRegion(state.region);
+    await FxService.getInstance().syncProvider(actualProviderId, new Date(), state.baseCurrency);
     get().hydrateFxRates();
   },
   overrideExchangeRate: (currency, rate) => {
@@ -334,6 +350,7 @@ export const useFinancePreferencesStore = create<FinancePreferencesStore>()(
       baseCurrency: state.baseCurrency,
       globalCurrency: state.globalCurrency,
       exchangeRates: state.exchangeRates,
+      spreadPercent: state.spreadPercent,
       defaultDebtAccounts: state.defaultDebtAccounts,
     }),
   }),

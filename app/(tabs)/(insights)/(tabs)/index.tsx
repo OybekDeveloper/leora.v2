@@ -681,7 +681,7 @@ const InsightsIndexScreen: React.FC = () => {
           break;
         case 'open_debt': {
           if (card.payload?.debtId) {
-            const domainDebt = domainDebts.find((item) => item.id === card.payload.debtId);
+            const domainDebt = domainDebts.find((item) => item.id === card.payload?.debtId);
             if (domainDebt) {
               router.push({
                 pathname: '/(modals)/finance/debt',

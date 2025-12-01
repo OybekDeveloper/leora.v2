@@ -1,7 +1,14 @@
 {
   "title": "Yeni görev",
+  "editTitle": "Görevi düzenle",
+  "createTitle": "Görev oluştur",
+  "close": "Kapat",
+  "cancel": "İptal",
+  "update": "Güncelle",
+  "create": "Oluştur",
   "nameLabel": "Görev başlığı",
   "namePlaceholder": "Başlık",
+  "titleRequired": "*",
   "whenLabel": "Ne zaman",
   "whenOptions": {
     "today": "Bugün",
@@ -14,16 +21,24 @@
   "time": "Saat",
   "notes": "Açıklama",
   "notesPlaceholder": "Açıklama (zorunlu değil)",
+  "descriptionLabel": "Açıklama",
+  "descriptionPlaceholder": "Açıklama (zorunlu değil)",
   "project": "Proje",
   "projectPlaceholder": "Projenizi seçin",
   "context": "Bağlam",
-  "energy": "Enerji",
+  "energy": "Enerji Seviyesi",
+  "energyOptions": {
+    "low": "Düşük",
+    "medium": "Orta",
+    "high": "Yüksek"
+  },
   "priority": "Öncelik",
   "additional": "Ek ayarlar",
   "reminder": "Önce hatırlat",
+  "reminderBefore": "Önce hatırlat",
   "repeat": "Tekrarla",
-  "needFocus": "Fokus gerekli",
-  "subtasks": "Alt görevler",
+  "needFocus": "ODAKLANMA gerekli",
+  "subtasks": "Alt görevler:",
   "subtaskPlaceholder": "Alt görev ekle",
   "submit": "Görevi oluştur",
   "submitMore": "Oluştur ve devam et",
@@ -41,5 +56,19 @@
   },
   "goalLabel": "Hedef bağlantısı",
   "goalUnset": "Hedef yok",
-  "goalHelper": "İlerlemenin takip edilmesi için bir hedef seçin."
+  "goalHelper": "İlerlemenin takip edilmesi için bir hedef seçin.",
+  "financeAction": "Finans Eylemi",
+  "financeOptions": {
+    "recordExpenses": "Harcamaları kaydet",
+    "payDebt": "Borç öde",
+    "reviewBudget": "Bütçeyi incele",
+    "transferMoney": "Para transfer et",
+    "none": "Yok"
+  },
+  "validation": {
+    "selectDate": "Lütfen bir tarih seçin",
+    "pastDate": "Geçmiş tarih seçilemez",
+    "futureTime": "Saat gelecekte olmalı"
+  },
+  "done": "Tamam"
 }

@@ -20,6 +20,8 @@ import { Wallet } from 'lucide-react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { AdaptiveGlassView } from '@/components/ui/AdaptiveGlassView';
+import AccountPicker from '@/components/shared/AccountPicker';
+import CounterpartyPicker from '@/components/shared/CounterpartyPicker';
 import {
   FINANCE_CATEGORIES,
   type FinanceCategory,
@@ -28,9 +30,11 @@ import {
 import { useAppTheme } from '@/constants/theme';
 import { useFinanceDomainStore } from '@/stores/useFinanceDomainStore';
 import { useFinancePreferencesStore } from '@/stores/useFinancePreferencesStore';
+import { normalizeFinanceCurrency } from '@/utils/financeCurrency';
 import { useLocalization } from '@/localization/useLocalization';
 import { useShallow } from 'zustand/react/shallow';
 import { usePlannerDomainStore } from '@/stores/usePlannerDomainStore';
+import type { Counterparty } from '@/domain/finance/types';
 
 type IncomeOutcomeTab = 'income' | 'outcome';
 
@@ -57,7 +61,12 @@ export default function QuickExpenseModal() {
   const linkedGoalId = Array.isArray(goalId) ? goalId[0] : goalId ?? null;
   const budgetIdParam = Array.isArray(budgetId) ? budgetId[0] : budgetId ?? null;
 
-  const baseCurrency = useFinancePreferencesStore((state) => state.baseCurrency);
+  const { baseCurrency, convertAmount } = useFinancePreferencesStore(
+    useShallow((state) => ({
+      baseCurrency: state.baseCurrency,
+      convertAmount: state.convertAmount,
+    }))
+  );
   const goals = usePlannerDomainStore((state) => state.goals);
 
   const {
@@ -92,6 +101,7 @@ export default function QuickExpenseModal() {
   const [activeTab, setActiveTab] = useState<IncomeOutcomeTab>(
     initialTab === 'outcome' ? 'outcome' : 'income',
   );
+  const [transactionName, setTransactionName] = useState('');
   const [amount, setAmount] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedAccount, setSelectedAccount] = useState<string | null>(accounts[0]?.id ?? null);
@@ -101,7 +111,7 @@ export default function QuickExpenseModal() {
   const [categoryDraft, setCategoryDraft] = useState('');
   const [pickerMode, setPickerMode] = useState<'date' | 'time' | null>(null);
   const [debtPerson, setDebtPerson] = useState('');
-  const [accountModalVisible, setAccountModalVisible] = useState(false);
+  const [selectedCounterpartyId, setSelectedCounterpartyId] = useState<string | null>(null);
 
   const availableCategories = useMemo(() => {
     const baseList = getCategoriesForType(activeTab);
@@ -128,12 +138,14 @@ export default function QuickExpenseModal() {
   const resetForm = useCallback(
     (tabValue: IncomeOutcomeTab, accountId?: string | null) => {
       setActiveTab(tabValue);
+      setTransactionName('');
       setAmount('');
       setSelectedCategory(null);
       setSelectedAccount(accountId ?? accounts[0]?.id ?? null);
       setTransactionDate(new Date());
       setNote('');
       setDebtPerson('');
+      setSelectedCounterpartyId(null);
       setPickerMode(null);
     },
     [accounts],
@@ -149,9 +161,11 @@ export default function QuickExpenseModal() {
 
     const tabValue: IncomeOutcomeTab = editingTransaction.type === 'income' ? 'income' : 'outcome';
     resetForm(tabValue, editingTransaction.accountId ?? null);
+    setTransactionName(editingTransaction.name ?? '');
     setAmount(editingTransaction.amount.toString());
     setSelectedCategory(editingTransaction.categoryId ?? null);
     setTransactionDate(new Date(editingTransaction.date));
+    setSelectedCounterpartyId(editingTransaction.counterpartyId ?? null);
 
     const noteText = editingTransaction.description ?? '';
     const debtRegex =
@@ -187,20 +201,23 @@ export default function QuickExpenseModal() {
   useEffect(() => {
     if (!isDebtCategory && debtPerson) {
       setDebtPerson('');
+      setSelectedCounterpartyId(null);
     }
   }, [isDebtCategory, debtPerson]);
 
-  const formatCurrency = useCallback((value: number, currency: string = 'USD') => {
-    try {
-      return new Intl.NumberFormat(currency === 'UZS' ? 'uz-UZ' : 'en-US', {
-        style: 'currency',
-        currency,
-        maximumFractionDigits: currency === 'UZS' ? 0 : 2,
-      }).format(value);
-    } catch {
-      return `${currency} ${value.toFixed(2)}`;
+  const handleCounterpartySelect = useCallback((counterparty: Counterparty | null) => {
+    if (counterparty) {
+      setDebtPerson(counterparty.displayName);
+      setSelectedCounterpartyId(counterparty.id);
+      // Auto-fill transaction name from counterparty if empty
+      if (!transactionName.trim()) {
+        setTransactionName(counterparty.displayName);
+      }
+    } else {
+      setDebtPerson('');
+      setSelectedCounterpartyId(null);
     }
-  }, []);
+  }, [transactionName]);
 
   const selectedAccountData = useMemo(
     () => accounts.find((account) => account.id === selectedAccount) ?? accounts[0] ?? null,
@@ -351,9 +368,8 @@ export default function QuickExpenseModal() {
     setCategoryModalState(null);
   }, []);
 
-  const handleSelectAccount = useCallback((accountId: string) => {
-    setSelectedAccount(accountId);
-    setAccountModalVisible(false);
+  const handleAccountSelect = useCallback((account: typeof accounts[0] | null) => {
+    setSelectedAccount(account?.id ?? null);
   }, []);
 
   const handleClose = useCallback(() => {
@@ -381,6 +397,15 @@ export default function QuickExpenseModal() {
     const debtForLink =
       linkedDebt ??
       (inferredDebtId ? debts.find((debt) => debt.id === inferredDebtId) ?? null : null);
+
+    // FX Conversion - account currency dan base currency ga
+    const normalizedBaseCurrency = normalizeFinanceCurrency(baseCurrency);
+    const normalizedAccountCurrency = normalizeFinanceCurrency(selectedAccountData.currency);
+    const rateToBase = normalizedAccountCurrency === normalizedBaseCurrency
+      ? 1
+      : convertAmount(1, normalizedAccountCurrency, normalizedBaseCurrency);
+    const convertedAmountToBase = amountNumber * rateToBase;
+
     const basePayload: Parameters<typeof createTransaction>[0] = {
       userId: 'local-user',
       type: domainType,
@@ -388,11 +413,13 @@ export default function QuickExpenseModal() {
       amount: amountNumber,
       currency: selectedAccountData.currency,
       categoryId: selectedCategory,
+      name: transactionName.trim() || undefined,
+      counterpartyId: selectedCounterpartyId ?? undefined,
       description: finalNote.length ? finalNote : undefined,
       date: transactionDate.toISOString(),
-      baseCurrency,
-      rateUsedToBase: 1,
-      convertedAmountToBase: amountNumber,
+      baseCurrency: normalizedBaseCurrency,
+      rateUsedToBase: rateToBase,
+      convertedAmountToBase,
       goalId: goalForLink?.id ?? editingTransaction?.goalId ?? linkedGoalId ?? undefined,
       budgetId: budgetForLink?.id ?? editingTransaction?.budgetId ?? undefined,
       debtId: debtForLink?.id ?? editingTransaction?.debtId ?? undefined,
@@ -416,6 +443,7 @@ export default function QuickExpenseModal() {
     amountNumber,
     budgets,
     baseCurrency,
+    convertAmount,
     createTransaction,
     debts,
     debtPerson,
@@ -433,7 +461,9 @@ export default function QuickExpenseModal() {
     note,
     selectedAccountData,
     selectedCategory,
+    selectedCounterpartyId,
     transactionDate,
+    transactionName,
     updateTransaction,
   ]);
 
@@ -479,7 +509,7 @@ export default function QuickExpenseModal() {
               <AdaptiveGlassView style={[styles.glassSurface, styles.tabContainer,{backgroundColor:theme.colors.card}]}>
                 <Pressable
                   onPress={() => setActiveTab('income')}
-                  style={({ pressed }) => [styles.tabOption, { borderBottomWidth: 1 }, pressed && styles.pressed]}
+                  style={({ pressed }) => [styles.tabOption, pressed && styles.pressed]}
                 >
                   <View style={styles.tabOptionContent}>
                     <Text
@@ -508,6 +538,21 @@ export default function QuickExpenseModal() {
                     </Text>
                   </View>
                 </Pressable>
+              </AdaptiveGlassView>
+            </View>
+
+            <View style={styles.section}>
+              <Text style={[styles.sectionLabel, { color: theme.colors.textSecondary }]}>
+                {detailStrings.name ?? 'Name'}
+              </Text>
+              <AdaptiveGlassView style={[styles.glassSurface, styles.inputContainer]}>
+                <TextInput
+                  value={transactionName}
+                  onChangeText={setTransactionName}
+                  placeholder={quickStrings.namePlaceholder ?? 'Transaction name (optional)'}
+                  placeholderTextColor="#7E8B9A"
+                  style={styles.textInput}
+                />
               </AdaptiveGlassView>
             </View>
 
@@ -604,39 +649,24 @@ export default function QuickExpenseModal() {
               </View>
             </View>
 
-            <View style={styles.section}>
-              <Text style={[styles.sectionLabel, { color: theme.colors.textSecondary }]}>
-                {detailStrings.account ?? 'Account'}
-              </Text>
-              <Pressable
-                onPress={() => setAccountModalVisible(true)}
-                style={({ pressed }) => [pressed && styles.pressed]}
-              >
-                <AdaptiveGlassView style={[styles.glassSurface, styles.inputContainer]}>
-                  <View style={styles.accountRow}>
-                    <View>
-                      <Text style={styles.textInput}>{selectedAccountData?.name}</Text>
-                      <Text style={styles.accountBalance}>
-                        {selectedAccountData
-                          ? formatCurrency(selectedAccountData.currentBalance, selectedAccountData.currency)
-                          : ''}
-                      </Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={18} color="#7E8B9A" />
-                  </View>
-                </AdaptiveGlassView>
-              </Pressable>
+            <View style={[styles.section, { zIndex: 9999 }]}>
+              <AccountPicker
+                selectedAccountId={selectedAccount}
+                onSelect={handleAccountSelect}
+                label={detailStrings.account ?? 'Account'}
+                placeholder={quickStrings.selectAccountPlaceholder ?? 'Select account...'}
+              />
             </View>
 
             {(linkedGoal || linkedBudget || linkedDebt) && (
-              <View style={styles.section}>
+              <View style={[styles.section, { zIndex: 1 }]}>
                 <Text style={[styles.sectionLabel, { color: theme.colors.textSecondary }]}>
-                  Linked data
+                  {detailStrings.linkedData ?? 'Linked data'}
                 </Text>
                 <AdaptiveGlassView style={[styles.glassSurface, styles.linkedCard,{ backgroundColor: theme.colors.card }]}>
                   {linkedGoal && (
                     <View style={styles.linkedRow}>
-                      <Text style={[styles.linkedLabel, { color: theme.colors.textSecondary }]}>Goal</Text>
+                      <Text style={[styles.linkedLabel, { color: theme.colors.textSecondary }]}>{detailStrings.linkedGoal ?? 'Goal'}</Text>
                       <Text style={[styles.linkedValue, { color: theme.colors.textPrimary }]} numberOfLines={1}>
                         {linkedGoal.title}
                       </Text>
@@ -644,7 +674,7 @@ export default function QuickExpenseModal() {
                   )}
                   {linkedBudget && (
                     <View style={styles.linkedRow}>
-                      <Text style={[styles.linkedLabel, { color: theme.colors.textSecondary }]}>Budget</Text>
+                      <Text style={[styles.linkedLabel, { color: theme.colors.textSecondary }]}>{detailStrings.linkedBudget ?? 'Budget'}</Text>
                       <Text style={[styles.linkedValue, { color: theme.colors.textPrimary }]} numberOfLines={1}>
                         {linkedBudget.name} · {(linkedBudget.currentBalance ?? linkedBudget.remainingAmount ?? linkedBudget.limitAmount).toFixed(2)} {linkedBudget.currency}
                       </Text>
@@ -652,7 +682,7 @@ export default function QuickExpenseModal() {
                   )}
                   {linkedDebt && (
                     <View style={styles.linkedRow}>
-                      <Text style={[styles.linkedLabel, { color: theme.colors.textSecondary }]}>Debt</Text>
+                      <Text style={[styles.linkedLabel, { color: theme.colors.textSecondary }]}>{detailStrings.relatedDebt ?? 'Debt'}</Text>
                       <Text style={[styles.linkedValue, { color: theme.colors.textPrimary }]} numberOfLines={1}>
                         {linkedDebt.counterpartyName ?? linkedDebt.counterpartyId ?? ''} · {linkedDebt.principalAmount.toFixed(2)} {linkedDebt.principalCurrency}
                       </Text>
@@ -663,29 +693,26 @@ export default function QuickExpenseModal() {
             )}
 
             {isDebtCategory && (
-              <View style={styles.section}>
-                <Text style={[styles.sectionLabel, { color: theme.colors.textSecondary }]}>
-                  {activeTab === 'income'
-                    ? quickStrings.debtOwedToYouLabel ?? 'Who owes you?'
-                    : quickStrings.debtYouOweLabel ?? 'Who do you owe?'}
-                </Text>
-                <AdaptiveGlassView style={[styles.glassSurface, styles.inputContainer]}>
-                  <TextInput
-                    value={debtPerson}
-                    onChangeText={setDebtPerson}
-                    placeholder={
-                      activeTab === 'income'
-                        ? quickStrings.debtOwedToYouPlaceholder ?? 'Person name who owes you'
-                        : quickStrings.debtYouOwePlaceholder ?? 'Person name you owe to'
-                    }
-                    placeholderTextColor="#7E8B9A"
-                    style={styles.textInput}
-                  />
-                </AdaptiveGlassView>
+              <View style={[styles.section, { zIndex: 8888 }]}>
+                <CounterpartyPicker
+                  value={debtPerson}
+                  onSelect={handleCounterpartySelect}
+                  selectedCounterpartyId={selectedCounterpartyId}
+                  placeholder={
+                    activeTab === 'income'
+                      ? quickStrings.debtOwedToYouPlaceholder ?? 'Person name who owes you'
+                      : quickStrings.debtYouOwePlaceholder ?? 'Person name you owe to'
+                  }
+                  label={
+                    activeTab === 'income'
+                      ? quickStrings.debtOwedToYouLabel ?? 'Who owes you?'
+                      : quickStrings.debtYouOweLabel ?? 'Who do you owe?'
+                  }
+                />
               </View>
             )}
 
-            <View style={styles.section}>
+            <View style={[styles.section, { zIndex: 1 }]}>
               <Text style={[styles.sectionLabel, { color: theme.colors.textSecondary }]}>
                 {detailStrings.note ?? 'Note'}
               </Text>
@@ -705,7 +732,7 @@ export default function QuickExpenseModal() {
               </AdaptiveGlassView>
             </View>
 
-            <View style={styles.actionButtons}>
+            <View style={[styles.actionButtons, { zIndex: 1 }]}>
               <Pressable
                 style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}
                 onPress={handleClose}
@@ -824,54 +851,6 @@ export default function QuickExpenseModal() {
           </AdaptiveGlassView>
         </View>
       </Modal>
-
-      <Modal
-        transparent
-        animationType="fade"
-        visible={accountModalVisible}
-        onRequestClose={() => setAccountModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <Pressable style={styles.modalBackdrop} onPress={() => setAccountModalVisible(false)} />
-          <AdaptiveGlassView style={[styles.glassSurface, styles.accountModalCard,{ backgroundColor: theme.colors.card }]}>
-            <Text style={[styles.modalTitle, { color: theme.colors.textPrimary }]}>
-              {detailStrings.account ?? 'Account'}
-            </Text>
-            <ScrollView
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.accountList}
-            >
-              {accounts.map((account) => (
-                <Pressable
-                  key={account.id}
-                  onPress={() => handleSelectAccount(account.id)}
-                  style={({ pressed }) => [styles.accountRowItem, pressed && styles.pressed]}
-                >
-                  <AdaptiveGlassView
-                    style={[
-                      styles.glassSurface,
-                      styles.accountCard,
-                      { opacity: account.id === selectedAccountData?.id ? 1 : 0.7 },
-                    ]}
-                  >
-                    <View style={styles.accountRowBetween}>
-                      <Text style={styles.accountName}>{account.name}</Text>
-                      <Ionicons
-                        name="checkmark"
-                        size={18}
-                        color={account.id === selectedAccountData?.id ? '#FFFFFF' : '#7E8B9A'}
-                      />
-                    </View>
-                    <Text style={styles.accountBalance}>
-                      {formatCurrency(account.currentBalance, account.currency)}
-                    </Text>
-                  </AdaptiveGlassView>
-                </Pressable>
-              ))}
-            </ScrollView>
-          </AdaptiveGlassView>
-        </View>
-      </Modal>
     </>
   );
 }
@@ -986,16 +965,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: '#FFFFFF',
-  },
-  accountRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  accountBalance: {
-    color: '#7E8B9A',
-    fontSize: 13,
-    marginTop: 4,
   },
   noteContainer: {
     borderRadius: 16,
@@ -1118,32 +1087,5 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
     paddingTop: 8,
-  },
-  accountModalCard: {
-    borderRadius: 24,
-    padding: 16,
-    maxHeight: '70%',
-  },
-  accountList: {
-    paddingVertical: 12,
-    gap: 10,
-  },
-  accountRowItem: {
-    borderRadius: 16,
-  },
-  accountCard: {
-    borderRadius: 16,
-    padding: 14,
-    gap: 6,
-  },
-  accountRowBetween: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  accountName: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#FFFFFF',
   },
 });

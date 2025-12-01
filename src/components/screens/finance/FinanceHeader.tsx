@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { DateTransferIcon, DiagramIcon, DollorEuroIcon, SearchDocIcon, SettingIcon } from '@assets/icons';
+import { DateTransferIcon, DiagramIcon, DollorEuroIcon, SearchDocIcon } from '@assets/icons';
 import { Theme, useAppTheme } from '@/constants/theme';
 import { useLocalization } from '@/localization/useLocalization';
 
@@ -52,7 +52,7 @@ const createStyles = (theme: Theme) =>
 const FinanceHeader: React.FC<FinanceHeaderProps> = ({
   onTransferPress,
   onSearchPress,
-  onSettingsPress,
+  onSettingsPress: _onSettingsPress,
   onDiagramPress,
   onCurrencyPress,
 }) => {

@@ -179,7 +179,7 @@ const BudgetDetail = () => {
         <Text style={[styles.title, { color: theme.colors.textSecondary }]}>{detailStrings.title}</Text>
         <Pressable onPress={() => router.back()} hitSlop={12}>
           <Text style={[styles.closeText, { color: theme.colors.textSecondary }]}>
-            {(strings as any).common?.close ?? 'Close'}
+            {strings.common.close}
           </Text>
         </Pressable>
       </View>

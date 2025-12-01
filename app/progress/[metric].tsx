@@ -302,7 +302,7 @@ export default function ProgressDetailScreen() {
   );
 }
 
-const createStyles = (theme: ReturnType<typeof useAppTheme>) =>
+const createStyles = (_theme: ReturnType<typeof useAppTheme>) =>
   StyleSheet.create({
     safeArea: {
       flex: 1,

@@ -1,0 +1,93 @@
+{
+  "focusMode": {
+    "header": {
+      "title": "FOKUS REJIMI",
+      "settings": "Sozlamalar"
+    },
+    "status": {
+      "ready": "Tayyor",
+      "inProgress": "Jarayonda",
+      "paused": "To'xtatilgan"
+    },
+    "timer": {
+      "start": "Boshlanish",
+      "end": "Tugash"
+    },
+    "task": {
+      "cardLabel": "Hozir fokusda",
+      "goalTag": "Maqsad: {goal}"
+    },
+    "toggles": {
+      "notifications": "Bildirishnomalarni o'chirish",
+      "backgroundMusic": "Fon musiqasi",
+      "appBlock": "Ilovalarni bloklash",
+      "dynamicIsland": "Dynamic Island"
+    },
+    "statistics": {
+      "title": "Bugungi statistika",
+      "focusTime": "Fokus vaqti:",
+      "sessionsCompleted": "Tugatilgan sessiyalar:",
+      "productivity": "Unumdorlik:"
+    },
+    "buttons": {
+      "reset": "Qayta boshlash",
+      "finish": "Tugatish"
+    },
+    "alerts": {
+      "resetTitle": "Taymerni qayta boshlash?",
+      "resetMessage": "Bu taymer va joriy jarayonni o'chiradi.",
+      "cancel": "Bekor qilish",
+      "resetConfirm": "Qayta boshlash"
+    },
+    "time": {
+      "hours": "s",
+      "minutes": "d"
+    }
+  },
+  "focusSettings": {
+    "header": {
+      "title": "Fokus sozlamalari",
+      "close": "Yopish"
+    },
+    "technique": {
+      "label": "Texnika",
+      "pomodoro": "Pomodoro",
+      "pomodoroSummary": "25d + 5d",
+      "blocs": "Bloklar",
+      "blocsSummary": "50d + 10d",
+      "free": "Erkin taymer",
+      "freeSummary": "Chegarasiz"
+    },
+    "session": {
+      "label": "Sessiya davomiyligi",
+      "workTime": "Ish vaqti (d)",
+      "breakTime": "Dam olish vaqti (d)",
+      "sessionsUntilBigBreak": "Katta tanaffusgacha sessiyalar",
+      "bigBreakTime": "Katta tanaffus (d)"
+    },
+    "locks": {
+      "label": "Bloklashlar",
+      "notifications": "Bildirishnomalar",
+      "social": "Ijtimoiy tarmoqlarni bloklash",
+      "apps": "Barcha ilovalarni bloklash",
+      "autoReply": "Xabarlarga avtomatik javob"
+    },
+    "motivation": {
+      "label": "Motivatsiya",
+      "progress": "Jarayonni ko'rsatish",
+      "sound": "Tugatish ovozi",
+      "vibration": "Tebranish",
+      "music": "Diqqat uchun musiqa"
+    },
+    "buttons": {
+      "reset": "Qayta boshlash",
+      "confirm": "Tasdiqlash"
+    },
+    "alerts": {
+      "resetTitle": "Fokus sozlamalarini qayta boshlash?",
+      "resetMessage": "Bu standart sozlamalarni tiklaydi.",
+      "cancel": "Bekor qilish",
+      "resetConfirm": "Qayta boshlash"
+    }
+  }
+}

@@ -1,13 +1,6 @@
 import { usePlannerDomainStore } from '@/stores/usePlannerDomainStore';
 import type { Task, TaskStatus } from '@/domain/planner/types';
 
-const adapterSectionFromDate = (date: Date) => {
-  const hour = date.getHours();
-  if (hour < 12) return 'morning';
-  if (hour < 18) return 'afternoon';
-  return 'evening';
-};
-
 export const plannerService = {
   createTaskFromVoice(payload: {
     title: string;

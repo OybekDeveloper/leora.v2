@@ -16,6 +16,7 @@ import { Theme, useAppTheme } from '@/constants/theme';
 import { useLockStore } from '@/stores/useLockStore';
 import { ShieldCheck } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useLocalization } from '@/localization/useLocalization';
 
 type PasswordFormState = {
   current: string;
@@ -182,6 +183,8 @@ const ChangePasswordModal: React.FC = () => {
   const router = useRouter();
   const { mode } = useLocalSearchParams<{ mode?: string }>();
   const theme = useAppTheme();
+  const { strings } = useLocalization();
+  const pinStrings = strings.modals.changePassword;
   const styles = useMemo(() => createStyles(theme), [theme]);
   const setPin = useLockStore((state) => state.setPin);
   const verifyPin = useLockStore((state) => state.verifyPin);
@@ -215,7 +218,7 @@ const ChangePasswordModal: React.FC = () => {
 
   const handleSubmit = () => {
     if (!isCreateMode && !verifyPin(form.current)) {
-      setError('Current PIN is incorrect.');
+      setError(pinStrings.currentPinIncorrect);
       return;
     }
 
@@ -241,32 +244,31 @@ const ChangePasswordModal: React.FC = () => {
         >
           <View style={styles.headerBar}>
             <Text style={styles.headerTitle}>
-              {isCreateMode ? 'Create PIN' : 'Change PIN'}
+              {isCreateMode ? pinStrings.createPin : pinStrings.changePin}
             </Text>
             <Pressable style={styles.closeButton} onPress={handleClose}>
-              <Text style={styles.closeButtonText}>Close</Text>
+              <Text style={styles.closeButtonText}>{pinStrings.close}</Text>
             </Pressable>
           </View>
           <View style={styles.hero}>
             <View style={styles.heroBadge}>
               <ShieldCheck size={18} color={theme.colors.success} />
               <Text style={styles.heroBadgeText}>
-                {isCreateMode ? 'Secure your space' : 'Update PIN'}
+                {isCreateMode ? pinStrings.secureYourSpace : pinStrings.updatePin}
               </Text>
             </View>
             <Text style={styles.heroTitle}>
-              {isCreateMode ? 'Create your 4-digit PIN' : 'Change your 4-digit PIN'}
+              {isCreateMode ? pinStrings.createYour4DigitPin : pinStrings.changeYour4DigitPin}
             </Text>
             <Text style={styles.heroSubtitle}>
-              We use this PIN to unlock LEORA on this device. Keep it private and
-              avoid simple sequences.
+              {pinStrings.pinDescription}
             </Text>
           </View>
 
           <View style={styles.card}>
             {!isCreateMode && (
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Current PIN</Text>
+                <Text style={styles.label}>{pinStrings.currentPin}</Text>
                 <AdaptiveGlassView
                   style={styles.input}
                 >
@@ -284,14 +286,14 @@ const ChangePasswordModal: React.FC = () => {
                 </AdaptiveGlassView>
                 <View style={styles.linkRow}>
                   <Pressable onPress={handleForgotPin} hitSlop={8}>
-                    <Text style={styles.linkText}>Forgot PIN?</Text>
+                    <Text style={styles.linkText}>{pinStrings.forgotPin}</Text>
                   </Pressable>
                 </View>
               </View>
             )}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>
-                {isCreateMode ? 'Create PIN' : 'New PIN'}
+                {isCreateMode ? pinStrings.createPin : pinStrings.newPin}
               </Text>
               <AdaptiveGlassView
                 style={styles.input}>
@@ -299,7 +301,7 @@ const ChangePasswordModal: React.FC = () => {
                   value={form.next}
                   onChangeText={handleChange('next')}
                   secureTextEntry
-                  style={styles.inputIn} 
+                  style={styles.inputIn}
                   autoCapitalize="none"
                   autoCorrect={false}
                   textContentType="newPassword"
@@ -308,11 +310,11 @@ const ChangePasswordModal: React.FC = () => {
                 />
               </AdaptiveGlassView>
               <Text style={styles.hint}>
-                PIN must contain exactly 4 digits. Avoid repeating the same digit.
+                {pinStrings.pinHint}
               </Text>
             </View>
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Confirm PIN</Text>
+              <Text style={styles.label}>{pinStrings.confirmPin}</Text>
               <AdaptiveGlassView
                 style={styles.input}
               >
@@ -329,13 +331,12 @@ const ChangePasswordModal: React.FC = () => {
                 />
               </AdaptiveGlassView>
               {mismatch && (
-                <Text style={styles.errorText}>PINs do not match.</Text>
+                <Text style={styles.errorText}>{pinStrings.pinsDoNotMatch}</Text>
               )}
             </View>
             {error && <Text style={styles.errorText}>{error}</Text>}
             <Text style={styles.helperText}>
-              This PIN protects quick access to LEORA. When it’s updated, your
-              other devices will require the new PIN on next launch.
+              {pinStrings.helperText}
             </Text>
             <Pressable
               onPress={handleSubmit}
@@ -359,23 +360,21 @@ const ChangePasswordModal: React.FC = () => {
                   },
                 ]}
               >
-                {isCreateMode ? 'Create PIN' : 'Save new PIN'}
+                {isCreateMode ? pinStrings.createPin : pinStrings.saveNewPin}
               </Text>
             </Pressable>
           </View>
           <View>
             <View style={styles.card}>
               <View style={styles.inputGroup}>
-                <Text style={styles.sectionLabel}>Tips</Text>
+                <Text style={styles.sectionLabel}>{pinStrings.tips}</Text>
                 <Text style={styles.helperText}>
-                  • Use a sequence only you know. Avoid birthdays or obvious patterns.{'\n'}
-                  • Change your PIN if you suspect anyone else saw it.
+                  {pinStrings.tipsContent}
                 </Text>
               </View>
             </View>
             <Text style={styles.footerHint}>
-              Lost access? Choose “Forgot passcode” on the lock screen to reset
-              securely.
+              {pinStrings.footerHint}
             </Text>
           </View>
         </ScrollView>

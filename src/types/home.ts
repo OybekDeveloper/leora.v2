@@ -29,6 +29,9 @@ export type CalendarIndicatorsMap = Record<string, HomeDataStatus[]>;
 export type CalendarEventType = 'tasks' | 'habits' | 'goals' | 'finance';
 export type CalendarEventMap = Record<string, Partial<Record<CalendarEventType, number>>>;
 
+/** Maps ISO date keys to progress data for calendar activity rings */
+export type CalendarProgressMap = Record<string, ProgressData>;
+
 export interface FABActionType {
   id: string;
   icon: any;

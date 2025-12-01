@@ -13,17 +13,10 @@ import {
   toISODateKey,
   useCalendarWeeks,
 } from '@/utils/calendar';
-import type { PlannerTask, PlannerTaskSection } from '@/types/planner';
+import type { PlannerTask } from '@/types/planner';
 import { usePlannerDomainStore } from '@/stores/usePlannerDomainStore';
 import { mapDomainTaskToPlannerTask } from '@/features/planner/taskAdapters';
 import { getHabitTemplates } from '@/features/planner/habits/data';
-
-const deriveSection = (date: Date): PlannerTaskSection => {
-  const hour = date.getHours();
-  if (hour < 12) return 'morning';
-  if (hour < 18) return 'afternoon';
-  return 'evening';
-};
 
 const formatTime = (locale: string, date: Date) =>
   new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' }).format(date);

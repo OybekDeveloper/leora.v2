@@ -1,15 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { BackHandler, Image as NativeImage, Modal, Platform, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { BackHandler, Image as NativeImage, Modal, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, {
-  Easing,
   FadeIn,
   FadeInDown,
   useAnimatedProps,
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Defs, LinearGradient as SvgLinearGradient, Rect, Stop, Svg } from 'react-native-svg';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -468,18 +466,12 @@ export default function MoreHomeScreen() {
     router.replace('/(auth)/login');
   }, [logout, router]);
 
-  const logoutGradientColors: [string, string] =
-    theme.mode === 'dark' ? ['rgba(59,130,246,0.18)', 'rgba(147,197,253,0.12)'] : ['rgba(79,70,229,0.12)', 'rgba(59,130,246,0.1)'];
-
   const initials = useMemo(() => {
     const source = authUser?.fullName || authUser?.username || 'U';
     return source.slice(0, 2).toUpperCase();
   }, [authUser]);
 
   const joinedAt = authUser?.createdAt ? new Date(authUser.createdAt) : null;
-  const daysWithApp = joinedAt
-    ? Math.max(1, Math.floor((Date.now() - joinedAt.getTime()) / (1000 * 60 * 60 * 24)))
-    : 0;
   const premiumBadgeLabel = joinedAt
     ? new Intl.DateTimeFormat(undefined, { year: 'numeric', month: 'long', day: 'numeric' }).format(joinedAt)
     : '—';

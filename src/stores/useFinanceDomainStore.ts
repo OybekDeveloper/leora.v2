@@ -16,6 +16,7 @@ import type {
   BudgetSnapshot,
   Counterparty,
 } from '@/domain/finance/types';
+import type { ShowStatus } from '@/domain/shared/showStatus';
 import { useFinancePreferencesStore } from '@/stores/useFinancePreferencesStore';
 import type { FinanceCurrency } from '@/stores/useFinancePreferencesStore';
 import { getFinanceDaoRegistry } from '@/database/dao/financeDaoRegistry';
@@ -28,16 +29,27 @@ type CreateDebtInput = Omit<
   'id' | 'status' | 'principalBaseValue' | 'createdAt' | 'updatedAt' | 'fundingTransactionId'
 > & {
   fundingOverrideAmount?: number;
+  // Optional - will use defaults if not provided
+  status?: Debt['status'];
+  principalBaseValue?: number;
 };
 
 type CounterpartyOptions = {
   reuseIfExists?: boolean;
+  phoneNumber?: string;
+  comment?: string;
 };
 
 type AddDebtPaymentInput = Omit<
   DebtPayment,
-  'id' | 'baseCurrency' | 'convertedAmountToBase' | 'convertedAmountToDebt' | 'createdAt' | 'updatedAt' | 'relatedTransactionId'
->;
+  'id' | 'baseCurrency' | 'convertedAmountToBase' | 'convertedAmountToDebt' | 'rateUsedToBase' | 'rateUsedToDebt' | 'createdAt' | 'updatedAt' | 'relatedTransactionId'
+> & {
+  // These are optional - will be calculated if not provided
+  rateUsedToBase?: number;
+  rateUsedToDebt?: number;
+  convertedAmountToBase?: number;
+  convertedAmountToDebt?: number;
+};
 
 interface FinanceDomainState {
   accounts: Account[];
@@ -68,11 +80,31 @@ interface FinanceDomainState {
   batchArchiveBudgets: (ids: string[]) => void;
   deleteBudgetPermanently: (id: string) => void;
   batchDeleteBudgetsPermanently: (ids: string[]) => void;
+  // Soft-delete for undo functionality
+  batchSoftDeleteBudgets: (ids: string[]) => Budget[];
+  batchUndoDeleteBudgets: (budgets: Budget[]) => void;
+  // Transaction soft-delete with balance reversal
+  softDeleteTransaction: (id: string) => Transaction | null;
+  batchSoftDeleteTransactions: (ids: string[]) => Transaction[];
+  undoDeleteTransaction: (snapshot: Transaction) => void;
+  batchUndoDeleteTransactions: (snapshots: Transaction[]) => void;
+  // Account soft-delete
+  softDeleteAccount: (id: string) => Account | null;
+  batchSoftDeleteAccounts: (ids: string[]) => Account[];
+  undoDeleteAccount: (snapshot: Account) => void;
+  batchUndoDeleteAccounts: (snapshots: Account[]) => void;
+  // Debt soft-delete
+  softDeleteDebt: (id: string) => Debt | null;
+  batchSoftDeleteDebts: (ids: string[]) => Debt[];
+  undoDeleteDebt: (snapshot: Debt) => void;
+  batchUndoDeleteDebts: (snapshots: Debt[]) => void;
   createDebt: (payload: CreateDebtInput) => Debt;
   updateDebt: (id: string, updates: Partial<Debt>) => void;
   deleteDebt: (id: string) => void;
   addDebtPayment: (payload: AddDebtPaymentInput) => DebtPayment;
+  searchCounterparties: (query: string) => Counterparty[];
   createCounterparty: (displayName: string, options?: CounterpartyOptions) => Counterparty;
+  updateCounterparty: (id: string, updates: { displayName?: string; phoneNumber?: string; comment?: string }) => Counterparty;
   renameCounterparty: (id: string, displayName: string) => Counterparty;
   deleteCounterparty: (id: string) => void;
   overrideFxRate: (payload: Omit<FxRate, 'id' | 'createdAt' | 'updatedAt'>) => FxRate;
@@ -127,7 +159,18 @@ const mapDebtAdjustmentFromTransaction = (
   if (!debt) {
     return null;
   }
-  const sourceAmount = transaction.paidAmount ?? transaction.amount;
+
+  // For debt payments, paidAmount is ALWAYS in debt's principal currency
+  // This is set by addDebtPayment to ensure correct deduction regardless of account currency
+  if (transaction.paidAmount && transaction.paidAmount > 0) {
+    // paidAmount is already in debt's principal currency - use it directly
+    const amountDebtCurrency = transaction.paidAmount;
+    const amountBaseCurrency = convertBetweenCurrencies(amountDebtCurrency, debt.principalCurrency, debt.baseCurrency);
+    return { debt, amountDebtCurrency, amountBaseCurrency };
+  }
+
+  // Fallback for transactions without paidAmount (legacy or manual transactions)
+  const sourceAmount = transaction.amount;
   if (!(sourceAmount > 0)) {
     return null;
   }
@@ -557,10 +600,12 @@ export const useFinanceDomainStore = create<FinanceDomainState>((set, get) => ({
 
       archiveAccount: (accountId) => {
         const { accounts: accountDao } = getFinanceDaoRegistry();
-        accountDao.archive(accountId, true);
+        accountDao.setShowStatus(accountId, 'archived');
         set((state) => ({
           accounts: state.accounts.map((account) =>
-            account.id === accountId ? { ...account, isArchived: true } : account,
+            account.id === accountId
+              ? { ...account, isArchived: true, showStatus: 'archived' as ShowStatus }
+              : account,
           ),
         }));
       },
@@ -848,6 +893,19 @@ export const useFinanceDomainStore = create<FinanceDomainState>((set, get) => ({
           };
         }),
 
+      searchCounterparties: (query) => {
+        if (!query.trim()) {
+          return get().counterparties;
+        }
+        const lower = query.toLowerCase();
+        return get().counterparties.filter(
+          (party) =>
+            party.displayName.toLowerCase().includes(lower) ||
+            party.phoneNumber?.includes(query) ||
+            party.searchKeywords?.toLowerCase().includes(lower)
+        );
+      },
+
       createCounterparty: (displayName, options) => {
         const normalizedName = displayName.trim();
         if (!normalizedName) {
@@ -870,12 +928,49 @@ export const useFinanceDomainStore = create<FinanceDomainState>((set, get) => ({
         const { counterparties: counterpartyDao } = getFinanceDaoRegistry();
         const created = counterpartyDao.create({
           displayName: normalizedName,
+          phoneNumber: options?.phoneNumber?.trim() || undefined,
+          comment: options?.comment?.trim() || undefined,
           searchKeywords: lower,
         });
         set((state) => ({
           counterparties: [created, ...state.counterparties],
         }));
         return created;
+      },
+
+      updateCounterparty: (id, updates) => {
+        const { counterparties: counterpartyDao } = getFinanceDaoRegistry();
+        const trimmedName = updates.displayName?.trim();
+        if (trimmedName) {
+          const lower = trimmedName.toLowerCase();
+          const duplicate = get().counterparties.find(
+            (party) => party.displayName.toLowerCase() === lower && party.id !== id,
+          );
+          if (duplicate) {
+            const err = new Error('COUNTERPARTY_DUPLICATE');
+            err.name = 'COUNTERPARTY_DUPLICATE';
+            throw err;
+          }
+        }
+        const updated = counterpartyDao.update(id, {
+          ...(trimmedName && { displayName: trimmedName, searchKeywords: trimmedName.toLowerCase() }),
+          ...(updates.phoneNumber !== undefined && { phoneNumber: updates.phoneNumber?.trim() || undefined }),
+          ...(updates.comment !== undefined && { comment: updates.comment?.trim() || undefined }),
+        });
+        if (!updated) {
+          throw new Error('Counterparty not found');
+        }
+        set((state) => ({
+          counterparties: state.counterparties.map((party) =>
+            party.id === id ? updated : party,
+          ),
+          debts: trimmedName
+            ? state.debts.map((debt) =>
+                debt.counterpartyId === id ? { ...debt, counterpartyName: trimmedName } : debt,
+              )
+            : state.debts,
+        }));
+        return updated;
       },
 
       renameCounterparty: (id, displayName) => {
@@ -962,10 +1057,12 @@ export const useFinanceDomainStore = create<FinanceDomainState>((set, get) => ({
         }
 
         const { budgets: budgetDao } = getFinanceDaoRegistry();
-        budgetDao.archive(id, true);
+        budgetDao.setShowStatus(id, 'archived');
         set((state) => ({
           budgets: state.budgets.map((budget) =>
-            budget.id === id ? { ...budget, isArchived: true } : budget,
+            budget.id === id
+              ? { ...budget, isArchived: true, showStatus: 'archived' as ShowStatus }
+              : budget,
           ),
         }));
       },
@@ -1000,6 +1097,354 @@ export const useFinanceDomainStore = create<FinanceDomainState>((set, get) => ({
         ids.forEach((id) => get().deleteBudgetPermanently(id));
       },
 
+      // Soft-delete for undo functionality - sets showStatus to 'deleted' and returns snapshots
+      batchSoftDeleteBudgets: (ids: string[]) => {
+        const budgetsToDelete = get().budgets.filter((b) => ids.includes(b.id));
+        const snapshots = budgetsToDelete.map((b) => ({ ...b })); // Create snapshots before soft-delete
+
+        const { budgets: budgetDao } = getFinanceDaoRegistry();
+
+        // Soft-delete each budget (unlinks goal and persists)
+        ids.forEach((id) => {
+          const budget = budgetsToDelete.find((b) => b.id === id);
+
+          // Unlink goal before soft-delete
+          if (budget?.linkedGoalId) {
+            const plannerStore = usePlannerDomainStore.getState();
+            if (plannerStore?.updateGoal) {
+              plannerStore.updateGoal(budget.linkedGoalId, {
+                linkedBudgetId: undefined,
+              });
+            }
+          }
+
+          budgetDao.setShowStatus(id, 'deleted');
+        });
+
+        set((state) => ({
+          budgets: state.budgets.map((budget) =>
+            ids.includes(budget.id)
+              ? { ...budget, showStatus: 'deleted' as ShowStatus }
+              : budget,
+          ),
+        }));
+
+        return snapshots;
+      },
+
+      // Restore from undo - restores budgets from their snapshots
+      batchUndoDeleteBudgets: (budgetSnapshots: Budget[]) => {
+        const { budgets: budgetDao } = getFinanceDaoRegistry();
+
+        // Restore each budget
+        budgetSnapshots.forEach((snapshot) => {
+          // Re-link goal if it was linked
+          if (snapshot.linkedGoalId) {
+            const plannerStore = usePlannerDomainStore.getState();
+            if (plannerStore?.updateGoal) {
+              plannerStore.updateGoal(snapshot.linkedGoalId, {
+                linkedBudgetId: snapshot.id,
+              });
+            }
+          }
+
+          // Restore showStatus to active in database
+          budgetDao.setShowStatus(snapshot.id, 'active');
+        });
+
+        set((state) => ({
+          budgets: state.budgets.map((budget) => {
+            const snapshot = budgetSnapshots.find((s) => s.id === budget.id);
+            return snapshot
+              ? { ...snapshot, showStatus: 'active' as ShowStatus, isArchived: false }
+              : budget;
+          }),
+        }));
+      },
+
+      // Transaction soft-delete with FULL balance reversal
+      softDeleteTransaction: (id) => {
+        const existing = get().transactions.find((txn) => txn.id === id);
+        if (!existing) {
+          return null;
+        }
+        const snapshot = { ...existing };
+        const { transactions: txnDao, budgets: budgetDao } = getFinanceDaoRegistry();
+        const prevAccounts = get().accounts;
+        const prevBudgets = get().budgets;
+        const timestamp = new Date().toISOString();
+
+        // Soft-delete in database (sets showStatus to 'deleted')
+        txnDao.setShowStatus(id, 'deleted');
+        budgetDao.removeEntriesForTransaction(id);
+
+        const nextAccountsSnapshot: Account[] = [];
+        const nextBudgetsSnapshot: Budget[] = [];
+        set((state) => {
+          // Reverse the transaction effect on accounts
+          const revertedAccounts = applyTransactionToAccounts(state.accounts, existing, -1, timestamp);
+          const nextBudgetEntries = removeBudgetEntriesForTransaction(state.budgetEntries, id);
+          const updatedBudgets = recalcBudgetsFromEntries(state.budgets, nextBudgetEntries, timestamp);
+
+          // Reverse debt adjustment if applicable
+          const debtAdjustment = mapDebtAdjustmentFromTransaction(existing, state.debts);
+          let updatedDebts = state.debts;
+          if (debtAdjustment) {
+            const nextPrincipal = debtAdjustment.debt.principalAmount + debtAdjustment.amountDebtCurrency;
+            const nextBase = debtAdjustment.debt.principalBaseValue + debtAdjustment.amountBaseCurrency;
+            const normalizedStatus = resolveDebtStatus({
+              ...debtAdjustment.debt,
+              principalAmount: nextPrincipal,
+              principalBaseValue: nextBase,
+            });
+            const debtUpdated: Debt = {
+              ...debtAdjustment.debt,
+              principalAmount: nextPrincipal,
+              principalBaseValue: nextBase,
+              status: normalizedStatus,
+              updatedAt: timestamp,
+            };
+            const { debts: debtDao } = getFinanceDaoRegistry();
+            debtDao.update(debtUpdated.id, {
+              principalAmount: nextPrincipal,
+              principalBaseValue: nextBase,
+              status: normalizedStatus,
+              updatedAt: timestamp,
+            });
+            updatedDebts = state.debts.map((debt) => (debt.id === debtUpdated.id ? debtUpdated : debt));
+          }
+
+          nextAccountsSnapshot.push(...revertedAccounts);
+          nextBudgetsSnapshot.push(...updatedBudgets);
+          return {
+            accounts: revertedAccounts,
+            transactions: state.transactions.map((txn) =>
+              txn.id === id ? { ...txn, showStatus: 'deleted' as ShowStatus } : txn,
+            ),
+            budgetEntries: nextBudgetEntries,
+            budgets: updatedBudgets,
+            debts: updatedDebts,
+          };
+        });
+
+        const changedAccounts = nextAccountsSnapshot.filter((account) => {
+          const previous = prevAccounts.find((item) => item.id === account.id);
+          return previous && previous.currentBalance !== account.currentBalance;
+        });
+        persistChangedAccounts(changedAccounts);
+        persistChangedBudgets(nextBudgetsSnapshot, prevBudgets);
+        removeFinanceContributionForTransaction(id, existing, { budgets: get().budgets, debts: get().debts });
+
+        return snapshot;
+      },
+
+      batchSoftDeleteTransactions: (ids) => {
+        const snapshots: Transaction[] = [];
+        ids.forEach((id) => {
+          const snapshot = get().softDeleteTransaction(id);
+          if (snapshot) {
+            snapshots.push(snapshot);
+          }
+        });
+        return snapshots;
+      },
+
+      // Undo transaction delete - re-applies balance
+      undoDeleteTransaction: (snapshot) => {
+        const { transactions: txnDao, budgets: budgetDao } = getFinanceDaoRegistry();
+        const prevAccounts = get().accounts;
+        const prevBudgets = get().budgets;
+        const timestamp = new Date().toISOString();
+
+        // Restore showStatus to active in database
+        txnDao.setShowStatus(snapshot.id, 'active');
+
+        // Rebuild budget entries
+        const newEntries = buildBudgetEntriesForTransaction(snapshot, get().budgets, timestamp);
+        const persistedEntries = newEntries.map((entry) => budgetDao.recordEntry(entry));
+
+        const nextAccountsSnapshot: Account[] = [];
+        const nextBudgetsSnapshot: Budget[] = [];
+        set((state) => {
+          // Re-apply the transaction effect on accounts
+          const nextAccounts = applyTransactionToAccounts(state.accounts, snapshot, 1, timestamp);
+          const nextBudgetEntries = [...state.budgetEntries, ...persistedEntries];
+          const updatedBudgets = recalcBudgetsFromEntries(state.budgets, nextBudgetEntries, timestamp);
+
+          // Re-apply debt adjustment if applicable
+          const debtAdjustment = mapDebtAdjustmentFromTransaction(snapshot, state.debts);
+          let updatedDebts = state.debts;
+          if (debtAdjustment) {
+            const nextPrincipal = Math.max(0, debtAdjustment.debt.principalAmount - debtAdjustment.amountDebtCurrency);
+            const nextBase = Math.max(0, debtAdjustment.debt.principalBaseValue - debtAdjustment.amountBaseCurrency);
+            const normalizedStatus = resolveDebtStatus({
+              ...debtAdjustment.debt,
+              principalAmount: nextPrincipal,
+              principalBaseValue: nextBase,
+            });
+            const debtUpdated: Debt = {
+              ...debtAdjustment.debt,
+              principalAmount: nextPrincipal,
+              principalBaseValue: nextBase,
+              status: normalizedStatus,
+              updatedAt: timestamp,
+            };
+            const { debts: debtDao } = getFinanceDaoRegistry();
+            debtDao.update(debtUpdated.id, {
+              principalAmount: nextPrincipal,
+              principalBaseValue: nextBase,
+              status: normalizedStatus,
+              updatedAt: timestamp,
+            });
+            updatedDebts = state.debts.map((debt) => (debt.id === debtUpdated.id ? debtUpdated : debt));
+          }
+
+          nextAccountsSnapshot.push(...nextAccounts);
+          nextBudgetsSnapshot.push(...updatedBudgets);
+          return {
+            accounts: nextAccounts,
+            transactions: state.transactions.map((txn) =>
+              txn.id === snapshot.id ? { ...snapshot, showStatus: 'active' as ShowStatus } : txn,
+            ),
+            budgetEntries: nextBudgetEntries,
+            budgets: updatedBudgets,
+            debts: updatedDebts,
+          };
+        });
+
+        const changedAccounts = nextAccountsSnapshot.filter((account) => {
+          const previous = prevAccounts.find((item) => item.id === account.id);
+          return previous && previous.currentBalance !== account.currentBalance;
+        });
+        persistChangedAccounts(changedAccounts);
+        persistChangedBudgets(nextBudgetsSnapshot, prevBudgets);
+        applyFinanceContributionToGoals(snapshot, { budgets: get().budgets, debts: get().debts });
+      },
+
+      batchUndoDeleteTransactions: (snapshots) => {
+        snapshots.forEach((snapshot) => get().undoDeleteTransaction(snapshot));
+      },
+
+      // Account soft-delete
+      softDeleteAccount: (id) => {
+        const existing = get().accounts.find((acc) => acc.id === id);
+        if (!existing) {
+          return null;
+        }
+        const snapshot = { ...existing };
+        const { accounts: accountDao } = getFinanceDaoRegistry();
+
+        // Soft-delete in database
+        accountDao.setShowStatus(id, 'deleted');
+
+        set((state) => ({
+          accounts: state.accounts.map((account) =>
+            account.id === id ? { ...account, showStatus: 'deleted' as ShowStatus } : account,
+          ),
+        }));
+
+        return snapshot;
+      },
+
+      batchSoftDeleteAccounts: (ids) => {
+        const snapshots: Account[] = [];
+        ids.forEach((id) => {
+          const snapshot = get().softDeleteAccount(id);
+          if (snapshot) {
+            snapshots.push(snapshot);
+          }
+        });
+        return snapshots;
+      },
+
+      undoDeleteAccount: (snapshot) => {
+        const { accounts: accountDao } = getFinanceDaoRegistry();
+
+        // Restore showStatus to active in database
+        accountDao.setShowStatus(snapshot.id, 'active');
+
+        set((state) => ({
+          accounts: state.accounts.map((account) =>
+            account.id === snapshot.id
+              ? { ...snapshot, showStatus: 'active' as ShowStatus, isArchived: false }
+              : account,
+          ),
+        }));
+      },
+
+      batchUndoDeleteAccounts: (snapshots) => {
+        snapshots.forEach((snapshot) => get().undoDeleteAccount(snapshot));
+      },
+
+      // Debt soft-delete
+      softDeleteDebt: (id) => {
+        const existing = get().debts.find((debt) => debt.id === id);
+        if (!existing) {
+          return null;
+        }
+        const snapshot = { ...existing };
+        const { debts: debtDao } = getFinanceDaoRegistry();
+
+        // Unlink goal before soft-delete
+        if (existing.linkedGoalId) {
+          const plannerStore = usePlannerDomainStore.getState();
+          if (plannerStore?.updateGoal) {
+            plannerStore.updateGoal(existing.linkedGoalId, {
+              linkedDebtId: undefined,
+            });
+          }
+        }
+
+        // Soft-delete in database
+        debtDao.setShowStatus(id, 'deleted');
+
+        set((state) => ({
+          debts: state.debts.map((debt) =>
+            debt.id === id ? { ...debt, showStatus: 'deleted' as ShowStatus } : debt,
+          ),
+        }));
+
+        return snapshot;
+      },
+
+      batchSoftDeleteDebts: (ids) => {
+        const snapshots: Debt[] = [];
+        ids.forEach((id) => {
+          const snapshot = get().softDeleteDebt(id);
+          if (snapshot) {
+            snapshots.push(snapshot);
+          }
+        });
+        return snapshots;
+      },
+
+      undoDeleteDebt: (snapshot) => {
+        const { debts: debtDao } = getFinanceDaoRegistry();
+
+        // Restore showStatus to active in database
+        debtDao.setShowStatus(snapshot.id, 'active');
+
+        // Re-link goal if it was linked
+        if (snapshot.linkedGoalId) {
+          const plannerStore = usePlannerDomainStore.getState();
+          if (plannerStore?.updateGoal) {
+            plannerStore.updateGoal(snapshot.linkedGoalId, {
+              linkedDebtId: snapshot.id,
+            });
+          }
+        }
+
+        set((state) => ({
+          debts: state.debts.map((debt) =>
+            debt.id === snapshot.id ? { ...snapshot, showStatus: 'active' as ShowStatus } : debt,
+          ),
+        }));
+      },
+
+      batchUndoDeleteDebts: (snapshots) => {
+        snapshots.forEach((snapshot) => get().undoDeleteDebt(snapshot));
+      },
+
       createDebt: (payload) => {
         const { debts: debtDao } = getFinanceDaoRegistry();
         const { fundingOverrideAmount, ...debtPayload } = payload;
@@ -1019,6 +1464,14 @@ export const useFinanceDomainStore = create<FinanceDomainState>((set, get) => ({
           debtPayload.rateOnStart ??
           (principalOriginalAmount ? principalBaseValueExplicit / principalOriginalAmount : 1);
 
+        // Debug: Log resolved values before creating debt
+        console.log('[Store.createDebt] Resolved values:', {
+          payloadPrincipalAmount: debtPayload.principalAmount,
+          principalOriginalAmount,
+          resolvedPrincipal,
+          fundingAccountId: debtPayload.fundingAccountId,
+        });
+
         let created = debtDao.create({
           ...debtPayload,
           principalAmount: resolvedPrincipal,
@@ -1028,6 +1481,12 @@ export const useFinanceDomainStore = create<FinanceDomainState>((set, get) => ({
           baseCurrency,
           rateOnStart,
           status: debtPayload.status ?? 'active',
+        });
+
+        console.log('[Store.createDebt] After DAO create:', {
+          id: created.id,
+          principalAmount: created.principalAmount,
+          principalOriginalAmount: created.principalOriginalAmount,
         });
 
         if (debtPayload.fundingAccountId && principalOriginalAmount) {
@@ -1042,6 +1501,10 @@ export const useFinanceDomainStore = create<FinanceDomainState>((set, get) => ({
                     principalOriginalCurrency,
                     accountCurrency,
                   );
+            // Note: We intentionally do NOT set debtId/relatedDebtId here
+            // because this is a FUNDING transaction (money going out to lend / coming in from borrowing)
+            // NOT a repayment transaction. Setting debtId would trigger mapDebtAdjustmentFromTransaction
+            // which would incorrectly reduce principalAmount to 0.
             const fundingTransaction = get().createTransaction({
               userId: debtPayload.userId,
               type: debtPayload.direction === 'they_owe_me' ? 'expense' : 'income',
@@ -1053,16 +1516,22 @@ export const useFinanceDomainStore = create<FinanceDomainState>((set, get) => ({
               convertedAmountToBase: amountInAccountCurrency,
               description: debtPayload.description ?? `Debt • ${debtPayload.counterpartyName}`,
               date: debtPayload.startDate ?? nowIso,
-              debtId: created.id,
+              // debtId and relatedDebtId are intentionally omitted for funding transactions
               budgetId: debtPayload.linkedBudgetId,
               goalId: debtPayload.linkedGoalId,
               goalName: debtPayload.counterpartyName,
               goalType: 'financial',
               relatedBudgetId: debtPayload.linkedBudgetId,
-              relatedDebtId: created.id,
+              // Store reference without triggering debt adjustment
               plannedAmount: resolvedPrincipal,
               paidAmount: amountInAccountCurrency,
             });
+
+            console.log('[Store.createDebt] After funding transaction created:', {
+              transactionId: fundingTransaction.id,
+              createdPrincipalAmount: created.principalAmount,
+            });
+
             const patched = debtDao.update(created.id, {
               fundingTransactionId: fundingTransaction.id,
             });
@@ -1071,10 +1540,20 @@ export const useFinanceDomainStore = create<FinanceDomainState>((set, get) => ({
             } else {
               created = { ...created, fundingTransactionId: fundingTransaction.id };
             }
+
+            console.log('[Store.createDebt] After patching fundingTransactionId:', {
+              principalAmount: created.principalAmount,
+            });
           }
         }
 
         const normalizedStatus = resolveDebtStatus(created);
+        console.log('[Store.createDebt] Status normalization:', {
+          currentStatus: created.status,
+          normalizedStatus,
+          principalAmount: created.principalAmount,
+        });
+
         if (normalizedStatus !== created.status) {
           const patched = debtDao.update(created.id, { status: normalizedStatus });
           if (patched) {
@@ -1084,13 +1563,25 @@ export const useFinanceDomainStore = create<FinanceDomainState>((set, get) => ({
           }
         }
 
-        set((state) => ({ debts: [...state.debts.filter((debt) => debt.id !== created.id), created] }));
+        console.log('[Store.createDebt] Final debt before set():', {
+          id: created.id,
+          principalAmount: created.principalAmount,
+          principalOriginalAmount: created.principalOriginalAmount,
+          status: created.status,
+        });
+
+        set((state) => ({
+          accounts: [...state.accounts], // Force rerender by creating new array reference
+          debts: [...state.debts.filter((debt) => debt.id !== created.id), created],
+        }));
         return created;
       },
 
       updateDebt: (id, updates) => {
+        console.log('[FinanceDomainStore] updateDebt called:', { id, updates });
         const existing = get().debts.find((debt) => debt.id === id);
         if (!existing) {
+          console.log('[FinanceDomainStore] updateDebt: Debt not found');
           return;
         }
         const merged: Debt = {
@@ -1099,10 +1590,13 @@ export const useFinanceDomainStore = create<FinanceDomainState>((set, get) => ({
         };
         const normalizedStatus = resolveDebtStatus(merged);
         const { debts: debtDao } = getFinanceDaoRegistry();
+        console.log('[FinanceDomainStore] updateDebt: Calling debtDao.update with:', { id, updates: { ...updates, status: normalizedStatus } });
         const updated = debtDao.update(id, { ...updates, status: normalizedStatus });
         if (!updated) {
+          console.log('[FinanceDomainStore] updateDebt: debtDao.update returned null');
           return;
         }
+        console.log('[FinanceDomainStore] updateDebt: Updated debt:', { dueDate: updated.dueDate });
         set((state) => ({
           debts: state.debts.map((debt) => (debt.id === id ? updated : debt)),
         }));
@@ -1169,6 +1663,15 @@ export const useFinanceDomainStore = create<FinanceDomainState>((set, get) => ({
             paymentCurrency,
             account.currency,
           );
+          // IMPORTANT: paidAmount MUST be in debt's principal currency for correct deduction
+          // mapDebtAdjustmentFromTransaction uses paidAmount directly when present
+          // So we pass convertedAmountToDebt to ensure exact amount is deducted from debt
+
+          // Konvertatsiya kursi: account currency -> debt currency
+          const conversionRateToDebt = amountInAccountCurrency !== 0
+            ? convertedAmountToDebt / amountInAccountCurrency
+            : 1;
+
           const transaction = get().createTransaction({
             userId: debt.userId,
             type: debt.direction === 'they_owe_me' ? 'income' : 'expense',
@@ -1188,7 +1691,11 @@ export const useFinanceDomainStore = create<FinanceDomainState>((set, get) => ({
             relatedBudgetId: debt.linkedBudgetId,
             relatedDebtId: debt.id,
             plannedAmount: debt.principalAmount,
-            paidAmount: payload.amount,
+            paidAmount: convertedAmountToDebt,
+            // Qarz valyutasi va konvertatsiya ma'lumotlari
+            originalCurrency: debt.principalCurrency,
+            originalAmount: convertedAmountToDebt,
+            conversionRate: conversionRateToDebt,
           });
           relatedTransactionId = transaction.id;
         }
@@ -1206,26 +1713,12 @@ export const useFinanceDomainStore = create<FinanceDomainState>((set, get) => ({
           createdAt: nowIso,
           updatedAt: nowIso,
         };
-        const nextPrincipal = Math.max(0, debt.principalAmount - convertedAmountToDebt);
-        const nextPrincipalBaseValue = Math.max(0, debt.principalBaseValue - convertedAmountToBase);
-        const nextDebt: Debt = {
-          ...debt,
-          principalAmount: nextPrincipal,
-          principalBaseValue: nextPrincipalBaseValue,
-          updatedAt: nowIso,
-        };
-        const normalizedStatus = resolveDebtStatus(nextDebt);
+        // Note: Debt principalAmount is updated by createTransaction via mapDebtAdjustmentFromTransaction
+        // We only persist the payment record here to avoid double reduction
         const { debts: debtDao } = getFinanceDaoRegistry();
         debtDao.addPayment(debt.id, payment);
-        const refreshed = debtDao.update(debt.id, {
-          principalAmount: nextPrincipal,
-          principalBaseValue: nextPrincipalBaseValue,
-          status: normalizedStatus,
-        });
-        const patchedDebt = refreshed ?? { ...nextDebt, status: normalizedStatus };
 
         set((state) => ({
-          debts: state.debts.map((item) => (item.id === debt.id ? patchedDebt : item)),
           debtPayments: [payment, ...state.debtPayments],
         }));
         return payment;

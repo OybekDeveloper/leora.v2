@@ -40,7 +40,7 @@ import { AdaptiveGlassView } from '@/components/ui/AdaptiveGlassView';
 import { useGoalFinanceLink } from '@/hooks/useGoalFinanceLink';
 import { useGoalProgress } from '@/hooks/useGoalProgress';
 import GoalActionsDropdown, { type GoalDropdownAction } from '@/components/planner/goals/GoalActionsDropdown';
-import { useAppTheme } from '@/constants/theme';
+import { createThemedStyles, useAppTheme } from '@/constants/theme';
 import { usePlannerDomainStore } from '@/stores/usePlannerDomainStore';
 import { usePlannerAggregatesStore } from '@/stores/usePlannerAggregatesStore';
 import { useFinanceDomainStore } from '@/stores/useFinanceDomainStore';
@@ -59,6 +59,7 @@ export default function GoalDetailsModal() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const theme = useAppTheme();
+  const styles = useStyles();
   const params = useLocalSearchParams<{ goalId?: string }>();
   const baseCurrency = useFinancePreferencesStore((state) => state.baseCurrency);
 
@@ -217,11 +218,9 @@ export default function GoalDetailsModal() {
   // Computed values that depend on goal - using fallbacks when goal is null
   const numericCurrent = Number(progressData?.displayCurrent ?? summary?.current ?? 0);
   const numericTarget = Number(progressData?.displayTarget ?? summary?.target ?? 0);
-  const ratioBase =
-    numericTarget > 0 && Number.isFinite(numericTarget)
-      ? numericCurrent / numericTarget
-      : progressData?.progressPercent ?? summary?.progressPercent ?? 0;
-  const progressPercent = Math.round(Math.min(Math.max(ratioBase, 0), 1) * 100);
+  // Use progressPercent from calculateGoalProgress which handles direction correctly
+  // For decrease goals (e.g., weight loss), direct ratio would be wrong
+  const progressPercent = Math.round((progressData?.progressPercent ?? summary?.progressPercent ?? 0) * 100);
   const clampedProgress = Math.min(Math.max(progressPercent, 0), 100);
   const isMoneyGoal = goal?.goalType === 'financial' || goal?.metricType === 'amount';
 
@@ -491,17 +490,17 @@ export default function GoalDetailsModal() {
   const getGoalTypeIcon = (type: Goal['goalType']) => {
     switch (type) {
       case 'financial':
-        return <DollarSign size={16} color="#10B981" />;
+        return <DollarSign size={16} color={theme.colors.success} />;
       case 'health':
-        return <Heart size={16} color="#EF4444" />;
+        return <Heart size={16} color={theme.colors.danger} />;
       case 'education':
-        return <Target size={16} color="#3B82F6" />;
+        return <Target size={16} color={theme.colors.info} />;
       case 'productivity':
-        return <TrendingUp size={16} color="#8B5CF6" />;
+        return <TrendingUp size={16} color={theme.colors.primary} />;
       case 'personal':
-        return <Users size={16} color="#F59E0B" />;
+        return <Users size={16} color={theme.colors.warning} />;
       default:
-        return <Target size={16} color="#94A3B8" />;
+        return <Target size={16} color={theme.colors.textMuted} />;
     }
   };
 
@@ -525,15 +524,15 @@ export default function GoalDetailsModal() {
   const getPriorityColor = (priority?: 'urgent' | 'high' | 'medium' | 'low') => {
     switch (priority) {
       case 'urgent':
-        return '#EF4444';
+        return theme.colors.danger;
       case 'high':
-        return '#F59E0B';
+        return theme.colors.warning;
       case 'medium':
-        return '#3B82F6';
+        return theme.colors.info;
       case 'low':
-        return '#6B7280';
+        return theme.colors.textMuted;
       default:
-        return '#94A3B8';
+        return theme.colors.textDisabled;
     }
   };
 
@@ -595,32 +594,32 @@ export default function GoalDetailsModal() {
     <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.background }]} edges={['top']}>
       <View style={[styles.container, { paddingBottom: Math.max(insets.bottom, 16) }]}>
         <View style={styles.modalHeader}>
-          <Text style={styles.modalHeaderTitle}>Goal details</Text>
+          <Text style={[styles.modalHeaderTitle, { color: theme.colors.textPrimary }]}>Goal details</Text>
           <View style={styles.modalHeaderActions}>
-            <Pressable onPress={() => setMenuOpen((prev) => !prev)} style={styles.menuTrigger} accessibilityRole="button">
-              <MoreVertical size={20} color="#E2E8F0" />
+            <Pressable onPress={() => setMenuOpen((prev) => !prev)} style={[styles.menuTrigger, { backgroundColor: theme.colors.cardItem }]} accessibilityRole="button">
+              <MoreVertical size={20} color={theme.colors.textPrimary} />
             </Pressable>
-            <Pressable onPress={() => router.back()} style={styles.modalHeaderAction} accessibilityRole="button">
-              <X size={20} color="#E2E8F0" />
+            <Pressable onPress={() => router.back()} style={[styles.modalHeaderAction, { backgroundColor: theme.colors.cardItem }]} accessibilityRole="button">
+              <X size={20} color={theme.colors.textPrimary} />
             </Pressable>
           </View>
         </View>
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <Text style={styles.title}>{goal.title}</Text>
+            <Text style={[styles.title, { color: theme.colors.textPrimary }]}>{goal.title}</Text>
             <View style={styles.badges}>
               {/* Type Badge */}
-              <View style={styles.typeBadge}>
+              <View style={[styles.typeBadge, { backgroundColor: theme.colors.cardItem }]}>
                 {getGoalTypeIcon(goal.goalType)}
-                <Text style={styles.typeBadgeText}>{getGoalTypeLabel(goal.goalType)}</Text>
+                <Text style={[styles.typeBadgeText, { color: theme.colors.textSecondary }]}>{getGoalTypeLabel(goal.goalType)}</Text>
               </View>
 
               {/* Risk Flags */}
               {(summary?.riskFlags?.length ?? 0) > 0 && (
-                <View style={styles.riskBadge}>
-                  <AlertTriangle size={14} color="#EF4444" />
-                  <Text style={styles.riskBadgeText}>{summary?.riskFlags?.length ?? 0} risk(s)</Text>
+                <View style={[styles.riskBadge, { backgroundColor: theme.colors.dangerBg }]}>
+                  <AlertTriangle size={14} color={theme.colors.danger} />
+                  <Text style={[styles.riskBadgeText, { color: theme.colors.danger }]}>{summary?.riskFlags?.length ?? 0} risk(s)</Text>
                 </View>
               )}
             </View>
@@ -634,16 +633,16 @@ export default function GoalDetailsModal() {
           bounces={false}
         >
           {/* Progress Ring */}
-          <View style={styles.progressSection}>
-            <View style={styles.progressRing}>
-              <Text style={styles.progressPercent}>{clampedProgress}%</Text>
+          <AdaptiveGlassView style={styles.progressSection}>
+            <View style={[styles.progressRing, { borderColor: theme.colors.cardItem, backgroundColor: theme.colors.cardItem + '1A' }]}>
+              <Text style={[styles.progressPercent, { color: theme.colors.textPrimary }]}>{clampedProgress}%</Text>
             </View>
             <View style={styles.progressInfo}>
-              <Text style={styles.progressLabel}>Progress</Text>
+              <Text style={[styles.progressLabel, { color: theme.colors.textSecondary }]}>Progress</Text>
               {currentDisplay !== undefined && targetDisplay !== undefined && (
-                <Text style={styles.progressValues}>
+                <Text style={[styles.progressValues, { color: theme.colors.textPrimary }]}>
                   {formatValue(currentDisplay)}
-                  <Text style={styles.progressValuesMuted}> / {formatValue(targetDisplay)}</Text>
+                  <Text style={[styles.progressValuesMuted, { color: theme.colors.textMuted }]}> / {formatValue(targetDisplay)}</Text>
                 </Text>
               )}
               <View style={[styles.progressTrack, { backgroundColor: theme.colors.surfaceMuted }]}>
@@ -652,30 +651,30 @@ export default function GoalDetailsModal() {
                     styles.progressFill,
                     {
                       width: `${clampedProgress}%`,
-                      backgroundColor: clampedProgress >= 80 ? theme.colors.success : theme.colors.primary,
+                      backgroundColor: clampedProgress >= 80 ? theme.colors.success : theme.colors.cardItem,
                     },
                   ]}
                 />
               </View>
               {summary?.deadline && (
                 <View style={styles.deadlineRow}>
-                  <Calendar size={14} color="#94A3B8" />
-                  <Text style={styles.deadlineText}>Due: {new Date(summary.deadline).toLocaleDateString()}</Text>
+                  <Calendar size={14} color={theme.colors.textSecondary} />
+                  <Text style={[styles.deadlineText, { color: theme.colors.textSecondary }]}>Due: {new Date(summary.deadline).toLocaleDateString()}</Text>
                 </View>
               )}
             </View>
-          </View>
+          </AdaptiveGlassView>
 
           {stepperSteps.length > 0 && (
             <View style={styles.stepperRow}>
               {stepperSteps.map((step) => (
                 <Pressable
                   key={step}
-                  style={styles.stepperButton}
+                  style={[styles.stepperButton, { backgroundColor: theme.colors.cardItem }]}
                   onPress={() => handleStepperIncrement(step)}
                   accessibilityRole="button"
                 >
-                  <Text style={styles.stepperText}>+{step}</Text>
+                  <Text style={[styles.stepperText, { color: theme.colors.textSecondary }]}>+{step}</Text>
                 </Pressable>
               ))}
             </View>
@@ -684,39 +683,39 @@ export default function GoalDetailsModal() {
           {/* Check In Button */}
           {goal.status === 'archived' ? (
             <Pressable
-              style={styles.recoverButton}
+              style={[styles.recoverButton, { borderColor: theme.colors.textSecondary }]}
               onPress={() => resumeGoal(goal.id)}
               accessibilityRole="button"
             >
-              <Text style={styles.recoverButtonText}>Recover Goal</Text>
+              <Text style={[styles.recoverButtonText, { color: theme.colors.textSecondary }]}>Recover Goal</Text>
             </Pressable>
           ) : goal.status === 'completed' ? (
             <Pressable
-              style={styles.recoverButton}
+              style={[styles.recoverButton, { borderColor: theme.colors.textSecondary }]}
               onPress={() => restartGoal(goal.id)}
               accessibilityRole="button"
             >
-              <Text style={styles.recoverButtonText}>Restart Goal</Text>
+              <Text style={[styles.recoverButtonText, { color: theme.colors.textSecondary }]}>Restart Goal</Text>
             </Pressable>
           ) : (
             <>
               {goal.metricType !== 'none' && (
                 <Pressable
-                  style={styles.checkInButton}
+                  style={[styles.checkInButton, { backgroundColor: theme.colors.cardItem }]}
                   onPress={handleCheckInPress}
                   accessibilityRole="button"
                 >
-                  <Plus size={20} color="#FFFFFF" />
-                  <Text style={styles.checkInButtonText}>Check In Today</Text>
+                  <Plus size={20} color={theme.colors.textSecondary} />
+                  <Text style={[styles.checkInButtonText, { color: theme.colors.textSecondary }]}>Check In Today</Text>
                 </Pressable>
               )}
               <Pressable
-                style={styles.deleteButton}
+                style={[styles.deleteButton, { borderColor: theme.colors.danger }]}
                 onPress={() => setDeleteConfirmVisible(true)}
                 accessibilityRole="button"
               >
-                <Trash2 size={18} color="#F87171" />
-                <Text style={styles.deleteButtonText}>Delete Goal</Text>
+                <Trash2 size={18} color={theme.colors.danger} />
+                <Text style={[styles.deleteButtonText, { color: theme.colors.danger }]}>Delete Goal</Text>
               </Pressable>
             </>
           )}
@@ -724,71 +723,77 @@ export default function GoalDetailsModal() {
           {/* Stats Row */}
           <View style={styles.statsRow}>
             <Pressable style={styles.statCard} onPress={() => scrollToSection('tasks')}>
-              <Text style={styles.statValue}>{linkedTasks.length}</Text>
-              <Text style={styles.statLabel}>Tasks</Text>
+              <AdaptiveGlassView style={styles.statCardInner}>
+                <Text style={[styles.statValue, { color: theme.colors.cardItem }]}>{linkedTasks.length}</Text>
+                <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Tasks</Text>
+              </AdaptiveGlassView>
             </Pressable>
             <Pressable style={styles.statCard} onPress={() => scrollToSection('habits')}>
-              <Text style={styles.statValue}>{linkedHabits.length}</Text>
-              <Text style={styles.statLabel}>Habits</Text>
+              <AdaptiveGlassView style={styles.statCardInner}>
+                <Text style={[styles.statValue, { color: theme.colors.cardItem }]}>{linkedHabits.length}</Text>
+                <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Habits</Text>
+              </AdaptiveGlassView>
             </Pressable>
             <Pressable style={styles.statCard} onPress={() => scrollToSection('activity')}>
-              <Text style={styles.statValue}>{historyItems.length}</Text>
-              <Text style={styles.statLabel}>Activity</Text>
+              <AdaptiveGlassView style={styles.statCardInner}>
+                <Text style={[styles.statValue, { color: theme.colors.cardItem }]}>{historyItems.length}</Text>
+                <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Activity</Text>
+              </AdaptiveGlassView>
             </Pressable>
           </View>
 
           {/* Metric Panel */}
           {(goal.goalType === 'financial' || goal.metricType === 'amount') && (linkedBudget || linkedDebt) && (
             <View style={styles.section}>
-              <Text style={styles.sectionHeading}>Financial Tracking</Text>
+              <Text style={[styles.sectionHeading, { color: theme.colors.textPrimary }]}>Financial Tracking</Text>
 
               {/* Budget Card */}
               {linkedBudget && (
                 <AdaptiveGlassView style={styles.metricCard}>
                   <View style={styles.metricHeader}>
                     <View style={styles.metricTitleRow}>
-                      <PieChart size={20} color="#3B82F6" />
-                      <Text style={styles.metricTitle}>{linkedBudget.name}</Text>
+                      <PieChart size={20} color={theme.colors.info} />
+                      <Text style={[styles.metricTitle, { color: theme.colors.textPrimary }]}>{linkedBudget.name}</Text>
                     </View>
-                    <Text style={styles.metricType}>Budget</Text>
+                    <Text style={[styles.metricType, { color: theme.colors.textSecondary }]}>Budget</Text>
                   </View>
                   <View style={styles.metricBody}>
                     <View style={styles.metricRow}>
-                      <Text style={styles.metricLabel}>Spent</Text>
-                      <Text style={styles.metricValue}>
+                      <Text style={[styles.metricLabel, { color: theme.colors.textSecondary }]}>Spent</Text>
+                      <Text style={[styles.metricValue, { color: theme.colors.textPrimary }]}>
                         {linkedBudget.spentAmount.toFixed(2)} {linkedBudget.currency}
                       </Text>
                     </View>
                     <View style={styles.metricRow}>
-                      <Text style={styles.metricLabel}>Limit</Text>
-                      <Text style={styles.metricValue}>
+                      <Text style={[styles.metricLabel, { color: theme.colors.textSecondary }]}>Limit</Text>
+                      <Text style={[styles.metricValue, { color: theme.colors.textPrimary }]}>
                         {linkedBudget.limitAmount.toFixed(2)} {linkedBudget.currency}
                       </Text>
                     </View>
                     <View style={styles.metricRow}>
-                      <Text style={styles.metricLabel}>Remaining</Text>
+                      <Text style={[styles.metricLabel, { color: theme.colors.textSecondary }]}>Remaining</Text>
                       <Text
                         style={[
                           styles.metricValue,
-                          { color: linkedBudget.remainingAmount < 0 ? '#EF4444' : '#10B981' },
+                          { color: linkedBudget.remainingAmount < 0 ? theme.colors.danger : theme.colors.success },
                         ]}
                       >
                         {linkedBudget.remainingAmount.toFixed(2)} {linkedBudget.currency}
                       </Text>
                     </View>
                     {/* Progress Bar */}
-                    <View style={styles.metricProgressTrack}>
+                    <View style={[styles.metricProgressTrack, { backgroundColor: theme.colors.surfaceMuted }]}>
                       <View
                         style={[
                           styles.metricProgressFill,
                           {
                             width: `${Math.min(linkedBudget.percentUsed * 100, 100)}%`,
-                            backgroundColor: linkedBudget.percentUsed >= 1 ? '#EF4444' : '#3B82F6',
+                            backgroundColor: linkedBudget.percentUsed >= 1 ? theme.colors.danger : theme.colors.info,
                           },
                         ]}
                       />
                     </View>
-                    <Text style={styles.metricProgressLabel}>
+                    <Text style={[styles.metricProgressLabel, { color: theme.colors.textSecondary }]}>
                       {Math.round(linkedBudget.percentUsed * 100)}% used
                     </Text>
                   </View>
@@ -800,34 +805,34 @@ export default function GoalDetailsModal() {
                 <AdaptiveGlassView style={styles.metricCard}>
                   <View style={styles.metricHeader}>
                     <View style={styles.metricTitleRow}>
-                      <CreditCard size={20} color="#F59E0B" />
-                      <Text style={styles.metricTitle}>{linkedDebt.counterpartyName}</Text>
+                      <CreditCard size={20} color={theme.colors.warning} />
+                      <Text style={[styles.metricTitle, { color: theme.colors.textPrimary }]}>{linkedDebt.counterpartyName}</Text>
                     </View>
-                    <Text style={styles.metricType}>Debt</Text>
+                    <Text style={[styles.metricType, { color: theme.colors.textSecondary }]}>Debt</Text>
                   </View>
                   <View style={styles.metricBody}>
                     <View style={styles.metricRow}>
-                      <Text style={styles.metricLabel}>Direction</Text>
-                      <Text style={styles.metricValue}>
+                      <Text style={[styles.metricLabel, { color: theme.colors.textSecondary }]}>Direction</Text>
+                      <Text style={[styles.metricValue, { color: theme.colors.textPrimary }]}>
                         {linkedDebt.direction === 'i_owe' ? 'I owe' : 'They owe me'}
                       </Text>
                     </View>
                     <View style={styles.metricRow}>
-                      <Text style={styles.metricLabel}>Principal</Text>
-                      <Text style={styles.metricValue}>
+                      <Text style={[styles.metricLabel, { color: theme.colors.textSecondary }]}>Principal</Text>
+                      <Text style={[styles.metricValue, { color: theme.colors.textPrimary }]}>
                         {linkedDebt.principalAmount.toFixed(2)} {linkedDebt.principalCurrency}
                       </Text>
                     </View>
                     {linkedDebt.dueDate && (
                       <View style={styles.metricRow}>
-                        <Text style={styles.metricLabel}>Due Date</Text>
-                        <Text style={styles.metricValue}>
+                        <Text style={[styles.metricLabel, { color: theme.colors.textSecondary }]}>Due Date</Text>
+                        <Text style={[styles.metricValue, { color: theme.colors.textPrimary }]}>
                           {new Date(linkedDebt.dueDate).toLocaleDateString()}
                         </Text>
                       </View>
                     )}
                     {linkedDebt.description && (
-                      <Text style={styles.metricDescription}>{linkedDebt.description}</Text>
+                      <Text style={[styles.metricDescription, { color: theme.colors.textMuted }]}>{linkedDebt.description}</Text>
                     )}
                   </View>
                 </AdaptiveGlassView>
@@ -838,25 +843,25 @@ export default function GoalDetailsModal() {
           {/* Milestones */}
           {goal.milestones && goal.milestones.length > 0 && (
             <View style={styles.section}>
-              <Text style={styles.sectionHeading}>Milestones</Text>
+              <Text style={[styles.sectionHeading, { color: theme.colors.textPrimary }]}>Milestones</Text>
               <View style={styles.milestonesGrid}>
                 {goal.milestones.map((milestone, index) => (
-                  <View key={index} style={styles.milestoneRow}>
+                  <AdaptiveGlassView key={index} style={styles.milestoneRow}>
                     {milestone.completedAt ? (
-                      <CheckCircle2 size={18} color="#10B981" />
+                      <CheckCircle2 size={18} color={theme.colors.success} />
                     ) : (
-                      <Circle size={18} color="#6B7280" />
+                      <Circle size={18} color={theme.colors.textMuted} />
                     )}
                     <View style={styles.milestoneContent}>
-                      <Text style={styles.milestoneLabel}>{milestone.title}</Text>
-                      <Text style={styles.milestoneDate}>Target: {Math.round(milestone.targetPercent)}%</Text>
+                      <Text style={[styles.milestoneLabel, { color: theme.colors.textPrimary }]}>{milestone.title}</Text>
+                      <Text style={[styles.milestoneDate, { color: theme.colors.success }]}>Target: {Math.round(milestone.targetPercent)}%</Text>
                       {milestone.completedAt && (
-                        <Text style={styles.milestoneDate}>
+                        <Text style={[styles.milestoneDate, { color: theme.colors.success }]}>
                           Completed: {new Date(milestone.completedAt).toLocaleDateString()}
                         </Text>
                       )}
                     </View>
-                  </View>
+                  </AdaptiveGlassView>
                 ))}
               </View>
             </View>
@@ -871,19 +876,19 @@ export default function GoalDetailsModal() {
               }}
             >
               <View style={styles.sectionHeaderRow}>
-                <Text style={styles.sectionHeading}>Tasks</Text>
+                <Text style={[styles.sectionHeading, { color: theme.colors.textPrimary }]}>Tasks</Text>
                 <Pressable
-                  style={styles.newStepButton}
+                  style={[styles.newStepButton, { backgroundColor: theme.colors.cardItem, borderColor: theme.colors.border }]}
                   onPress={() => router.push(`/(modals)/planner/task?goalId=${goal.id}`)}
                 >
-                  <Plus size={14} color={theme.colors.primary} />
-                  <Text style={[styles.newStepButtonText, { color: theme.colors.primary }]}>New Step</Text>
+                  <Plus size={14} color={theme.colors.textSecondary} />
+                  <Text style={[styles.newStepButtonText, { color: theme.colors.textSecondary }]}>New Step</Text>
                 </Pressable>
               </View>
               {nextTask && (
                 <AdaptiveGlassView style={styles.taskCard}>
                   <View style={styles.taskHeader}>
-                    <Text style={styles.taskTitle}>{nextTask.title}</Text>
+                    <Text style={[styles.taskTitle, { color: theme.colors.textPrimary }]}>{nextTask.title}</Text>
                     {nextTask.priority && (
                       <View style={[styles.priorityBadge, { backgroundColor: getPriorityColor(nextTask.priority) }]}>
                         <Text style={styles.priorityText}>{nextTask.priority.toUpperCase()}</Text>
@@ -892,8 +897,8 @@ export default function GoalDetailsModal() {
                   </View>
                   {nextTask.dueDate && (
                     <View style={styles.taskFooter}>
-                      <Calendar size={14} color="#94A3B8" />
-                      <Text style={styles.taskDueDate}>Due: {new Date(nextTask.dueDate).toLocaleDateString()}</Text>
+                      <Calendar size={14} color={theme.colors.textSecondary} />
+                      <Text style={[styles.taskDueDate, { color: theme.colors.textSecondary }]}>Due: {new Date(nextTask.dueDate).toLocaleDateString()}</Text>
                     </View>
                   )}
                 </AdaptiveGlassView>
@@ -901,12 +906,12 @@ export default function GoalDetailsModal() {
               {linkedTasks.length > 0 ? (
                 <View style={styles.taskList}>
                   {linkedTasks.slice(0, 3).map((task) => (
-                    <View key={task.id} style={styles.taskListRow}>
-                      <Text style={styles.taskListTitle}>{task.title}</Text>
+                    <AdaptiveGlassView key={task.id} style={styles.taskListRow}>
+                      <Text style={[styles.taskListTitle, { color: theme.colors.textPrimary }]}>{task.title}</Text>
                       {task.dueDate && (
-                        <Text style={styles.taskListMeta}>{new Date(task.dueDate).toLocaleDateString()}</Text>
+                        <Text style={[styles.taskListMeta, { color: theme.colors.textSecondary }]}>{new Date(task.dueDate).toLocaleDateString()}</Text>
                       )}
-                    </View>
+                    </AdaptiveGlassView>
                   ))}
                 </View>
               ) : (
@@ -923,25 +928,26 @@ export default function GoalDetailsModal() {
                 sectionPositions.current.habits = e.nativeEvent.layout.y;
               }}
             >
-              <Text style={styles.sectionHeading}>Today&lsquo;s Habits</Text>
+              <Text style={[styles.sectionHeading, { color: theme.colors.textPrimary }]}>Today&lsquo;s Habits</Text>
               <View style={styles.habitsGrid}>
                 {linkedHabitSummaries.map((habitSummary) => (
                   <Pressable
                     key={habitSummary.habitId}
-                    style={styles.habitRow}
                     onPress={() => handleHabitToggle(habitSummary.habitId, habitSummary.todayStatus)}
                   >
-                    <View style={styles.habitLeft}>
-                      {habitSummary.todayStatus === 'done' ? (
-                        <CheckCircle2 size={20} color="#10B981" />
-                      ) : (
-                        <Circle size={20} color="#6B7280" />
-                      )}
-                      <View style={styles.habitInfo}>
-                        <Text style={styles.habitTitle}>{habitSummary.title}</Text>
-                        <Text style={styles.habitStreak}>Streak: {habitSummary.streakCurrent} days</Text>
+                    <AdaptiveGlassView style={styles.habitRow}>
+                      <View style={styles.habitLeft}>
+                        {habitSummary.todayStatus === 'done' ? (
+                          <CheckCircle2 size={20} color={theme.colors.success} />
+                        ) : (
+                          <Circle size={20} color={theme.colors.textMuted} />
+                        )}
+                        <View style={styles.habitInfo}>
+                          <Text style={[styles.habitTitle, { color: theme.colors.textPrimary }]}>{habitSummary.title}</Text>
+                          <Text style={[styles.habitStreak, { color: theme.colors.textSecondary }]}>Streak: {habitSummary.streakCurrent} days</Text>
+                        </View>
                       </View>
-                    </View>
+                    </AdaptiveGlassView>
                   </Pressable>
                 ))}
               </View>
@@ -956,21 +962,21 @@ export default function GoalDetailsModal() {
                 sectionPositions.current.activity = e.nativeEvent.layout.y;
               }}
             >
-              <Text style={styles.sectionHeading}>Activity</Text>
+              <Text style={[styles.sectionHeading, { color: theme.colors.textPrimary }]}>Activity</Text>
               <View style={styles.historyList}>
                 {(activityExpanded ? historyItems : historyItems.slice(0, 5)).map((item) => (
-                  <View key={item.id} style={styles.historyRow}>
+                  <AdaptiveGlassView key={item.id} style={styles.historyRow}>
                     <View style={styles.historyHeader}>
-                      <Text style={styles.historyType}>{item.type}</Text>
-                      <Text style={styles.historyDate}>{item.date.toLocaleDateString()}</Text>
+                      <Text style={[styles.historyType, { color: theme.colors.cardItem }]}>{item.type}</Text>
+                      <Text style={[styles.historyDate, { color: theme.colors.textSecondary }]}>{item.date.toLocaleDateString()}</Text>
                     </View>
-                    <Text style={styles.historyTitle}>{item.title}</Text>
-                    <Text style={styles.historyValue}>{item.value}</Text>
-                  </View>
+                    <Text style={[styles.historyTitle, { color: theme.colors.textPrimary }]}>{item.title}</Text>
+                    <Text style={[styles.historyValue, { color: theme.colors.success }]}>{item.value}</Text>
+                  </AdaptiveGlassView>
                 ))}
                 {!activityExpanded && historyItems.length > 5 && (
                   <LinearGradient
-                    colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.35)']}
+                    colors={['rgba(0,0,0,0)', theme.colors.background]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 0, y: 1 }}
                     style={styles.activityFade}
@@ -986,7 +992,7 @@ export default function GoalDetailsModal() {
                     setActivityExpanded((prev) => !prev);
                   }}
                 >
-                  <Text style={styles.moreButtonText}>
+                  <Text style={[styles.moreButtonText, { color: theme.colors.info }]}>
                     {activityExpanded ? 'Show Less' : 'More'}
                   </Text>
                 </Pressable>
@@ -995,20 +1001,12 @@ export default function GoalDetailsModal() {
           )}
 
           {/* AI Tip (Placeholder) */}
-          <AdaptiveGlassView
-            style={[
-              styles.tipCard,
-              {
-                borderColor: 'rgba(255,255,255,0.08)',
-                backgroundColor: 'rgba(255,255,255,0.05)',
-              },
-            ]}
-          >
+          <AdaptiveGlassView style={styles.tipCard}>
             <View style={styles.tipContent}>
-              <Lightbulb size={18} color="#FACC15" />
-              <Text style={styles.tipText}>
+              <Lightbulb size={18} color={theme.colors.warning} />
+              <Text style={[styles.tipText, { color: theme.colors.textPrimary }]}>
                 Keep up the momentum! You&rsquo;re making great progress on this goal.{' '}
-                <Text style={styles.tipHighlight}>Complete 1 more task today to stay on track.</Text>
+                <Text style={[styles.tipHighlight, { color: theme.colors.warning }]}>Complete 1 more task today to stay on track.</Text>
               </Text>
             </View>
           </AdaptiveGlassView>
@@ -1107,10 +1105,10 @@ export default function GoalDetailsModal() {
                   </Text>
                 </Pressable>
                 <Pressable
-                  style={[styles.modalButton, styles.modalButtonPrimary]}
+                  style={[styles.modalButton, styles.modalButtonPrimary, { backgroundColor: theme.colors.cardItem }]}
                   onPress={handleCheckInSubmit}
                 >
-                  <Text style={styles.modalButtonTextPrimary}>
+                  <Text style={[styles.modalButtonTextPrimary, { color: theme.colors.onSecondary }]}>
                     Update
                   </Text>
                 </Pressable>
@@ -1224,10 +1222,10 @@ export default function GoalDetailsModal() {
                   </Text>
                 </Pressable>
                 <Pressable
-                  style={[styles.modalButton, styles.modalButtonPrimary]}
+                  style={[styles.modalButton, styles.modalButtonPrimary, { backgroundColor: theme.colors.danger }]}
                   onPress={handleConfirmDelete}
                 >
-                  <Text style={styles.modalButtonTextPrimary}>
+                  <Text style={[styles.modalButtonTextPrimary, { color: theme.colors.onDanger }]}>
                     Delete
                   </Text>
                 </Pressable>
@@ -1261,14 +1259,14 @@ export default function GoalDetailsModal() {
                   </Text>
                 </Pressable>
                 <Pressable
-                  style={[styles.modalButton, styles.modalButtonPrimary]}
+                  style={[styles.modalButton, styles.modalButtonPrimary, { backgroundColor: theme.colors.danger }]}
                   onPress={() => {
                     deleteGoalPermanently(goal.id);
                     setDeleteForeverVisible(false);
                     router.back();
                   }}
                 >
-                  <Text style={styles.modalButtonTextPrimary}>
+                  <Text style={[styles.modalButtonTextPrimary, { color: theme.colors.onDanger }]}>
                     Delete
                   </Text>
                 </Pressable>
@@ -1301,10 +1299,10 @@ export default function GoalDetailsModal() {
                   </Text>
                 </Pressable>
                 <Pressable
-                  style={[styles.modalButton, styles.modalButtonPrimary]}
+                  style={[styles.modalButton, styles.modalButtonPrimary, { backgroundColor: theme.colors.success }]}
                   onPress={handleConfirmComplete}
                 >
-                  <Text style={styles.modalButtonTextPrimary}>
+                  <Text style={[styles.modalButtonTextPrimary, { color: theme.colors.onSuccess }]}>
                     Complete
                   </Text>
                 </Pressable>
@@ -1335,9 +1333,10 @@ export default function GoalDetailsModal() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = createThemedStyles((theme) => ({
   safeArea: {
     flex: 1,
+    backgroundColor: theme.colors.background,
   },
   container: {
     flex: 1,
@@ -1358,8 +1357,8 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#F8FAFC',
     letterSpacing: 0.2,
+    color: theme.colors.textPrimary,
   },
   badges: {
     flexDirection: 'row',
@@ -1374,10 +1373,10 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
   },
   modalHeaderTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#F8FAFC',
+    fontSize: 18,
+    fontWeight: '600',
     letterSpacing: 0.2,
+    color: theme.colors.textSecondary,
   },
   modalHeaderActions: {
     flexDirection: 'row',
@@ -1390,7 +1389,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: theme.colors.surfaceMuted,
   },
   menuTrigger: {
     width: 36,
@@ -1398,7 +1397,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: theme.colors.surfaceMuted,
   },
   menuOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -1412,6 +1411,8 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     paddingHorizontal: 8,
     gap: 4,
+    backgroundColor: theme.colors.card,
+    borderColor: theme.colors.border,
   },
   menuItem: {
     paddingVertical: 10,
@@ -1420,6 +1421,7 @@ const styles = StyleSheet.create({
   menuText: {
     fontSize: 14,
     fontWeight: '600',
+    color: theme.colors.textPrimary,
   },
   typeBadge: {
     flexDirection: 'row',
@@ -1428,12 +1430,10 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     paddingHorizontal: 8,
     borderRadius: 8,
-    backgroundColor: 'rgba(255,255,255,0.08)',
   },
   typeBadgeText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#E2E8F0',
   },
   riskBadge: {
     flexDirection: 'row',
@@ -1442,12 +1442,10 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     paddingHorizontal: 8,
     borderRadius: 8,
-    backgroundColor: 'rgba(239,68,68,0.15)',
   },
   riskBadgeText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#EF4444',
   },
   scrollContent: {
     paddingBottom: 24,
@@ -1457,6 +1455,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 16,
+    padding: 16,
+    borderRadius: 16,
   },
   progressTrack: {
     height: 8,
@@ -1464,6 +1464,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     marginTop: 6,
     marginBottom: 4,
+    backgroundColor: theme.colors.surfaceMuted,
   },
   progressFill: {
     height: '100%',
@@ -1474,15 +1475,13 @@ const styles = StyleSheet.create({
     height: 80,
     borderRadius: 40,
     borderWidth: 6,
-    borderColor: '#8B5CF6',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(139,92,246,0.1)',
   },
   progressPercent: {
     fontSize: 20,
     fontWeight: '800',
-    color: '#C7D2FE',
+    color: theme.colors.textPrimary,
   },
   progressInfo: {
     flex: 1,
@@ -1491,18 +1490,18 @@ const styles = StyleSheet.create({
   progressLabel: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#94A3B8',
     textTransform: 'uppercase',
     letterSpacing: 0.8,
+    color: theme.colors.textSecondary,
   },
   progressValues: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#F8FAFC',
+    color: theme.colors.textPrimary,
   },
   progressValuesMuted: {
-    color: 'rgba(248,250,252,0.6)',
     fontSize: 14,
+    color: theme.colors.textSecondary,
   },
   deadlineRow: {
     flexDirection: 'row',
@@ -1512,7 +1511,7 @@ const styles = StyleSheet.create({
   deadlineText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#94A3B8',
+    color: theme.colors.textSecondary,
   },
   statsRow: {
     flexDirection: 'row',
@@ -1520,21 +1519,22 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
+  },
+  statCardInner: {
     padding: 12,
     borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.05)',
     alignItems: 'center',
     gap: 4,
   },
   statValue: {
     fontSize: 20,
     fontWeight: '800',
-    color: '#C7D2FE',
+    color: theme.colors.textPrimary,
   },
   statLabel: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#94A3B8',
+    color: theme.colors.textSecondary,
   },
   section: {
     gap: 12,
@@ -1542,8 +1542,8 @@ const styles = StyleSheet.create({
   sectionHeading: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#F3F4F6',
     letterSpacing: 0.3,
+    color: theme.colors.textPrimary,
   },
   milestonesGrid: {
     gap: 10,
@@ -1555,7 +1555,6 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 14,
     borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.05)',
   },
   milestoneContent: {
     flex: 1,
@@ -1564,12 +1563,12 @@ const styles = StyleSheet.create({
   milestoneLabel: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#F3F4F6',
+    color: theme.colors.textPrimary,
   },
   milestoneDate: {
     fontSize: 11,
     fontWeight: '500',
-    color: '#10B981',
+    color: theme.colors.textSecondary,
   },
   habitsGrid: {
     gap: 10,
@@ -1578,7 +1577,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 14,
     borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.05)',
   },
   habitLeft: {
     flexDirection: 'row',
@@ -1592,12 +1590,12 @@ const styles = StyleSheet.create({
   habitTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#F3F4F6',
+    color: theme.colors.textPrimary,
   },
   habitStreak: {
     fontSize: 11,
     fontWeight: '500',
-    color: '#94A3B8',
+    color: theme.colors.textSecondary,
   },
   taskList: {
     marginTop: 10,
@@ -1606,25 +1604,21 @@ const styles = StyleSheet.create({
   taskListRow: {
     padding: 12,
     borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#1F2937',
   },
   taskListTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#E5E7EB',
+    color: theme.colors.textPrimary,
   },
   taskListMeta: {
     marginTop: 2,
     fontSize: 12,
-    color: '#9CA3AF',
+    color: theme.colors.textSecondary,
   },
   taskCard: {
     padding: 14,
     borderRadius: 12,
     gap: 8,
-    backgroundColor: 'rgba(255,255,255,0.05)',
   },
   taskHeader: {
     flexDirection: 'row',
@@ -1636,7 +1630,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     fontWeight: '600',
-    color: '#F3F4F6',
+    color: theme.colors.textPrimary,
   },
   priorityBadge: {
     paddingVertical: 3,
@@ -1646,7 +1640,7 @@ const styles = StyleSheet.create({
   priorityText: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: theme.colors.onPrimary,
   },
   taskFooter: {
     flexDirection: 'row',
@@ -1656,11 +1650,10 @@ const styles = StyleSheet.create({
   taskDueDate: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#94A3B8',
+    color: theme.colors.textSecondary,
   },
   tipCard: {
     borderRadius: 16,
-    borderWidth: 1,
     padding: 16,
   },
   tipContent: {
@@ -1673,10 +1666,9 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
     lineHeight: 20,
-    color: '#F1F5F9',
+    color: theme.colors.textPrimary,
   },
   tipHighlight: {
-    color: '#FACC15',
     fontWeight: '700',
   },
   // Metric Panel Styles
@@ -1684,7 +1676,6 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 14,
     gap: 12,
-    backgroundColor: 'rgba(255,255,255,0.05)',
   },
   metricHeader: {
     flexDirection: 'row',
@@ -1699,14 +1690,14 @@ const styles = StyleSheet.create({
   metricTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#F3F4F6',
+    color: theme.colors.textPrimary,
   },
   metricType: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#94A3B8',
     textTransform: 'uppercase',
     letterSpacing: 0.8,
+    color: theme.colors.textSecondary,
   },
   metricBody: {
     gap: 10,
@@ -1719,19 +1710,19 @@ const styles = StyleSheet.create({
   metricLabel: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#94A3B8',
+    color: theme.colors.textSecondary,
   },
   metricValue: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#F8FAFC',
+    color: theme.colors.textPrimary,
   },
   metricProgressTrack: {
     height: 6,
     borderRadius: 4,
-    backgroundColor: 'rgba(255,255,255,0.1)',
     overflow: 'hidden',
     marginTop: 4,
+    backgroundColor: theme.colors.surfaceMuted,
   },
   metricProgressFill: {
     height: '100%',
@@ -1740,15 +1731,15 @@ const styles = StyleSheet.create({
   metricProgressLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#94A3B8',
     textAlign: 'center',
+    color: theme.colors.textPrimary,
   },
   metricDescription: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#94A3B8',
     fontStyle: 'italic',
     marginTop: 4,
+    color: theme.colors.textSecondary,
   },
   stepperRow: {
     flexDirection: 'row',
@@ -1760,12 +1751,12 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 12,
     alignItems: 'center',
-    backgroundColor: '#0EA5E9',
+    backgroundColor: theme.colors.surfaceMuted,
   },
   stepperText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: theme.colors.textPrimary,
   },
   // Check-In Button
   checkInButton: {
@@ -1776,12 +1767,12 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 20,
     borderRadius: 14,
-    backgroundColor: '#8B5CF6',
+    backgroundColor: theme.colors.primary,
   },
   checkInButtonText: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: theme.colors.onPrimary,
   },
   // Check-In Modal
   modalOverlay: {
@@ -1797,16 +1788,19 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 24,
     gap: 16,
+    backgroundColor: theme.colors.card,
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: '700',
     textAlign: 'center',
+    color: theme.colors.textPrimary,
   },
   modalSubtitle: {
     fontSize: 14,
     fontWeight: '500',
     textAlign: 'center',
+    color: theme.colors.textSecondary,
   },
   modalInput: {
     borderRadius: 12,
@@ -1815,6 +1809,9 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     textAlign: 'center',
+    borderColor: theme.colors.border,
+    color: theme.colors.textPrimary,
+    backgroundColor: theme.colors.surfaceMuted,
   },
   modalAccountSection: {
     gap: 8,
@@ -1828,19 +1825,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#30303a',
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surfaceMuted,
   },
   modalAccountChipActive: {
-    borderColor: '#8B5CF6',
-    backgroundColor: 'rgba(139,92,246,0.12)',
+    borderColor: theme.colors.primary,
+    backgroundColor: `${theme.colors.primary}1F`,
   },
   modalAccountLabel: {
     fontSize: 14,
     fontWeight: '700',
+    color: theme.colors.textPrimary,
   },
   modalAccountSub: {
     fontSize: 12,
     fontWeight: '500',
+    color: theme.colors.textSecondary,
   },
   modalButtons: {
     flexDirection: 'row',
@@ -1857,18 +1857,20 @@ const styles = StyleSheet.create({
   modalButtonSecondary: {
     borderWidth: 1,
     backgroundColor: 'transparent',
+    borderColor: theme.colors.border,
   },
   modalButtonPrimary: {
-    backgroundColor: '#8B5CF6',
+    backgroundColor: theme.colors.primary,
   },
   modalButtonTextSecondary: {
     fontSize: 15,
     fontWeight: '600',
+    color: theme.colors.textPrimary,
   },
   modalButtonTextPrimary: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: theme.colors.onPrimary,
   },
   historyList: {
     gap: 12,
@@ -1886,9 +1888,6 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 12,
     gap: 6,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#1F2937',
   },
   historyHeader: {
     flexDirection: 'row',
@@ -1898,21 +1897,21 @@ const styles = StyleSheet.create({
   historyType: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#A5B4FC',
+    color: theme.colors.primary,
   },
   historyDate: {
     fontSize: 12,
-    color: '#CBD5E1',
+    color: theme.colors.textSecondary,
   },
   historyTitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#E2E8F0',
+    color: theme.colors.textPrimary,
   },
   historyValue: {
     fontSize: 14,
-    color: '#A7F3D0',
     fontWeight: '700',
+    color: theme.colors.textPrimary,
   },
   deleteButton: {
     flexDirection: 'row',
@@ -1922,26 +1921,26 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 12,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#FCA5A5',
     marginTop: 12,
+    borderColor: theme.colors.danger,
   },
   deleteButtonText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#F87171',
+    color: theme.colors.danger,
   },
   recoverButton: {
     paddingVertical: 12,
     borderRadius: 12,
     borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
-    borderColor: '#10B981',
     marginBottom: 10,
+    borderColor: theme.colors.primary,
   },
   recoverButtonText: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#10B981',
+    color: theme.colors.primary,
   },
   sectionHeaderRow: {
     flexDirection: 'row',
@@ -1956,18 +1955,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.06)',
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#1F2937',
+    borderColor: theme.colors.primary,
   },
   newStepButtonText: {
     fontSize: 13,
     fontWeight: '700',
+    color: theme.colors.primary,
   },
   emptyInlineText: {
     marginTop: 6,
     fontSize: 13,
     fontWeight: '600',
+    color: theme.colors.textSecondary,
   },
   budgetOptions: {
     gap: 8,
@@ -1976,15 +1976,19 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderRadius: 12,
     padding: 12,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surfaceMuted,
   },
   budgetOptionTitle: {
     fontSize: 15,
     fontWeight: '700',
+    color: theme.colors.textPrimary,
   },
   budgetOptionSub: {
     fontSize: 13,
     fontWeight: '600',
     marginTop: 4,
+    color: theme.colors.textSecondary,
   },
   moreButton: {
     marginTop: 8,
@@ -1992,12 +1996,12 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   moreButtonText: {
-    color: '#38BDF8',
     fontWeight: '700',
     fontSize: 14,
     textDecorationLine: 'underline',
+    color: theme.colors.primary,
   },
   pressed: {
     opacity: 0.7,
   },
-});
+}));

@@ -12,6 +12,7 @@ import {
 
 import { useAppTheme } from '@/constants/theme';
 import { AdaptiveGlassView } from '@/components/ui/AdaptiveGlassView';
+import EmptyState from '@/components/shared/EmptyState';
 import { useLocalization } from '@/localization/useLocalization';
 import { useFinanceDomainStore } from '@/stores/useFinanceDomainStore';
 import { useShallow } from 'zustand/react/shallow';
@@ -215,6 +216,8 @@ export default function AnalyticsTab() {
     };
   }, [accounts, budgets, convertAmount, debts, globalCurrency, locale, transactions]);
 
+  const isEmpty = transactions.length === 0;
+
   return (
     <ScrollView
       style={[styles.scroll, { backgroundColor: theme.colors.background }]}
@@ -239,7 +242,14 @@ export default function AnalyticsTab() {
         </View>
       </View>
 
-      {/* Expense dynamics */}
+      {isEmpty ? (
+        <EmptyState
+          title={analyticsStrings.empty.title}
+          subtitle={analyticsStrings.empty.subtitle}
+        />
+      ) : (
+        <>
+          {/* Expense dynamics */}
       <AdaptiveGlassView style={[styles.glassSurface, styles.glassCard, { backgroundColor: theme.colors.card }]}>
         <Text style={[styles.sectionTitle, { color: theme.colors.textSecondary }]}>
           {analyticsStrings.expenseDynamics}
@@ -428,6 +438,8 @@ export default function AnalyticsTab() {
       ))}
 
       <View style={{ height: 40 }} />
+        </>
+      )}
     </ScrollView>
   );
 }

@@ -2,16 +2,17 @@ import React, { useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { ArrowRight } from 'lucide-react-native';
 
 import { AdaptiveGlassView } from '@/components/ui/AdaptiveGlassView';
 import { useAppTheme } from '@/constants/theme';
 import { useLocalization } from '@/localization/useLocalization';
 import { useFinanceDomainStore } from '@/stores/useFinanceDomainStore';
-import type { Transaction as LegacyTransaction } from '@/types/store.types';
 import type { Transaction as DomainTransaction } from '@/domain/finance/types';
-import { mapDomainDebtToLegacy } from '@/utils/finance/debtMappers';
 import { useShallow } from 'zustand/react/shallow';
 import { usePlannerDomainStore } from '@/stores/usePlannerDomainStore';
+import TransactionCardIcon from '@/components/screens/finance/transactions/TransactionCardIcon';
+import type { TransactionCardType } from '@/components/screens/finance/transactions/types';
 
 const BASE_CURRENCY = 'UZS';
 
@@ -28,70 +29,23 @@ const formatCurrencyDisplay = (value: number, currency?: string) => {
   }
 };
 
-type LegacyTransactionType = 'income' | 'outcome' | 'transfer';
+// Domain type ni UI type ga aylantirish
+const toCardType = (type: DomainTransaction['type'], hasDebt: boolean): TransactionCardType => {
+  if (hasDebt) return 'debt';
+  if (type === 'expense') return 'outcome';
+  return type;
+};
 
-const toLegacyTransactionType = (type: DomainTransaction['type']): LegacyTransactionType =>
-  type === 'expense' ? 'outcome' : type;
-
-const mapDomainTransactionToLegacy = (transaction: DomainTransaction): LegacyTransaction[] => {
-  const legacyType = toLegacyTransactionType(transaction.type);
-  const fallbackAccount = transaction.accountId ?? transaction.fromAccountId ?? 'local-account';
-  const baseRecord = {
-    type: legacyType,
-    category: transaction.categoryId,
-    toAccountId: transaction.toAccountId,
-    note: transaction.description,
-    description: transaction.description,
-    date: new Date(transaction.date),
-    createdAt: new Date(transaction.createdAt),
-    updatedAt: new Date(transaction.updatedAt),
-    goalId: transaction.goalId,
-    goalName: transaction.goalName,
-    goalType: transaction.goalType,
-    budgetId: transaction.budgetId,
-    debtId: transaction.debtId,
-    relatedBudgetId: transaction.relatedBudgetId ?? transaction.budgetId,
-    relatedDebtId: transaction.relatedDebtId ?? transaction.debtId,
-    plannedAmount: transaction.plannedAmount ?? transaction.amount,
-    paidAmount: transaction.paidAmount ?? transaction.amount,
-    sourceTransactionId: transaction.id,
-  } as const;
-
-  if (legacyType !== 'transfer') {
-    return [
-      {
-        ...baseRecord,
-        id: transaction.id,
-        amount: transaction.amount,
-        accountId: fallbackAccount,
-        currency: transaction.currency,
-      },
-    ];
-  }
-
-  const fromAccountId = transaction.accountId ?? transaction.fromAccountId ?? fallbackAccount;
-  const toAccountId = transaction.toAccountId ?? fallbackAccount;
-  const incomingAmount = transaction.toAmount ?? transaction.amount;
-  const incomingCurrency = transaction.toCurrency ?? transaction.currency;
-
-  return [
-    {
-      ...baseRecord,
-      id: `${transaction.id}-from`,
-      amount: transaction.amount,
-      accountId: fromAccountId,
-      currency: transaction.currency,
-      transferDirection: 'outgoing',
-    },
-    {
-      ...baseRecord,
-      id: `${transaction.id}-to`,
-      amount: incomingAmount,
-      accountId: toAccountId,
-      currency: incomingCurrency,
-      transferDirection: 'incoming',
-    },
-  ];
+// Vaqtni formatlash
+const formatDateTime = (date: Date): string => {
+  return new Intl.DateTimeFormat('en-US', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  }).format(date);
 };
 
 type DetailRowProps = {
@@ -125,7 +79,7 @@ export default function TransactionDetailModal() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const transactionId = Array.isArray(id) ? id[0] : id ?? null;
 
-  const { accounts, transactions: domainTransactions, debts: domainDebts, budgets: financeBudgets } = useFinanceDomainStore(
+  const { accounts, transactions: domainTransactions, debts, budgets: financeBudgets } = useFinanceDomainStore(
     useShallow((state) => ({
       accounts: state.accounts,
       transactions: state.transactions,
@@ -135,17 +89,33 @@ export default function TransactionDetailModal() {
   );
   const goals = usePlannerDomainStore((state) => state.goals);
 
-  const transactions = useMemo<LegacyTransaction[]>(
-    () => domainTransactions.flatMap(mapDomainTransactionToLegacy),
-    [domainTransactions],
-  );
-  const debts = useMemo(() => domainDebts.map(mapDomainDebtToLegacy), [domainDebts]);
-
+  // Domain transaction dan to'g'ridan-to'g'ri qidirish
   const selectedTransaction = useMemo(
-    () => transactions.find((txn) => txn.id === transactionId) ?? null,
-    [transactionId, transactions],
+    () => domainTransactions.find((txn) => txn.id === transactionId) ?? null,
+    [transactionId, domainTransactions],
   );
 
+  // Account map yaratish
+  const accountMap = useMemo(
+    () => new Map(accounts.map((a) => [a.id, a.name])),
+    [accounts],
+  );
+
+  // Bog'liq debt
+  const relatedDebt = useMemo(() => {
+    if (!selectedTransaction?.relatedDebtId) {
+      return null;
+    }
+    return debts.find((debt) => debt.id === selectedTransaction.relatedDebtId) ?? null;
+  }, [debts, selectedTransaction]);
+
+  // Card type
+  const cardType = useMemo<TransactionCardType | null>(() => {
+    if (!selectedTransaction) return null;
+    return toCardType(selectedTransaction.type, !!relatedDebt);
+  }, [selectedTransaction, relatedDebt]);
+
+  // Goal
   const selectedGoal = useMemo(() => {
     if (!selectedTransaction?.goalId) {
       return null;
@@ -153,6 +123,7 @@ export default function TransactionDetailModal() {
     return goals.find((goal) => goal.id === selectedTransaction.goalId) ?? null;
   }, [goals, selectedTransaction?.goalId]);
 
+  // Budget
   const selectedBudget = useMemo(() => {
     if (!selectedTransaction) {
       return null;
@@ -164,43 +135,49 @@ export default function TransactionDetailModal() {
     return financeBudgets.find((budget) => budget.id === budgetId) ?? null;
   }, [financeBudgets, selectedTransaction]);
 
-  const relatedDebt = useMemo(() => {
-    if (!selectedTransaction?.relatedDebtId) {
-      return null;
-    }
-    return debts.find((debt) => debt.id === selectedTransaction.relatedDebtId) ?? null;
-  }, [debts, selectedTransaction]);
-
+  // Type label
   const selectedTransactionTypeLabel = useMemo(() => {
-    if (!selectedTransaction) {
-      return null;
+    if (!cardType) return null;
+    switch (cardType) {
+      case 'debt':
+        return filterSheetStrings.typeOptions.debt ?? 'Debt';
+      case 'income':
+        return filterSheetStrings.typeOptions.income;
+      case 'outcome':
+        return filterSheetStrings.typeOptions.expense;
+      case 'transfer':
+        return filterSheetStrings.typeOptions.transfer;
+      default:
+        return null;
     }
-    if (selectedTransaction.relatedDebtId) {
-      return filterSheetStrings.typeOptions.debt ?? 'Debt';
+  }, [filterSheetStrings.typeOptions, cardType]);
+
+  // Summa belgisi
+  const getAmountSign = (): string => {
+    if (!cardType) return '';
+    switch (cardType) {
+      case 'income':
+        return '+';
+      case 'outcome':
+        return '−';
+      case 'transfer':
+        return '';
+      case 'debt':
+        return relatedDebt?.direction === 'they_owe_me' ? '+' : '−';
+      default:
+        return '';
     }
-    if (selectedTransaction.type === 'income') {
-      return filterSheetStrings.typeOptions.income;
-    }
-    if (selectedTransaction.type === 'outcome') {
-      return filterSheetStrings.typeOptions.expense;
-    }
-    if (selectedTransaction.type === 'transfer') {
-      return filterSheetStrings.typeOptions.transfer;
-    }
-    return null;
-  }, [filterSheetStrings.typeOptions, selectedTransaction]);
+  };
 
   const handleEditTransaction = () => {
     if (!selectedTransaction) {
       return;
     }
 
-    const targetId = selectedTransaction.sourceTransactionId ?? selectedTransaction.id;
-
     if (selectedTransaction.type === 'transfer') {
       router.replace({
         pathname: '/(modals)/finance/transaction',
-        params: { id: targetId },
+        params: { id: selectedTransaction.id },
       });
       return;
     }
@@ -208,8 +185,8 @@ export default function TransactionDetailModal() {
     router.replace({
       pathname: '/(modals)/finance/quick-exp',
       params: {
-        id: targetId,
-        tab: (selectedTransaction.type ?? 'income') as 'income' | 'outcome',
+        id: selectedTransaction.id,
+        tab: selectedTransaction.type === 'expense' ? 'outcome' : 'income',
       },
     });
   };
@@ -233,7 +210,7 @@ export default function TransactionDetailModal() {
         </View>
         <View style={styles.detailEmpty}>
           <Text style={[styles.detailLabel, { color: theme.colors.textSecondary }]}>
-            Transaction not found
+            {transactionsStrings.details.notFound}
           </Text>
         </View>
       </SafeAreaView>
@@ -257,69 +234,123 @@ export default function TransactionDetailModal() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.contentContainer}
       >
-        <AdaptiveGlassView style={[styles.glassSurface, styles.detailCard]}>
-          {selectedTransactionTypeLabel ? (
-            <DetailRow
-              label={transactionsStrings.details.type}
-              value={selectedTransactionTypeLabel}
+        {/* Header Card - Icon, Name, Amount */}
+        <AdaptiveGlassView style={[styles.glassSurface, styles.headerCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+          <View style={styles.headerCardContent}>
+            <TransactionCardIcon
+              categoryId={selectedTransaction.categoryId}
+              type={cardType ?? 'outcome'}
+              size={56}
             />
-          ) : null}
-          <DetailRow
-            label={transactionsStrings.details.amount}
-            value={`${selectedTransaction.type === 'income'
-              ? '+'
-              : selectedTransaction.type === 'outcome'
-                ? '−'
-                : selectedTransaction.transferDirection === 'incoming'
-                  ? '+'
-                  : selectedTransaction.transferDirection === 'outgoing'
-                    ? '−'
-                    : ''}${formatCurrencyDisplay(selectedTransaction.amount, selectedTransaction.currency)}`}
-          />
-          <DetailRow
-            label={transactionsStrings.details.account}
-            value={
-              accounts.find((account) => account.id === selectedTransaction.accountId)?.name ??
-              transactionsStrings.details.account
-            }
-          />
-          <DetailRow
-            label={transactionsStrings.details.category}
-            value={selectedTransaction.category ?? '—'}
-          />
+            <View style={styles.headerCardInfo}>
+              <Text style={[styles.transactionName, { color: theme.colors.textPrimary }]}>
+                {selectedTransaction.name ?? selectedTransaction.categoryId ?? selectedTransactionTypeLabel ?? 'Transaction'}
+              </Text>
+              {selectedTransaction.type === 'transfer' ? (
+                <View style={styles.transferRow}>
+                  <Text style={[styles.transferAccount, { color: theme.colors.textSecondary }]}>
+                    {accountMap.get(selectedTransaction.accountId ?? selectedTransaction.fromAccountId ?? '') ?? 'Account'}
+                  </Text>
+                  <ArrowRight size={14} color={theme.colors.textMuted} />
+                  <Text style={[styles.transferAccount, { color: theme.colors.textSecondary }]}>
+                    {accountMap.get(selectedTransaction.toAccountId ?? '') ?? 'Account'}
+                  </Text>
+                </View>
+              ) : cardType === 'debt' && relatedDebt ? (
+                <Text style={[styles.subText, { color: theme.colors.textSecondary }]}>
+                  {relatedDebt.direction === 'i_owe'
+                    ? `You owe ${relatedDebt.counterpartyName}`
+                    : `${relatedDebt.counterpartyName} owes you`}
+                </Text>
+              ) : (
+                <Text style={[styles.subText, { color: theme.colors.textSecondary }]}>
+                  {accountMap.get(selectedTransaction.accountId ?? selectedTransaction.fromAccountId ?? '') ?? selectedTransactionTypeLabel}
+                </Text>
+              )}
+            </View>
+            <View style={styles.headerCardAmount}>
+              <Text style={[styles.amount, { color: theme.colors.textPrimary }]}>
+                {getAmountSign()} {formatCurrencyDisplay(selectedTransaction.amount, selectedTransaction.currency)}
+              </Text>
+              {selectedTransaction.type === 'transfer' && selectedTransaction.toAmount && selectedTransaction.toCurrency !== selectedTransaction.currency && (
+                <Text style={[styles.conversionText, { color: theme.colors.textMuted }]}>
+                  → {formatCurrencyDisplay(selectedTransaction.toAmount, selectedTransaction.toCurrency)}
+                </Text>
+              )}
+            </View>
+          </View>
+        </AdaptiveGlassView>
+
+        {/* Details Card */}
+        <AdaptiveGlassView style={[styles.glassSurface, styles.detailCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+          {/* Transfer uchun: From va To accountlar */}
+          {selectedTransaction.type === 'transfer' ? (
+            <>
+              <DetailRow
+                label="From Account"
+                value={accountMap.get(selectedTransaction.accountId ?? selectedTransaction.fromAccountId ?? '') ?? '—'}
+              />
+              <DetailRow
+                label="To Account"
+                value={accountMap.get(selectedTransaction.toAccountId ?? '') ?? '—'}
+              />
+              {selectedTransaction.toAmount && selectedTransaction.toCurrency !== selectedTransaction.currency && (
+                <DetailRow
+                  label="Converted Amount"
+                  value={formatCurrencyDisplay(selectedTransaction.toAmount, selectedTransaction.toCurrency)}
+                />
+              )}
+            </>
+          ) : (
+            /* Income/Expense uchun: bitta account */
+            <DetailRow
+              label={cardType === 'income' ? 'Credited to' : cardType === 'outcome' ? 'Debited from' : transactionsStrings.details.account}
+              value={accountMap.get(selectedTransaction.accountId ?? selectedTransaction.fromAccountId ?? '') ?? '—'}
+            />
+          )}
+          {selectedTransaction.categoryId && (
+            <DetailRow
+              label={transactionsStrings.details.category}
+              value={selectedTransaction.categoryId}
+            />
+          )}
           <DetailRow
             label={transactionsStrings.details.date}
-            value={new Date(selectedTransaction.date).toLocaleString()}
+            value={formatDateTime(new Date(selectedTransaction.date))}
           />
         </AdaptiveGlassView>
 
-        <AdaptiveGlassView style={[styles.glassSurface, styles.detailCard]}>
-          <Text style={[styles.detailLabel, { color: theme.colors.textSecondary }]}>
-            {transactionsStrings.details.note}
-          </Text>
-          <Text style={[styles.detailNote, { color: theme.colors.textPrimary }]}>
-            {selectedTransaction.note ?? selectedTransaction.description ?? '—'}
-          </Text>
-        </AdaptiveGlassView>
+        {/* Note Card */}
+        {selectedTransaction.description && (
+          <AdaptiveGlassView style={[styles.glassSurface, styles.detailCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+            <Text style={[styles.detailLabel, { color: theme.colors.textSecondary }]}>
+              {transactionsStrings.details.note}
+            </Text>
+            <Text style={[styles.detailNote, { color: theme.colors.textPrimary }]}>
+              {selectedTransaction.description}
+            </Text>
+          </AdaptiveGlassView>
+        )}
 
+        {/* Linked Items Card */}
         {(selectedGoal || selectedTransaction?.goalName || selectedBudget || relatedDebt) && (
-          <AdaptiveGlassView style={[styles.glassSurface, styles.detailCard]}>
+          <AdaptiveGlassView style={[styles.glassSurface, styles.detailCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
             {(selectedGoal || selectedTransaction?.goalName) && (
               <DetailRow
-                label="Linked Goal"
+                label={transactionsStrings.details.linkedGoal}
                 value={selectedGoal?.title ?? selectedTransaction?.goalName ?? '—'}
               />
             )}
             {selectedBudget && (
               <DetailRow
-                label="Linked Budget"
-                value={`${selectedBudget.name} • ${(selectedBudget.currentBalance ?? selectedBudget.remainingAmount ?? selectedBudget.limitAmount).toFixed(2)} ${selectedBudget.currency}`}
+                label={transactionsStrings.details.linkedBudget}
+                value={`${selectedBudget.name} • ${formatCurrencyDisplay(selectedBudget.currentBalance ?? selectedBudget.remainingAmount ?? selectedBudget.limitAmount, selectedBudget.currency)}`}
               />
             )}
             {relatedDebt && (
               <DetailRow
                 label={transactionsStrings.details.relatedDebt}
-                value={`${relatedDebt.person} • ${relatedDebt.remainingAmount.toFixed(2)} ${relatedDebt.currency}`}
+                value={`${relatedDebt.counterpartyName} • ${formatCurrencyDisplay(relatedDebt.principalAmount, relatedDebt.principalCurrency)}`}
               />
             )}
           </AdaptiveGlassView>
@@ -384,8 +415,46 @@ const styles = StyleSheet.create({
   },
   glassSurface: {
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.18)',
-    backgroundColor: 'rgba(16,16,22,0.82)',
+  },
+  headerCard: {
+    borderRadius: 24,
+    paddingVertical: 20,
+    paddingHorizontal: 20,
+  },
+  headerCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  headerCardInfo: {
+    flex: 1,
+    gap: 4,
+  },
+  headerCardAmount: {
+    alignItems: 'flex-end',
+    gap: 2,
+  },
+  transactionName: {
+    fontSize: 17,
+    fontWeight: '700',
+  },
+  subText: {
+    fontSize: 13,
+  },
+  transferRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  transferAccount: {
+    fontSize: 13,
+  },
+  amount: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  conversionText: {
+    fontSize: 12,
   },
   detailCard: {
     borderRadius: 24,

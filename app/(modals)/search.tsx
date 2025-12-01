@@ -14,6 +14,7 @@ import * as Haptics from 'expo-haptics';
 
 import { Theme, useAppTheme } from '@/constants/theme';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useLocalization } from '@/localization/useLocalization';
 
 const SUGGESTIONS = [
   'How to improve focus',
@@ -28,6 +29,8 @@ const SUGGESTIONS = [
 
 export default function SearchModalScreen() {
   const router = useRouter();
+  const { strings } = useLocalization();
+  const searchStrings = strings.modals.search;
   const [query, setQuery] = useState('');
   const inputRef = useRef<TextInput>(null);
   const theme = useAppTheme();
@@ -95,7 +98,7 @@ export default function SearchModalScreen() {
                   ref={inputRef}
                   value={query}
                   onChangeText={setQuery}
-                  placeholder="Search..."
+                  placeholder={searchStrings.placeholder}
                   placeholderTextColor={colors.textSecondary + '99'}
                   style={styles.input}
                   autoCorrect={false}
@@ -117,9 +120,9 @@ export default function SearchModalScreen() {
         }
         ListEmptyComponent={
           query.length > 1 ? (
-            <Text style={styles.emptyText}>No results found</Text>
+            <Text style={styles.emptyText}>{searchStrings.noResults}</Text>
           ) : (
-            <Text style={styles.emptyText}>Start typing to search</Text>
+            <Text style={styles.emptyText}>{searchStrings.startTyping}</Text>
           )
         }
         stickyHeaderIndices={[0]}

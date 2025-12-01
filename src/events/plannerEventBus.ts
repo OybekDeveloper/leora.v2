@@ -8,12 +8,18 @@ type PlannerFocusEvent = { session: FocusSession };
 type FinanceTxEvent = { transaction: FinanceTransaction };
 type FinanceBudgetEvent = { budget: Budget };
 type FinanceDebtEvent = { debt: Debt };
+type FinanceDebtPaymentEvent = { debt: Debt; payment: { id: string; amount: number } };
+type FinanceDebtLinkEvent = { debtId: string; paymentId: string; transactionId: string; linkedAt: string };
+type FinanceDebtUnlinkEvent = { paymentId: string; unlinkedAt: string };
+type FinanceDebtSyncEvent = { debtId: string; transactionId: string; previousRemaining: number; newRemaining: number; syncedAt?: string; reversedAt?: string };
+type TaskAutoCompletedEvent = { taskId: string; financeLink: string; transactionId?: string; debtId?: string; paymentId?: string; budgetId?: string; completedAt: string };
 type InsightsActionEvent = { actionId: string; payload?: unknown };
 
 export type PlannerEventName =
   | 'planner.task.created'
   | 'planner.task.updated'
   | 'planner.task.completed'
+  | 'planner.task.auto_completed'
   | 'planner.task.canceled'
   | 'planner.goal.created'
   | 'planner.goal.updated'
@@ -27,10 +33,15 @@ export type PlannerEventName =
   | 'planner.focus.completed'
   | 'finance.tx.created'
   | 'finance.tx.updated'
+  | 'finance.tx.deleted'
   | 'finance.budget.updated'
   | 'finance.budget.spending_changed'
   | 'finance.debt.created'
   | 'finance.debt.payment_added'
+  | 'finance.debt.payment_linked'
+  | 'finance.debt.payment_unlinked'
+  | 'finance.debt.synced'
+  | 'finance.debt.sync_reversed'
   | 'finance.debt.status_changed'
   | 'insights.actions.apply';
 
@@ -38,6 +49,7 @@ export type PlannerEventPayloadMap = {
   'planner.task.created': PlannerTaskEvent;
   'planner.task.updated': PlannerTaskEvent;
   'planner.task.completed': PlannerTaskEvent;
+  'planner.task.auto_completed': TaskAutoCompletedEvent;
   'planner.task.canceled': PlannerTaskEvent;
   'planner.goal.created': PlannerGoalEvent;
   'planner.goal.updated': PlannerGoalEvent;
@@ -51,10 +63,15 @@ export type PlannerEventPayloadMap = {
   'planner.focus.completed': PlannerFocusEvent;
   'finance.tx.created': FinanceTxEvent;
   'finance.tx.updated': FinanceTxEvent;
+  'finance.tx.deleted': FinanceTxEvent;
   'finance.budget.updated': FinanceBudgetEvent;
   'finance.budget.spending_changed': FinanceBudgetEvent;
   'finance.debt.created': FinanceDebtEvent;
-  'finance.debt.payment_added': FinanceDebtEvent;
+  'finance.debt.payment_added': FinanceDebtPaymentEvent;
+  'finance.debt.payment_linked': FinanceDebtLinkEvent;
+  'finance.debt.payment_unlinked': FinanceDebtUnlinkEvent;
+  'finance.debt.synced': FinanceDebtSyncEvent;
+  'finance.debt.sync_reversed': FinanceDebtSyncEvent;
   'finance.debt.status_changed': FinanceDebtEvent;
   'insights.actions.apply': InsightsActionEvent;
 };

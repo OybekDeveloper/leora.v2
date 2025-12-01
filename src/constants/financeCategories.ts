@@ -2,6 +2,7 @@ import type { LucideIcon } from 'lucide-react-native';
 import {
   Activity,
   ArrowDownCircle,
+  ArrowLeftRight,
   ArrowUpCircle,
   Briefcase,
   Bus,
@@ -129,9 +130,9 @@ export const FINANCE_CATEGORIES: FinanceCategory[] = [
   {
     id: 'transfer',
     name: 'Transfer',
-    icon: ArrowDownCircle,
+    icon: ArrowLeftRight,
     type: 'both',
-    colorToken: 'textSecondary',
+    colorToken: 'info',
   },
   {
     id: 'savings',

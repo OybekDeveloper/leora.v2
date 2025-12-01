@@ -109,9 +109,9 @@ export default function ProductivityInsightsWidget({
               <Text style={[styles.metricLabel, { color: theme.colors.textSecondary }]}>{metric.label}</Text>
               <Text style={[styles.metricValue, { color: hasData ? theme.colors.textPrimary : theme.colors.textMuted }]}>
                 {metric.value}
-                {metric.suffix && hasData && (
+                {(metric as { label: string; value: string; suffix?: string }).suffix && hasData && (
                   <Text style={[styles.metricSuffix, { color: theme.colors.textSecondary }]}>
-                    {metric.suffix}
+                    {(metric as { label: string; value: string; suffix?: string }).suffix}
                   </Text>
                 )}
               </Text>

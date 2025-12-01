@@ -9,7 +9,6 @@ import {
   Heart,
   Info,
   MoreVertical,
-  Target,
   TrendingUp,
   Users,
 } from 'lucide-react-native';

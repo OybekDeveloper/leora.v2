@@ -1,6 +1,8 @@
 {
   "title": "Maqsad yaratish",
+  "editTitle": "Maqsadni tahrirlash",
   "subtitle": "Uzoq muddatli rejalaringizni o'lchanadigan bosqichlarga bo'ling.",
+  "close": "Yopish",
   "scenarioSection": {
     "title": "Ssenariy",
     "subtitle": "Shablonlar metrikaning turi va muddatini avtomatik belgilaydi"
@@ -26,6 +28,51 @@
       "title": "Moslashtirilgan",
       "subtitle": "O'zingiz uchun metrikaning turini tanlang"
     }
+  },
+  "wizardSteps": {
+    "basics": "Asosiy",
+    "measure": "O'lchov",
+    "timeline": "Muddat",
+    "connect": "Bog'lash"
+  },
+  "step1": {
+    "title": "Nimaga erishmoqchisiz?",
+    "categoryLabel": "Kategoriya",
+    "whyLabel": "Bu nima uchun muhim? (ixtiyoriy)",
+    "placeholder": "Masalan, \"Ta'tilga pul yig'ish\", \"Marafon yugurish\", \"Ispan tilini o'rganish\"",
+    "motivationPlaceholder": "Motivatsiyangiz...",
+    "hint": "Aniq 'nima uchun'i bo'lgan maqsadlar 60% muvaffaqiyatli bo'ladi",
+    "characterCount": "/100"
+  },
+  "step2": {
+    "title": "Progressni qanday kuzatasiz?",
+    "goalTypeLabel": "Maqsad turi",
+    "currencyInherited": "Valyuta bog'langan byudjetdan olinadi",
+    "progressHint": "Progress tranzaksiyalar asosida avtomatik yangilanadi"
+  },
+  "step3": {
+    "title": "Qachon erishmoqchisiz?",
+    "deadlineHint": "Muddatli maqsadlar 42% muvaffaqiyatli bo'ladi",
+    "quickSelect": "Tez tanlash"
+  },
+  "step4": {
+    "title": "Moliyaga bog'lash (ixtiyoriy)",
+    "subtitle": "Avtomatik kuzatish uchun byudjet yoki qarzga ulang",
+    "livePreview": "Ko'rib chiqish",
+    "budgetBalance": "Byudjet balansi",
+    "goalProgress": "Maqsad progressi",
+    "debtRemaining": "Qoldiq qarz",
+    "savingsLink": "Jamg'arma byudjetiga ulash",
+    "debtLink": "Qaysi qarzni yopmoqdasiz?",
+    "budgetCategoryLink": "Byudjet kategoriyasiga ulash",
+    "noBudget": "Byudjet yo'q",
+    "noDebt": "Qarz yo'q",
+    "addBudget": "Byudjet qo'shish",
+    "createDebt": "Yangi qarz yaratish",
+    "noBudgetsHint": "Byudjetlar mavjud emas. Avtomatik ulash uchun yarating.",
+    "noDebtsHint": "Faol qarzlar yo'q. Moliya bo'limida yarating.",
+    "autoPaymentHint": "To'lovlar amalga oshirilganda progress avtomatik yangilanadi",
+    "nonFinanceHint": "Moliyaga bog'lash faqat moliyaviy maqsadlar uchun. Odat va vazifalarni keyinroq maqsad tafsilotlari sahifasidan qo'shishingiz mumkin."
   },
   "detailsSection": {
     "title": "Ma'lumot",
@@ -74,14 +121,45 @@
     "empty": "Hali bosqichlar yo'q",
     "delete": "O'chirish"
   },
+  "goalTypes": {
+    "financial": { "label": "Pul", "examples": ["$5000 yig'ish", "Qarzni yopish"] },
+    "career": { "label": "Karyera", "examples": ["Lavozim olish", "Loyiha ishga tushirish"] },
+    "personal": { "label": "Shaxsiy", "examples": ["Har kuni meditatsiya", "5 mamlakatga sayohat"] }
+  },
+  "financeModes": {
+    "save": { "label": "Pul yig'ish", "description": "Jamg'armani oshirish" },
+    "spend": { "label": "Byudjet limiti", "description": "Sarfni nazorat qilish" },
+    "debt_close": { "label": "Qarzni yopish", "description": "Qarzdan xalos bo'lish" }
+  },
+  "metricKinds": {
+    "amount": { "label": "Pul", "description": "Moliyaviy maqsadlar" },
+    "count": { "label": "Son", "description": "Miqdorni kuzatish" },
+    "duration": { "label": "Vaqt", "description": "Vaqt asosidagi maqsadlar" },
+    "weight": { "label": "Vazn", "description": "Vazn kuzatish" },
+    "custom": { "label": "Maxsus", "description": "O'z metrikangiz" }
+  },
+  "deadlinePresets": {
+    "week1": "1 hafta",
+    "month1": "1 oy",
+    "month3": "3 oy",
+    "month6": "6 oy",
+    "year1": "1 yil"
+  },
   "actions": {
     "cancel": "Yopish",
+    "back": "Orqaga",
+    "next": "Keyingi →",
     "create": "Maqsad yaratish",
     "createMore": "Yaratib davom etish",
-    "update": "Saqlash"
+    "update": "Saqlash",
+    "done": "Tayyor"
   },
   "alerts": {
     "missingTitle": "Avval maqsad nomini kiriting.",
-    "invalidTarget": "Noldan katta maqsad qiymatini kiriting."
+    "titleTooShort": "Nom juda qisqa. Batafsilroq yozing!",
+    "invalidTarget": "Maqsad qiymati son bo'lishi kerak",
+    "targetSameAsCurrent": "Maqsad joriy qiymatdan farq qilishi kerak",
+    "selectBudget": "Bu maqsad uchun byudjet tanlang yoki yarating.",
+    "selectDebt": "To'lovlarni kuzatish uchun qarz ulang."
   }
 }

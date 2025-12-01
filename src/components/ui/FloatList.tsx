@@ -1,11 +1,10 @@
 // src/components/ui/FloatList.tsx
 import React, { useCallback } from 'react';
 import {
-  FlatList,
   Pressable,
+  ScrollView,
   Text,
   View,
-  type ListRenderItem,
 } from 'react-native';
 import { AdaptiveGlassView } from './AdaptiveGlassView';
 import { createThemedStyles } from '@/constants/theme';
@@ -66,42 +65,36 @@ function FloatListComponent<T extends FloatListItem>({
     [styles, itemWidth],
   );
 
-  const renderListItem: ListRenderItem<T> = useCallback(
-    ({ item, index }) => {
-      const isSelected = selectedId === item.id;
-      const isLast = index === items.length - 1;
-
-      return (
-        <Pressable
-          onPress={() => onSelect(item)}
-          style={[
-            styles.pressable,
-            { marginRight: isLast ? 0 : gap },
-          ]}
-        >
-          {renderItem ? renderItem(item, isSelected) : renderDefaultItem(item, isSelected)}
-        </Pressable>
-      );
-    },
-    [selectedId, onSelect, renderItem, renderDefaultItem, gap, items.length, styles.pressable],
-  );
-
-  const keyExtractor = useCallback((item: T) => item.id, []);
-
   return (
-    <FlatList
-      data={items}
-      keyExtractor={keyExtractor}
-      renderItem={renderListItem}
+    <ScrollView
       horizontal={horizontal}
       showsHorizontalScrollIndicator={showScrollIndicator}
       showsVerticalScrollIndicator={showScrollIndicator}
       contentContainerStyle={[
         styles.listContent,
         { paddingHorizontal: contentPadding },
+        horizontal && { flexDirection: 'row' },
       ]}
       style={styles.list}
-    />
+    >
+      {items.map((item, index) => {
+        const isSelected = selectedId === item.id;
+        const isLast = index === items.length - 1;
+
+        return (
+          <Pressable
+            key={item.id}
+            onPress={() => onSelect(item)}
+            style={[
+              styles.pressable,
+              { marginRight: isLast ? 0 : gap },
+            ]}
+          >
+            {renderItem ? renderItem(item, isSelected) : renderDefaultItem(item, isSelected)}
+          </Pressable>
+        );
+      })}
+    </ScrollView>
   );
 }
 

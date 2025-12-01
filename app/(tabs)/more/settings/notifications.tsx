@@ -9,6 +9,7 @@ import {
 
 import { AdaptiveGlassView } from '@/components/ui/AdaptiveGlassView';
 import { Theme, useAppTheme } from '@/constants/theme';
+import { useNotificationsSettingsLocalization } from '@/localization/more/settings';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 type ToggleRowProps = {
@@ -177,6 +178,7 @@ const createStyles = (theme: Theme) =>
 const NotificationsScreen: React.FC = () => {
   const theme = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const t = useNotificationsSettingsLocalization();
 
   const renderChip = (text: string) => (
     <View style={styles.chip}>
@@ -249,22 +251,22 @@ const NotificationsScreen: React.FC = () => {
         contentContainerStyle={{ paddingBottom: 28 }}
         showsVerticalScrollIndicator={false}
       >
-        <SectionTitle title="Main" />
+        <SectionTitle title={t.sections.main} />
         <View style={styles.cardContent}>
-          <ToggleRow label="Push-notifications" value={push} onChange={setPush} />
-          <ToggleRow label="Sound" value={sound} onChange={setSound} />
-          <ToggleRow label="Vibration" value={vibration} onChange={setVibration} />
-          <ToggleRow label="Show on lock screen" value={lockscreen} onChange={setLockscreen} />
+          <ToggleRow label={t.main.pushNotifications} value={push} onChange={setPush} />
+          <ToggleRow label={t.main.sound} value={sound} onChange={setSound} />
+          <ToggleRow label={t.main.vibration} value={vibration} onChange={setVibration} />
+          <ToggleRow label={t.main.showOnLockScreen} value={lockscreen} onChange={setLockscreen} />
         </View>
 
-        <SectionTitle title="Finance" />
+        <SectionTitle title={t.sections.finance} />
         <View style={styles.cardContent}>
-          <ToggleRow label="Budget overspend" value={overspend} onChange={setOverspend} />
-          <ToggleRow label="Debt reminder" value={debt} onChange={setDebt} />
-          <ToggleRow label="Unusual spends" value={unusual} onChange={setUnusual} />
-          <ToggleRow label="Financial goals achievements" value={goals} onChange={setGoals} />
+          <ToggleRow label={t.finance.budgetOverspend} value={overspend} onChange={setOverspend} />
+          <ToggleRow label={t.finance.debtReminder} value={debt} onChange={setDebt} />
+          <ToggleRow label={t.finance.unusualSpends} value={unusual} onChange={setUnusual} />
+          <ToggleRow label={t.finance.financialGoalsAchievements} value={goals} onChange={setGoals} />
           <View style={styles.inlineRow}>
-            <Text style={styles.inlineLabel}>Time:</Text>
+            <Text style={styles.inlineLabel}>{t.finance.time}</Text>
             <View style={{ flexDirection: 'row' }}>
               {renderTimeChip(timeMain.start, '⏰')}
               {renderTimeChip(timeMain.end, '⏰')}
@@ -272,109 +274,109 @@ const NotificationsScreen: React.FC = () => {
           </View>
         </View>
 
-        <SectionTitle title="Task and goals" />
+        <SectionTitle title={t.sections.taskAndGoals} />
         <View style={styles.cardContent}>
           <ToggleRow
-            label="Task reminder"
+            label={t.taskAndGoals.taskReminder}
             value={taskRem}
             onChange={setTaskRem}
             right={
               <View style={{ flexDirection: 'row' }}>
-                {renderChip('before')}
-                {renderChip('15 mins')}
+                {renderChip(t.taskAndGoals.before)}
+                {renderChip(`15 ${t.timeUnits.mins}`)}
               </View>
             }
           />
           <ToggleRow
-            label="Deadline"
+            label={t.taskAndGoals.deadline}
             value={deadline}
             onChange={setDeadline}
             right={
               <View style={{ flexDirection: 'row' }}>
-                {renderChip('before')}
-                {renderChip('1 day')}
+                {renderChip(t.taskAndGoals.before)}
+                {renderChip(`1 ${t.timeUnits.day}`)}
               </View>
             }
           />
           <ToggleRow
-            label="Goal progress"
+            label={t.taskAndGoals.goalProgress}
             value={goalProg}
             onChange={setGoalProg}
-            right={renderChip('Everyday')}
+            right={renderChip(t.taskAndGoals.everyday)}
           />
           <ToggleRow
-            label="Task reschedule suggestion"
+            label={t.taskAndGoals.taskRescheduleSuggestion}
             value={resched}
             onChange={setResched}
           />
         </View>
 
-        <SectionTitle title="Habits" />
+        <SectionTitle title={t.sections.habits} />
         <View style={styles.cardContent}>
           <ToggleRow
-            label="Morning habits"
+            label={t.habits.morningHabits}
             value={morning}
             onChange={setMorning}
             right={renderChip('07:00')}
           />
           <ToggleRow
-            label="Night habits"
+            label={t.habits.nightHabits}
             value={night}
             onChange={setNight}
             right={renderChip('21:00')}
           />
-          <ToggleRow label="Streak reminder" value={streak} onChange={setStreak} />
-          <ToggleRow label="Motivational messages" value={motivation} onChange={setMotivation} />
+          <ToggleRow label={t.habits.streakReminder} value={streak} onChange={setStreak} />
+          <ToggleRow label={t.habits.motivationalMessages} value={motivation} onChange={setMotivation} />
         </View>
 
-        <SectionTitle title="AI assistant" />
+        <SectionTitle title={t.sections.aiAssistant} />
         <View style={styles.cardContent}>
           <ToggleRow
-            label="Smart recommendation"
+            label={t.aiAssistant.smartRecommendation}
             value={smartRec}
             onChange={setSmartRec}
-            right={renderChip('2 times / day')}
+            right={renderChip(t.aiAssistant.timesPerDay)}
           />
           <ToggleRow
-            label="Insight and analytics"
+            label={t.aiAssistant.insightAndAnalytics}
             value={insight}
             onChange={setInsight}
-            right={renderChip('Every week')}
+            right={renderChip(t.aiAssistant.everyWeek)}
           />
           <ToggleRow
-            label="Mentors advices"
+            label={t.aiAssistant.mentorsAdvices}
             value={mentorsAdv}
             onChange={setMentorsAdv}
-            right={renderChip('Everyday')}
+            right={renderChip(t.taskAndGoals.everyday)}
           />
           <ToggleRow
-            label="Predictions & Forecasts"
+            label={t.aiAssistant.predictionsAndForecasts}
             value={predicts}
             onChange={setPredicts}
           />
         </View>
 
-        <SectionTitle title="Do Not Disturb" />
+        <SectionTitle title={t.sections.doNotDisturb} />
         <View style={styles.cardContent}>
-          <ToggleRow label="Don't disturb" value={dnd} onChange={setDnd} />
+          <ToggleRow label={t.doNotDisturb.dontDisturb} value={dnd} onChange={setDnd} />
           <View style={styles.inlineRow}>
-            <Text style={styles.inlineLabel}>Time:</Text>
+            <Text style={styles.inlineLabel}>{t.doNotDisturb.time}</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              {renderChip('from')}
+              {renderChip(t.doNotDisturb.from)}
               {renderTimeChip(timeDnd.from, '⏰')}
-              <Text style={styles.inlineTo}>to</Text>
+              <Text style={styles.inlineTo}>{t.doNotDisturb.to}</Text>
               {renderTimeChip(timeDnd.to, '⏰')}
             </View>
           </View>
-          <ToggleRow label="on Weekends" value={weekends} onChange={setWeekends} />
+          <ToggleRow label={t.doNotDisturb.onWeekends} value={weekends} onChange={setWeekends} />
         </View>
 
         <View style={styles.footer}>
           <Pressable style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressed]}>
-            <Text style={styles.primaryBtnText}>Save</Text>
+            <Text style={styles.primaryBtnText}>{t.actions.save}</Text>
           </Pressable>
           <Pressable style={({ pressed }) => [styles.ghostBtn, pressed && styles.pressed]}>
-            <Text style={styles.ghostBtnText}>Test notification</Text>
+            <Text style={styles.ghostBtnText}>{t.actions.testNotification}</Text>
           </Pressable>
         </View>
       </ScrollView>

@@ -88,7 +88,7 @@ export default function GoalsWidget({
   const { strings, locale } = useLocalization();
   const placeholderGoals = useMemo(
     () =>
-      PLACEHOLDER_KEYS.map((key, index) => ({
+      PLACEHOLDER_KEYS.map((_key, index) => ({
         id: `placeholder-goal-${index}`,
         title: strings.widgets.goals.placeholders[index],
         progress: 0,

@@ -11,10 +11,9 @@
  * - transfer_money: Complete when transfer transaction created between accounts
  */
 
-import type { Transaction, Debt, DebtPayment } from '@/domain/finance/types';
+import type { Transaction, DebtPayment } from '@/domain/finance/types';
 import type { Task } from '@/domain/planner/types';
 import { usePlannerDomainStore } from '@/stores/usePlannerDomainStore';
-import { useFinanceDomainStore } from '@/stores/useFinanceDomainStore';
 import { plannerEventBus } from '@/events/plannerEventBus';
 import { startOfDay } from '@/utils/calendar';
 
@@ -63,7 +62,6 @@ const doesFinanceActionMatchTask = (task: Task, transaction: Transaction): boole
  */
 function autoCompleteTasks(transaction: Transaction) {
   const { tasks, completeTask } = usePlannerDomainStore.getState();
-  const todayKey = dateKeyFromDate(new Date());
   const txDateKey = dateKeyFromDate(new Date(transaction.date || transaction.createdAt));
 
   // Auto-complete tasks even if not from today (finance operations can be backdated)
@@ -91,7 +89,7 @@ function autoCompleteTasks(transaction: Transaction) {
       // Publish event
       plannerEventBus.publish('planner.task.auto_completed', {
         taskId: task.id,
-        financeLink: task.financeLink,
+        financeLink: task.financeLink ?? 'none',
         transactionId: transaction.id,
         completedAt: new Date().toISOString(),
       });
@@ -140,7 +138,7 @@ function autoCompleteDebtPaymentTasks(debtId: string, payment: DebtPayment) {
 
       plannerEventBus.publish('planner.task.auto_completed', {
         taskId: task.id,
-        financeLink: task.financeLink,
+        financeLink: task.financeLink ?? 'none',
         debtId,
         paymentId: payment.id,
         completedAt: new Date().toISOString(),
@@ -175,7 +173,7 @@ function autoCompleteBudgetReviewTasks(budgetId: string) {
 
     plannerEventBus.publish('planner.task.auto_completed', {
       taskId: task.id,
-      financeLink: task.financeLink,
+      financeLink: task.financeLink ?? 'none',
       budgetId,
       completedAt: new Date().toISOString(),
     });
@@ -191,7 +189,7 @@ export function initTaskAutoCompleter() {
 
   // Subscribe to transaction created event
   plannerEventBus.subscribe('finance.tx.created', (event) => {
-    const { transaction } = event.payload || event;
+    const { transaction } = event;
     if (transaction) {
       autoCompleteTasks(transaction);
     }
@@ -199,35 +197,29 @@ export function initTaskAutoCompleter() {
 
   // Subscribe to debt payment events
   plannerEventBus.subscribe('finance.debt.payment_added', (event) => {
-    const { debtId, payment, debt } = event.payload || event;
-    if (debtId && payment) {
-      autoCompleteDebtPaymentTasks(debtId, payment);
-    } else if (debt && payment) {
-      // Alternative payload format
-      autoCompleteDebtPaymentTasks(debt.id, payment);
+    const { debt, payment } = event;
+    if (debt && payment) {
+      autoCompleteDebtPaymentTasks(debt.id, payment as unknown as DebtPayment);
     }
   });
 
   // Subscribe to budget spending changed events
   plannerEventBus.subscribe('finance.budget.spending_changed', (event) => {
-    const { budgetId, budget } = event.payload || event;
-    if (budgetId) {
-      autoCompleteBudgetReviewTasks(budgetId);
-    } else if (budget) {
-      // Alternative payload format
+    const { budget } = event;
+    if (budget) {
       autoCompleteBudgetReviewTasks(budget.id);
     }
   });
 
   // Subscribe to debt status changed events (e.g., fully paid)
   plannerEventBus.subscribe('finance.debt.status_changed', (event) => {
-    const { debtId, debt, newStatus } = event.payload || event;
-    if ((newStatus === 'paid' || newStatus === 'closed') && (debtId || debt?.id)) {
-      console.log(`[TaskAutoCompleter] Debt fully paid: ${debtId || debt?.id}`);
+    const { debt } = event;
+    if (debt?.status === 'paid' && debt?.id) {
+      console.log(`[TaskAutoCompleter] Debt fully paid: ${debt.id}`);
       // Auto-complete any remaining pay_debt tasks for this debt
       // Use a dummy payment object since the debt is fully paid
       const dummyPayment = { id: 'final', amount: 0 } as DebtPayment;
-      autoCompleteDebtPaymentTasks(debtId || debt!.id, dummyPayment);
+      autoCompleteDebtPaymentTasks(debt.id, dummyPayment);
     }
   });
 
