@@ -4,7 +4,7 @@ import { financeSchemas } from './schema/financeSchemas';
 import { plannerSchemas } from './schema/plannerSchemas';
 import { SeedService } from '@/services/SeedService';
 
-const schemaVersion = 17;
+const schemaVersion = 20;
 
 const ensureField = <T>(collection: Realm.Results<T>, field: keyof T, value: any) => {
   collection.forEach((item: any) => {
@@ -201,6 +201,21 @@ export const realmConfig: Realm.Configuration = {
     ensureField(transactions, 'originalCurrency', null);
     ensureField(transactions, 'originalAmount', null);
     ensureField(transactions, 'conversionRate', null);
+
+    // Migration for schema version 18 - dual account system for debts and time-based FX rates
+    // Debt dual account fields
+    ensureField(debts, 'lentFromAccountId', null);
+    ensureField(debts, 'returnToAccountId', null);
+    ensureField(debts, 'receivedToAccountId', null);
+    ensureField(debts, 'payFromAccountId', null);
+    ensureField(debts, 'customRateUsed', null);
+
+    // FxRate time-based tracking fields
+    ensureField(fxRates, 'effectiveFrom', null);
+    ensureField(fxRates, 'effectiveUntil', null);
+
+    // Migration for schema version 19 - balance adjustment transaction flag
+    ensureField(transactions, 'isBalanceAdjustment', false);
   },
   onFirstOpen: (realm) => {
     const seeder = new SeedService(realm);

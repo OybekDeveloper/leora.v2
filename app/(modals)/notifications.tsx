@@ -1,12 +1,14 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
-  FlatList,
   Platform,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { FlashList as FlashListBase } from '@shopify/flash-list';
+
+const FlashList = FlashListBase as any;
 import { Ionicons } from '@expo/vector-icons';
 import { Bell, BookOpenText, Clock, Inbox } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
@@ -141,10 +143,11 @@ export default function NotificationsModalScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["bottom", "top"]}>
-      <FlatList
+      <FlashList
         data={sortedNotifications}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => {
+        keyExtractor={(item: AppNotification) => item.id}
+        estimatedItemSize={90}
+        renderItem={({ item }: { item: AppNotification }) => {
           const IconComponent = iconByCategory[item.category] ?? Bell;
           const isUnread = !item.read;
           return (

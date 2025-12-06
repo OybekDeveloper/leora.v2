@@ -290,71 +290,77 @@ const FilterTransactionSheet = forwardRef(
               </FilterSection>
 
               <FilterSection label={filterStrings.category}>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.categoryList}
-                >
-                  {categoryOptionsWithMeta.map((option) => {
-                    const isActive = option.id === filters.category;
-                    const IconComponent = option.icon as React.ComponentType<{
-                      size?: number;
-                      color?: string;
-                    }>;
-                    const accentColor = theme.colors[option.colorToken] ?? theme.colors.primary;
-                    return (
-                      <Pressable
-                        key={option.id}
-                        onPress={() => handleOptionSelect('category', option.id)}
-                        style={({ pressed }) => [
-                          styles.categoryCard,
-                          pressed && styles.pressedOpacity,
-                        ]}
-                      >
-                        <AdaptiveGlassView
-                          style={[
-                            styles.glassSurface,
-                            styles.categoryCardInner,
-                            isActive && {
-                              borderColor: accentColor,
-                              backgroundColor:
-                                theme.mode === 'dark'
-                                  ? 'rgba(255,255,255,0.08)'
-                                  : 'rgba(0,0,0,0.04)',
-                            },
+                <View style={styles.categoryListFullWidth}>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.categoryList}
+                  >
+                    <View style={styles.listEdgeSpacer} />
+                    {categoryOptionsWithMeta.map((option, index) => {
+                      const isActive = option.id === filters.category;
+                      const IconComponent = option.icon as React.ComponentType<{
+                        size?: number;
+                        color?: string;
+                      }>;
+                      const accentColor = theme.colors[option.colorToken] ?? theme.colors.primary;
+                      const isLast = index === categoryOptionsWithMeta.length - 1;
+                      return (
+                        <Pressable
+                          key={option.id}
+                          onPress={() => handleOptionSelect('category', option.id)}
+                          style={({ pressed }) => [
+                            styles.categoryCard,
+                            isLast && { marginRight: 0 },
+                            pressed && styles.pressedOpacity,
                           ]}
                         >
-                          <View
+                          <AdaptiveGlassView
                             style={[
-                              styles.categoryIconWrapper,
-                              {
-                                backgroundColor: isActive
-                                  ? accentColor
-                                  : theme.mode === 'dark'
+                              styles.glassSurface,
+                              styles.categoryCardInner,
+                              isActive && {
+                                borderColor: accentColor,
+                                backgroundColor:
+                                  theme.mode === 'dark'
                                     ? 'rgba(255,255,255,0.08)'
-                                    : 'rgba(0,0,0,0.05)',
+                                    : 'rgba(0,0,0,0.04)',
                               },
                             ]}
                           >
-                            <IconComponent
-                              size={18}
-                              color={isActive ? theme.colors.background : theme.colors.textSecondary}
-                            />
-                          </View>
-                          <Text
-                            style={[
-                              styles.categoryCardLabel,
-                              { color: isActive ? theme.colors.textPrimary : theme.colors.textMuted },
-                            ]}
-                            numberOfLines={2}
-                          >
-                            {option.label}
-                          </Text>
-                        </AdaptiveGlassView>
-                      </Pressable>
-                    );
-                  })}
-                </ScrollView>
+                            <View
+                              style={[
+                                styles.categoryIconWrapper,
+                                {
+                                  backgroundColor: isActive
+                                    ? accentColor
+                                    : theme.mode === 'dark'
+                                      ? 'rgba(255,255,255,0.08)'
+                                      : 'rgba(0,0,0,0.05)',
+                                },
+                              ]}
+                            >
+                              <IconComponent
+                                size={18}
+                                color={isActive ? theme.colors.background : theme.colors.textSecondary}
+                              />
+                            </View>
+                            <Text
+                              style={[
+                                styles.categoryCardLabel,
+                                { color: isActive ? theme.colors.textPrimary : theme.colors.textMuted },
+                              ]}
+                              numberOfLines={2}
+                            >
+                              {option.label}
+                            </Text>
+                          </AdaptiveGlassView>
+                        </Pressable>
+                      );
+                    })}
+                    <View style={styles.listEdgeSpacer} />
+                  </ScrollView>
+                </View>
               </FilterSection>
 
               <FilterSection label={filterStrings.accounts}>
@@ -528,13 +534,17 @@ const FilterOptionRow: React.FC<FilterOptionRowProps> = ({
 
   if (scrollable) {
     return (
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={[styles.optionRow, styles.optionRowScroll]}
-      >
-        {content}
-      </ScrollView>
+      <View style={styles.optionRowFullWidth}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={[styles.optionRow, styles.optionRowScroll]}
+        >
+          <View style={styles.listEdgeSpacer} />
+          {content}
+          <View style={styles.listEdgeSpacer} />
+        </ScrollView>
+      </View>
     );
   }
 
@@ -574,10 +584,16 @@ const styles = StyleSheet.create({
   sections: {
     gap: 16,
   },
+  categoryListFullWidth: {
+    marginHorizontal: -20,
+  },
   categoryList: {
     paddingVertical: 8,
-    paddingHorizontal: 4,
     gap: 12,
+    flexDirection: 'row',
+  },
+  listEdgeSpacer: {
+    width: 20,
   },
   categoryCard: {
     marginRight: 12,
@@ -621,13 +637,15 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.8,
   },
+  optionRowFullWidth: {
+    marginHorizontal: -20,
+  },
   optionRow: {
     flexDirection: 'row',
     gap: 10,
   },
   optionRowScroll: {
     paddingVertical: 4,
-    paddingHorizontal: 2,
   },
   optionRowWrap: {
     flexWrap: 'wrap',

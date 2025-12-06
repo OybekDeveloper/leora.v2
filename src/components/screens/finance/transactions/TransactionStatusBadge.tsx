@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { useAppTheme } from '@/constants/theme';
+import { useLocalization } from '@/localization/useLocalization';
 import type { TransactionStatus, DebtStatus } from './types';
 
 type TransactionStatusBadgeProps = {
@@ -14,11 +15,20 @@ const TransactionStatusBadge: React.FC<TransactionStatusBadgeProps> = ({
   debtStatus,
 }) => {
   const theme = useAppTheme();
+  const { strings } = useLocalization();
+  const statusStrings = (strings.financeScreens.transactions as any).status ?? {};
 
   // Label aniqlash
   const getLabel = (): string => {
     if (debtStatus) {
       return debtStatus;
+    }
+    // Localized status
+    if (status === 'confirmed') {
+      return statusStrings.confirmed ?? 'confirmed';
+    }
+    if (status === 'canceled') {
+      return statusStrings.canceled ?? 'canceled';
     }
     return status;
   };

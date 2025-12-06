@@ -972,6 +972,11 @@ export type AppTranslations = {
       confirmDeleteMessage: string;
       confirmDeleteConfirm: string;
       confirmDeleteCancel: string;
+      resetAllData: string;
+      confirmResetTitle: string;
+      confirmResetMessage: string;
+      confirmResetConfirm: string;
+      confirmResetCancel: string;
     };
   };
   financeScreens: {
@@ -1049,11 +1054,21 @@ export type AppTranslations = {
       historyTitle: string;
       historyHeaders: { type: string; amount: string; time: string };
       actions: { edit: string; archive: string; delete: string };
+      deleteConfirm: {
+        title: string;
+        message: string;
+        messageWithBalance: string;
+        linkedDebts: string;
+        linkedGoal: string;
+        cancel: string;
+        confirm: string;
+      };
       modal?: Record<string, unknown>;
       empty: { title: string; subtitle: string };
     };
     transactions: {
       header: string;
+      balanceAdjustment: string;
       details: {
         title: string;
         type: string;
@@ -1068,6 +1083,19 @@ export type AppTranslations = {
         linkedGoal: string;
         linkedBudget: string;
         notFound: string;
+        canceledBanner: string;
+        actions: {
+          edit: string;
+          cancel: string;
+          restore: string;
+          deletePermanently: string;
+        };
+        deleteConfirm: {
+          title: string;
+          message: string;
+          cancel: string;
+          confirm: string;
+        };
       };
       filterSheet: {
         title: string;
@@ -1089,6 +1117,11 @@ export type AppTranslations = {
       quick?: Record<string, unknown>;
       transferForm?: Record<string, unknown>;
       empty: { title: string; subtitle: string };
+      status: {
+        label: string;
+        confirmed: string;
+        canceled: string;
+      };
     };
     budgets: {
       today: string;
@@ -1168,6 +1201,25 @@ export type AppTranslations = {
       stats: { peak: string; average: string; trend: string };
       comparisonRows: { income: string; outcome: string; savings: string };
       empty: { title: string; subtitle: string };
+    };
+    categories: {
+      salary: string;
+      business: string;
+      investment: string;
+      gift: string;
+      foodDining: string;
+      transportation: string;
+      shopping: string;
+      entertainment: string;
+      billsUtilities: string;
+      healthcare: string;
+      education: string;
+      charity: string;
+      debtRepayment: string;
+      transfer: string;
+      savings: string;
+      other: string;
+      balanceAdjustment: string;
     };
     debts: {
       empty: { title: string; subtitle: string };
@@ -1260,6 +1312,19 @@ export type AppTranslations = {
           debtSettled: string;
           markedAsSettled: string;
         };
+        // Currency conversion info
+        currencyConversion: {
+          title: string;
+          debtCurrency: string;
+          repaymentCurrency: string;
+          receiveCurrency: string;
+          startRate: string;
+          currentRate: string;
+          profit: string;
+          loss: string;
+          selectCurrency: string;
+          paymentCurrency: string;
+        };
       };
       summary: {
         balanceLabel: string;
@@ -1321,6 +1386,7 @@ export type AppTranslations = {
           save: string;
           saveChanges: string;
           delete: string;
+          add?: string;
         };
         defaults: { name: string; description: string; due: string };
         deleteTitle: string;
@@ -1374,6 +1440,13 @@ export type AppTranslations = {
         fixedAmount?: string;
         fixedAmountEnabled?: string;
         fixedAmountDisabled?: string;
+        lentFromAccount?: string;
+        receivedToAccount?: string;
+        differentCurrencyRepay?: string;
+        differentCurrencyReceive?: string;
+        receiveIn?: string;
+        receiveCurrency?: string;
+        fixedReceiveAmount?: string;
       };
     };
   };
@@ -2439,6 +2512,11 @@ const t = {
         confirmDeleteMessage: 'This action removes your account and all stored data. Continue?',
         confirmDeleteConfirm: 'Delete',
         confirmDeleteCancel: 'Cancel',
+        resetAllData: 'Reset all data',
+        confirmResetTitle: 'Reset all data?',
+        confirmResetMessage: 'This will clear all your finance data, tasks, goals, and habits. Your account will remain. Continue?',
+        confirmResetConfirm: 'Reset',
+        confirmResetCancel: 'Cancel',
       },
     },
     financeScreens: {
@@ -2526,6 +2604,15 @@ const t = {
       historyTitle: 'Transaction history',
       historyHeaders: { type: 'Type', amount: 'Amount', time: 'Time' },
       actions: { edit: 'Edit', archive: 'Archive', delete: 'Delete' },
+      deleteConfirm: {
+        title: 'Delete account',
+        message: 'Are you sure you want to delete this account? All related transactions will also be deleted.',
+        messageWithBalance: 'This account has a balance of {balance} {currency}. Are you sure you want to delete it?',
+        linkedDebts: 'This account is linked to {count} debt(s).',
+        linkedGoal: 'This account is linked to a goal.',
+        cancel: 'Cancel',
+        confirm: 'Delete',
+      },
       modal: {
         titleAdd: 'Add new account',
         titleEdit: 'Edit account',
@@ -2582,6 +2669,7 @@ const t = {
     },
       transactions: {
         header: 'Transactions history',
+        balanceAdjustment: 'Balance Adjustment',
         details: {
           title: 'Transaction details',
           type: 'Operation type',
@@ -2596,6 +2684,19 @@ const t = {
           linkedGoal: 'Linked goal',
           linkedBudget: 'Linked budget',
           notFound: 'Transaction not found',
+          canceledBanner: 'This transaction is canceled',
+          actions: {
+            edit: 'Edit',
+            cancel: 'Cancel',
+            restore: 'Restore',
+            deletePermanently: 'Delete permanently',
+          },
+          deleteConfirm: {
+            title: 'Delete transaction',
+            message: 'This transaction will be permanently deleted and cannot be restored.',
+            cancel: 'Cancel',
+            confirm: 'Delete',
+          },
         },
         filterSheet: {
           title: 'Filter transactions',
@@ -2630,8 +2731,8 @@ const t = {
           categoryAddTitle: 'Add category',
           categoryEditTitle: 'Edit category',
           categoryPlaceholder: 'Category name',
-          save: 'Save entry',
-          update: 'Save changes',
+          save: 'Save',
+          update: 'Save',
         },
         transferForm: {
           title: 'Transfer between accounts',
@@ -2654,6 +2755,11 @@ const t = {
         empty: {
           title: 'No transactions yet',
           subtitle: 'Your transactions will appear here.',
+        },
+        status: {
+          label: 'Status',
+          confirmed: 'confirmed',
+          canceled: 'canceled',
         },
       },
       budgets: {
@@ -2745,6 +2851,25 @@ const t = {
           title: 'No analytics data',
           subtitle: 'Add transactions to see insights.',
         },
+      },
+      categories: {
+        salary: 'Salary',
+        business: 'Business',
+        investment: 'Investment',
+        gift: 'Gift',
+        foodDining: 'Food & Dining',
+        transportation: 'Transportation',
+        shopping: 'Shopping',
+        entertainment: 'Entertainment',
+        billsUtilities: 'Bills & Utilities',
+        healthcare: 'Healthcare',
+        education: 'Education',
+        charity: 'Charity',
+        debtRepayment: 'Debt Repayment',
+        transfer: 'Transfer',
+        savings: 'Savings',
+        other: 'Other',
+        balanceAdjustment: 'Balance Adjustment',
       },
       debts: {
         empty: {
@@ -2839,6 +2964,18 @@ const t = {
             debtSettled: 'Debt Settled',
             markedAsSettled: 'The debt has been marked as fully settled.',
           },
+          currencyConversion: {
+            title: 'Currency Conversion',
+            debtCurrency: 'Debt currency',
+            repaymentCurrency: 'Repayment currency',
+            receiveCurrency: 'Receive currency',
+            startRate: 'Start rate',
+            currentRate: 'Current rate',
+            profit: 'Profit',
+            loss: 'Loss',
+            selectCurrency: 'Select currency',
+            paymentCurrency: 'Payment currency',
+          },
         },
         summary: {
           balanceLabel: 'Total balance',
@@ -2912,7 +3049,10 @@ const t = {
           save: 'Save',
           saveChanges: 'Save',
           delete: 'Delete',
+          add: 'Add',
         },
+        lentFromAccount: 'Given from account',
+        receivedToAccount: 'Received to account',
         defaults: { name: 'New debt', description: 'Description', due: 'No period' },
         deleteTitle: 'Delete debt',
         deleteDescription: 'Are you sure you want to delete this debt? This action cannot be undone.',
@@ -2958,12 +3098,17 @@ const t = {
           linkedMultiple: 'This debt is linked to multiple goals. Unlink them before deleting.',
         },
         differentCurrency: 'Repay in different currency',
+        differentCurrencyRepay: 'Repay in different currency',
+        differentCurrencyReceive: 'Receive in different currency',
         repayIn: 'Repay in',
+        receiveIn: 'Receive in',
         sameCurrency: 'Same currency',
         repaymentCurrency: 'Repayment Currency',
+        receiveCurrency: 'Receive Currency',
         exchangeRate: 'Exchange Rate',
         autoRate: 'Auto (current rate)',
         fixedAmount: 'Fixed repayment amount',
+        fixedReceiveAmount: 'Fixed receive amount',
         fixedAmountEnabled: 'Amount locked at start rate',
         fixedAmountDisabled: 'Uses current exchange rate',
       },
@@ -4029,6 +4174,11 @@ const t = {
         confirmDeleteMessage: 'Все данные будут удалены без возможности восстановления. Продолжить?',
         confirmDeleteConfirm: 'Удалить',
         confirmDeleteCancel: 'Отмена',
+        resetAllData: 'Сбросить все данные',
+        confirmResetTitle: 'Сбросить все данные?',
+        confirmResetMessage: 'Все финансы, задачи, цели и привычки будут удалены. Аккаунт останется. Продолжить?',
+        confirmResetConfirm: 'Сбросить',
+        confirmResetCancel: 'Отмена',
       },
     },
     financeScreens: {
@@ -4116,6 +4266,15 @@ const t = {
         historyTitle: 'История транзакций',
         historyHeaders: { type: 'Тип', amount: 'Сумма', time: 'Время' },
         actions: { edit: 'Изменить', archive: 'Архивировать', delete: 'Удалить' },
+        deleteConfirm: {
+          title: 'Удалить счёт',
+          message: 'Вы уверены, что хотите удалить этот счёт? Все связанные транзакции также будут удалены.',
+          messageWithBalance: 'На этом счёте есть баланс {balance} {currency}. Вы уверены, что хотите удалить его?',
+          linkedDebts: 'Этот счёт связан с {count} долгом(ами).',
+          linkedGoal: 'Этот счёт связан с целью.',
+          cancel: 'Отмена',
+          confirm: 'Удалить',
+        },
         modal: {
           titleAdd: 'Добавить счёт',
           titleEdit: 'Редактировать счёт',
@@ -4172,6 +4331,7 @@ const t = {
       },
       transactions: {
         header: 'История транзакций',
+        balanceAdjustment: 'Корректировка баланса',
         details: {
           title: 'Детали транзакции',
           type: 'Тип операции',
@@ -4186,6 +4346,19 @@ const t = {
           linkedGoal: 'Связанная цель',
           linkedBudget: 'Связанный бюджет',
           notFound: 'Транзакция не найдена',
+          canceledBanner: 'Эта транзакция отменена',
+          actions: {
+            edit: 'Редактировать',
+            cancel: 'Отменить',
+            restore: 'Восстановить',
+            deletePermanently: 'Удалить навсегда',
+          },
+          deleteConfirm: {
+            title: 'Удалить транзакцию',
+            message: 'Эта транзакция будет удалена безвозвратно.',
+            cancel: 'Отмена',
+            confirm: 'Удалить',
+          },
         },
         filterSheet: {
           title: 'Фильтр транзакций',
@@ -4220,8 +4393,8 @@ const t = {
           categoryAddTitle: 'Добавить категорию',
           categoryEditTitle: 'Редактировать категорию',
           categoryPlaceholder: 'Название категории',
-          save: 'Сохранить запись',
-          update: 'Сохранить изменения',
+          save: 'Сохранить',
+          update: 'Сохранить',
         },
         transferForm: {
           title: 'Перевод между счетами',
@@ -4244,6 +4417,11 @@ const t = {
         empty: {
           title: 'Транзакций пока нет',
           subtitle: 'Ваши транзакции появятся здесь.',
+        },
+        status: {
+          label: 'Статус',
+          confirmed: 'подтверждено',
+          canceled: 'отменено',
         },
       },
       budgets: {
@@ -4340,6 +4518,25 @@ const t = {
           subtitle: 'Добавьте транзакции для просмотра статистики.',
         },
       },
+      categories: {
+        salary: 'Зарплата',
+        business: 'Бизнес',
+        investment: 'Инвестиции',
+        gift: 'Подарок',
+        foodDining: 'Еда и кафе',
+        transportation: 'Транспорт',
+        shopping: 'Покупки',
+        entertainment: 'Развлечения',
+        billsUtilities: 'Коммунальные услуги',
+        healthcare: 'Здоровье',
+        education: 'Образование',
+        charity: 'Благотворительность',
+        debtRepayment: 'Погашение долга',
+        transfer: 'Перевод',
+        savings: 'Сбережения',
+        other: 'Другое',
+        balanceAdjustment: 'Корректировка баланса',
+      },
       debts: {
         empty: {
           title: 'Нет долгов',
@@ -4433,6 +4630,18 @@ const t = {
             debtSettled: 'Долг погашен',
             markedAsSettled: 'Долг был отмечен как полностью погашенный.',
           },
+          currencyConversion: {
+            title: 'Конвертация валюты',
+            debtCurrency: 'Валюта долга',
+            repaymentCurrency: 'Валюта возврата',
+            receiveCurrency: 'Валюта получения',
+            startRate: 'Начальный курс',
+            currentRate: 'Текущий курс',
+            profit: 'Прибыль',
+            loss: 'Убыток',
+            selectCurrency: 'Выберите валюту',
+            paymentCurrency: 'Валюта платежа',
+          },
         },
         summary: {
           balanceLabel: 'Общий баланс',
@@ -4506,7 +4715,10 @@ const t = {
             save: 'Сохранить',
             saveChanges: 'Сохранить',
             delete: 'Удалить',
+            add: 'Добавить',
           },
+          lentFromAccount: 'Выдано со счёта',
+          receivedToAccount: 'Получено на счёт',
           defaults: { name: 'Новый долг', description: 'Описание', due: 'Без срока' },
           deleteTitle: 'Удалить долг',
           deleteDescription: 'Вы уверены, что хотите удалить этот долг? Действие нельзя отменить.',
@@ -4552,12 +4764,17 @@ const t = {
           linkedMultiple: 'Этот долг связан с несколькими целями. Сначала отвяжите их.',
         },
         differentCurrency: 'Возврат в другой валюте',
+        differentCurrencyRepay: 'Вернуть в другой валюте',
+        differentCurrencyReceive: 'Получить в другой валюте',
         repayIn: 'Вернуть в',
+        receiveIn: 'Получить в',
         sameCurrency: 'Та же валюта',
         repaymentCurrency: 'Валюта возврата',
+        receiveCurrency: 'Валюта получения',
         exchangeRate: 'Курс обмена',
         autoRate: 'Авто (текущий курс)',
         fixedAmount: 'Фиксированная сумма возврата',
+        fixedReceiveAmount: 'Фиксированная сумма получения',
         fixedAmountEnabled: 'Сумма зафиксирована по начальному курсу',
         fixedAmountDisabled: 'Используется текущий курс',
       },
@@ -5623,6 +5840,11 @@ const t = {
         confirmDeleteMessage: 'Barcha maʼlumotlar butunlay o\'chiriladi. Davom etasizmi?',
         confirmDeleteConfirm: 'O\'chirish',
         confirmDeleteCancel: 'Bekor qilish',
+        resetAllData: 'Barcha maʼlumotlarni tozalash',
+        confirmResetTitle: 'Barcha maʼlumotlar tozalansinmi?',
+        confirmResetMessage: 'Barcha moliya, vazifalar, maqsadlar va odatlar o\'chiriladi. Akkaunt qoladi. Davom etasizmi?',
+        confirmResetConfirm: 'Tozalash',
+        confirmResetCancel: 'Bekor qilish',
       },
     },
     financeScreens: {
@@ -5710,6 +5932,15 @@ const t = {
         historyTitle: 'Tranzaksiya tarixi',
         historyHeaders: { type: 'Turi', amount: 'Summasi', time: 'Vaqti' },
         actions: { edit: 'Tahrirlash', archive: 'Arxivlash', delete: 'O\'chirish' },
+        deleteConfirm: {
+          title: 'Hisobni o\'chirish',
+          message: 'Ushbu hisobni o\'chirishni xohlaysizmi? Barcha bog\'liq tranzaksiyalar ham o\'chiriladi.',
+          messageWithBalance: 'Bu hisobda {balance} {currency} balans mavjud. O\'chirishni xohlaysizmi?',
+          linkedDebts: 'Bu hisob {count} ta qarz(lar)ga bog\'langan.',
+          linkedGoal: 'Bu hisob maqsadga bog\'langan.',
+          cancel: 'Bekor qilish',
+          confirm: 'O\'chirish',
+        },
         modal: {
           titleAdd: 'Yangi hisob qo\'shish',
           titleEdit: 'Hisobni tahrirlash',
@@ -5766,6 +5997,7 @@ const t = {
       },
       transactions: {
         header: 'Tranzaksiyalar tarixi',
+        balanceAdjustment: 'Balans tuzatish',
         details: {
           title: 'Tranzaksiya tafsilotlari',
           type: 'Tranzaksiya turi',
@@ -5780,6 +6012,19 @@ const t = {
           linkedGoal: 'Bog\'langan maqsad',
           linkedBudget: 'Bog\'langan byudjet',
           notFound: 'Tranzaksiya topilmadi',
+          canceledBanner: 'Bu tranzaksiya bekor qilingan',
+          actions: {
+            edit: 'Tahrirlash',
+            cancel: 'Bekor qilish',
+            restore: 'Tiklash',
+            deletePermanently: 'Butunlay o\'chirish',
+          },
+          deleteConfirm: {
+            title: 'Tranzaksiyani o\'chirish',
+            message: 'Bu tranzaksiya butunlay o\'chiriladi va uni qayta tiklash imkonsiz bo\'ladi.',
+            cancel: 'Bekor qilish',
+            confirm: 'O\'chirish',
+          },
         },
         filterSheet: {
           title: 'Tranzaksiyalarni filtrlash',
@@ -5814,8 +6059,8 @@ const t = {
           categoryAddTitle: 'Kategoriya qo\'shish',
           categoryEditTitle: 'Kategoriyani tahrirlash',
           categoryPlaceholder: 'Kategoriya nomi',
-          save: 'Yozuvni saqlash',
-          update: 'O\'zgarishlarni saqlash',
+          save: 'Saqlash',
+          update: 'Saqlash',
         },
         transferForm: {
           title: 'Hisoblar orasida o\'tkazma',
@@ -5838,6 +6083,11 @@ const t = {
         empty: {
           title: 'Tranzaksiyalar yo\'q',
           subtitle: 'Tranzaksiyalaringiz shu yerda ko\'rinadi.',
+        },
+        status: {
+          label: 'Holat',
+          confirmed: 'tasdiqlangan',
+          canceled: 'bekor qilingan',
         },
       },
       budgets: {
@@ -5934,6 +6184,25 @@ const t = {
           subtitle: 'Statistikani ko\'rish uchun tranzaksiya qo\'shing.',
         },
       },
+      categories: {
+        salary: 'Maosh',
+        business: 'Biznes',
+        investment: 'Investitsiya',
+        gift: 'Sovg\'a',
+        foodDining: 'Ovqat va kafe',
+        transportation: 'Transport',
+        shopping: 'Xaridlar',
+        entertainment: 'Ko\'ngil ochar',
+        billsUtilities: 'Kommunal to\'lovlar',
+        healthcare: 'Salomatlik',
+        education: 'Ta\'lim',
+        charity: 'Xayriya',
+        debtRepayment: 'Qarzni to\'lash',
+        transfer: 'O\'tkazma',
+        savings: 'Jamg\'arma',
+        other: 'Boshqa',
+        balanceAdjustment: 'Balans tuzatish',
+      },
       debts: {
         empty: {
           title: 'Qarzlar yo\'q',
@@ -6027,6 +6296,18 @@ const t = {
             debtSettled: 'Qarz to\'landi',
             markedAsSettled: 'Qarz to\'liq to\'langan deb belgilandi.',
           },
+          currencyConversion: {
+            title: 'Valyuta konvertatsiyasi',
+            debtCurrency: 'Qarz valyutasi',
+            repaymentCurrency: 'Qaytarish valyutasi',
+            receiveCurrency: 'Olish valyutasi',
+            startRate: "Boshlang'ich kurs",
+            currentRate: 'Hozirgi kurs',
+            profit: 'Foyda',
+            loss: 'Zarar',
+            selectCurrency: 'Valyutani tanlang',
+            paymentCurrency: "To'lov valyutasi",
+          },
         },
         summary: {
           balanceLabel: 'Umumiy balans',
@@ -6099,8 +6380,11 @@ const t = {
             cancel: 'Bekor qilish',
             save: 'Saqlash',
             saveChanges: 'Saqlash',
-            delete: 'O‘chirish',
+            delete: "O'chirish",
+            add: "Qo'shish",
           },
+          lentFromAccount: 'Berilgan hisobdan',
+          receivedToAccount: 'Qabul qilingan hisobga',
           defaults: { name: 'Yangi qarz', description: 'Tavsif', due: 'Muddat belgilanmagan' },
           deleteTitle: 'Qarzlarni o‘chirish',
           deleteDescription: 'Bu qarzni o‘chirib tashlamoqchimisiz? Bu amalni qaytarib bo‘lmaydi.',
@@ -6146,12 +6430,17 @@ const t = {
           linkedMultiple: 'Bu qarz bir necha maqsadga bog\'langan. Avval ularni uzishingiz kerak.',
         },
         differentCurrency: 'Boshqa valyutada qaytarish',
+        differentCurrencyRepay: 'Boshqa valyutada qaytarish',
+        differentCurrencyReceive: 'Boshqa valyutada olish',
         repayIn: 'Qaytarish valyutasi',
+        receiveIn: 'Olish valyutasi',
         sameCurrency: 'Bir xil valyuta',
         repaymentCurrency: 'Qaytarish valyutasi',
+        receiveCurrency: 'Olish valyutasi',
         exchangeRate: 'Valyuta kursi',
         autoRate: 'Avto (joriy kurs)',
         fixedAmount: 'Belgilangan qaytarish summasi',
+        fixedReceiveAmount: 'Belgilangan olish summasi',
         fixedAmountEnabled: 'Summa boshlang\'ich kursda belgilangan',
         fixedAmountDisabled: 'Joriy kurs ishlatiladi',
       },
@@ -7217,6 +7506,11 @@ const t = {
         confirmDeleteMessage: 'سيتم حذف جميع بياناتك نهائياً. هل تريد المتابعة؟',
         confirmDeleteConfirm: 'حذف',
         confirmDeleteCancel: 'إلغاء',
+        resetAllData: 'مسح جميع البيانات',
+        confirmResetTitle: 'مسح جميع البيانات؟',
+        confirmResetMessage: 'سيتم حذف جميع المالية والمهام والأهداف والعادات. سيبقى الحساب. هل تريد المتابعة؟',
+        confirmResetConfirm: 'مسح',
+        confirmResetCancel: 'إلغاء',
       },
     },
     financeScreens: {
@@ -7304,6 +7598,15 @@ const t = {
         historyTitle: 'سجل المعاملات',
         historyHeaders: { type: 'النوع', amount: 'المبلغ', time: 'الوقت' },
         actions: { edit: 'تحرير', archive: 'أرشفة', delete: 'حذف' },
+        deleteConfirm: {
+          title: 'حذف الحساب',
+          message: 'هل أنت متأكد من حذف هذا الحساب؟ سيتم حذف جميع المعاملات المرتبطة أيضًا.',
+          messageWithBalance: 'هذا الحساب يحتوي على رصيد {balance} {currency}. هل تريد حذفه؟',
+          linkedDebts: 'هذا الحساب مرتبط بـ {count} دين(ديون).',
+          linkedGoal: 'هذا الحساب مرتبط بهدف.',
+          cancel: 'إلغاء',
+          confirm: 'حذف',
+        },
         modal: {
           titleAdd: 'إضافة حساب جديد',
           titleEdit: 'تعديل الحساب',
@@ -7360,6 +7663,7 @@ const t = {
       },
       transactions: {
         header: 'سجل المعاملات',
+        balanceAdjustment: 'تعديل الرصيد',
         details: {
           title: 'تفاصيل المعاملة',
           type: 'نوع العملية',
@@ -7374,6 +7678,19 @@ const t = {
           linkedGoal: 'هدف مرتبط',
           linkedBudget: 'ميزانية مرتبطة',
           notFound: 'المعاملة غير موجودة',
+          canceledBanner: 'تم إلغاء هذه المعاملة',
+          actions: {
+            edit: 'تعديل',
+            cancel: 'إلغاء',
+            restore: 'استعادة',
+            deletePermanently: 'حذف نهائياً',
+          },
+          deleteConfirm: {
+            title: 'حذف المعاملة',
+            message: 'سيتم حذف هذه المعاملة نهائياً ولن يمكن استعادتها.',
+            cancel: 'إلغاء',
+            confirm: 'حذف',
+          },
         },
         filterSheet: {
           title: 'تصفية المعاملات',
@@ -7408,8 +7725,8 @@ const t = {
           categoryAddTitle: 'إضافة فئة',
           categoryEditTitle: 'تعديل الفئة',
           categoryPlaceholder: 'اسم الفئة',
-          save: 'حفظ الإدخال',
-          update: 'حفظ التغييرات',
+          save: 'حفظ',
+          update: 'حفظ',
         },
         transferForm: {
           title: 'التحويل بين الحسابات',
@@ -7432,6 +7749,11 @@ const t = {
         empty: {
           title: 'لا توجد معاملات بعد',
           subtitle: 'ستظهر معاملاتك هنا.',
+        },
+        status: {
+          label: 'الحالة',
+          confirmed: 'مؤكد',
+          canceled: 'ملغى',
         },
       },
       budgets: {
@@ -7528,6 +7850,25 @@ const t = {
           subtitle: 'أضف معاملات لعرض الإحصائيات.',
         },
       },
+      categories: {
+        salary: 'الراتب',
+        business: 'الأعمال',
+        investment: 'الاستثمار',
+        gift: 'هدية',
+        foodDining: 'الطعام والمطاعم',
+        transportation: 'النقل',
+        shopping: 'التسوق',
+        entertainment: 'الترفيه',
+        billsUtilities: 'الفواتير والمرافق',
+        healthcare: 'الرعاية الصحية',
+        education: 'التعليم',
+        charity: 'الصدقة',
+        debtRepayment: 'سداد الديون',
+        transfer: 'تحويل',
+        savings: 'المدخرات',
+        other: 'أخرى',
+        balanceAdjustment: 'تعديل الرصيد',
+      },
       debts: {
         empty: {
           title: 'لا توجد ديون',
@@ -7621,6 +7962,18 @@ const t = {
             debtSettled: 'تم تسوية الدين',
             markedAsSettled: 'تم تحديد الدين كمسدد بالكامل.',
           },
+          currencyConversion: {
+            title: 'تحويل العملة',
+            debtCurrency: 'عملة الدين',
+            repaymentCurrency: 'عملة السداد',
+            receiveCurrency: 'عملة الاستلام',
+            startRate: 'السعر الابتدائي',
+            currentRate: 'السعر الحالي',
+            profit: 'ربح',
+            loss: 'خسارة',
+            selectCurrency: 'اختر العملة',
+            paymentCurrency: 'عملة الدفع',
+          },
         },
         summary: {
           balanceLabel: 'إجمالي الرصيد',
@@ -7694,7 +8047,10 @@ const t = {
             save: 'حفظ',
             saveChanges: 'حفظ ',
             delete: 'حذف',
+            add: 'إضافة',
           },
+          lentFromAccount: 'تم إعطاؤه من الحساب',
+          receivedToAccount: 'تم استلامه إلى الحساب',
           defaults: { name: 'دين جديد', description: 'وصف', due: 'بدون موعد' },
           deleteTitle: 'حذف الدين',
           deleteDescription: 'هل أنت متأكد أنك تريد حذف هذا الدين؟ لا يمكن التراجع عن هذا الإجراء.',
@@ -8802,6 +9158,11 @@ const t = {
         confirmDeleteMessage: 'Tüm verileriniz kalıcı olarak silinecek. Devam etmek istiyor musunuz?',
         confirmDeleteConfirm: 'Sil',
         confirmDeleteCancel: 'Vazgeç',
+        resetAllData: 'Tüm verileri sıfırla',
+        confirmResetTitle: 'Tüm veriler silinsin mi?',
+        confirmResetMessage: 'Tüm finans, görevler, hedefler ve alışkanlıklar silinecek. Hesap kalacak. Devam edilsin mi?',
+        confirmResetConfirm: 'Sıfırla',
+        confirmResetCancel: 'Vazgeç',
       },
     },
     financeScreens: {
@@ -8889,6 +9250,15 @@ const t = {
         historyTitle: 'İşlem geçmişi',
         historyHeaders: { type: 'Tür', amount: 'Tutar', time: 'Saat' },
         actions: { edit: 'Düzenle', archive: 'Arşivle', delete: 'Sil' },
+        deleteConfirm: {
+          title: 'Hesabı sil',
+          message: 'Bu hesabı silmek istediğinizden emin misiniz? Tüm ilgili işlemler de silinecektir.',
+          messageWithBalance: 'Bu hesapta {balance} {currency} bakiye var. Silmek istiyor musunuz?',
+          linkedDebts: 'Bu hesap {count} borç(lar)a bağlı.',
+          linkedGoal: 'Bu hesap bir hedefe bağlı.',
+          cancel: 'İptal',
+          confirm: 'Sil',
+        },
         modal: {
           titleAdd: 'Yeni hesap ekle',
           titleEdit: 'Hesabı düzenle',
@@ -8945,6 +9315,7 @@ const t = {
       },
       transactions: {
         header: 'İşlem geçmişi',
+        balanceAdjustment: 'Bakiye Düzeltmesi',
         details: {
           title: 'İşlem detayları',
           type: 'İşlem türü',
@@ -8959,6 +9330,19 @@ const t = {
           linkedGoal: 'Bağlı hedef',
           linkedBudget: 'Bağlı bütçe',
           notFound: 'İşlem bulunamadı',
+          canceledBanner: 'Bu işlem iptal edildi',
+          actions: {
+            edit: 'Düzenle',
+            cancel: 'İptal et',
+            restore: 'Geri yükle',
+            deletePermanently: 'Kalıcı olarak sil',
+          },
+          deleteConfirm: {
+            title: 'İşlemi sil',
+            message: 'Bu işlem kalıcı olarak silinecek ve geri yüklenemez.',
+            cancel: 'İptal',
+            confirm: 'Sil',
+          },
         },
         filterSheet: {
           title: 'İşlemleri filtrele',
@@ -8993,8 +9377,8 @@ const t = {
           categoryAddTitle: 'Kategori ekle',
           categoryEditTitle: 'Kategoriyi düzenle',
           categoryPlaceholder: 'Kategori adı',
-          save: 'Kaydı kaydet',
-          update: 'Değişiklikleri kaydet',
+          save: 'Kaydet',
+          update: 'Kaydet',
         },
         transferForm: {
           title: 'Hesaplar arası transfer',
@@ -9017,6 +9401,11 @@ const t = {
         empty: {
           title: 'Henüz işlem yok',
           subtitle: 'İşlemleriniz burada görünecek.',
+        },
+        status: {
+          label: 'Durum',
+          confirmed: 'onaylandı',
+          canceled: 'iptal edildi',
         },
       },
       budgets: {
@@ -9113,6 +9502,25 @@ const t = {
           subtitle: 'İstatistikleri görmek için işlem ekleyin.',
         },
       },
+      categories: {
+        salary: 'Maaş',
+        business: 'İş',
+        investment: 'Yatırım',
+        gift: 'Hediye',
+        foodDining: 'Yemek ve Restoran',
+        transportation: 'Ulaşım',
+        shopping: 'Alışveriş',
+        entertainment: 'Eğlence',
+        billsUtilities: 'Faturalar ve Hizmetler',
+        healthcare: 'Sağlık',
+        education: 'Eğitim',
+        charity: 'Hayır işleri',
+        debtRepayment: 'Borç Ödemesi',
+        transfer: 'Transfer',
+        savings: 'Tasarruf',
+        other: 'Diğer',
+        balanceAdjustment: 'Bakiye Düzeltmesi',
+      },
       debts: {
         empty: {
           title: 'Borç yok',
@@ -9206,6 +9614,18 @@ const t = {
             debtSettled: 'Borç Ödendi',
             markedAsSettled: 'Borç tamamen ödendi olarak işaretlendi.',
           },
+          currencyConversion: {
+            title: 'Para Birimi Dönüşümü',
+            debtCurrency: 'Borç para birimi',
+            repaymentCurrency: 'Geri ödeme para birimi',
+            receiveCurrency: 'Alma para birimi',
+            startRate: 'Başlangıç kuru',
+            currentRate: 'Güncel kur',
+            profit: 'Kar',
+            loss: 'Zarar',
+            selectCurrency: 'Para birimi seçin',
+            paymentCurrency: 'Ödeme para birimi',
+          },
         },
         summary: {
           balanceLabel: 'Toplam bakiye',
@@ -9279,7 +9699,10 @@ const t = {
             save: 'Kaydet',
             saveChanges: 'Kaydet',
             delete: 'Sil',
+            add: 'Ekle',
           },
+          lentFromAccount: 'Hesaptan verildi',
+          receivedToAccount: 'Hesaba alındı',
           defaults: { name: 'Yeni borç', description: 'Açıklama', due: 'Vade yok' },
           deleteTitle: 'Borcu sil',
           deleteDescription: 'Bu borcu silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.',

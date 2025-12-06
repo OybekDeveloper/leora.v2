@@ -1096,8 +1096,7 @@ const useStyles = createThemedStyles((theme) => ({
   },
   inputContainer: {
     borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    overflow: 'hidden',
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
@@ -1108,6 +1107,8 @@ const useStyles = createThemedStyles((theme) => ({
     fontSize: 15,
     fontWeight: '400',
     color: theme.colors.textPrimary,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
   },
   dateRow: {
     flexDirection: 'row',
@@ -1161,8 +1162,7 @@ const useStyles = createThemedStyles((theme) => ({
   },
   descriptionContainer: {
     borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    overflow: 'hidden',
     minHeight: 80,
     borderWidth: 1,
     borderColor: theme.colors.border,
@@ -1172,6 +1172,9 @@ const useStyles = createThemedStyles((theme) => ({
     fontWeight: '400',
     textAlignVertical: 'top',
     color: theme.colors.textPrimary,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    minHeight: 70,
   },
   energyIconsRow: {
     flexDirection: 'row',
@@ -1266,8 +1269,7 @@ const useStyles = createThemedStyles((theme) => ({
   },
   subtaskInput: {
     borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    overflow: 'hidden',
     borderWidth: 1,
     borderColor: theme.colors.border,
   },

@@ -3,12 +3,15 @@ import { Alert, LayoutAnimation, Pressable, ScrollView, StyleSheet, Text, View }
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { AlertCircle, Check } from 'lucide-react-native';
 
+import { FlashList as FlashListBase } from '@shopify/flash-list';
+
+// Cast FlashList to avoid TypeScript generic inference issues
+const FlashList = FlashListBase as any;
 import { AdaptiveGlassView } from '@/components/ui/AdaptiveGlassView';
 import EmptyState from '@/components/shared/EmptyState';
 import SelectableListItem from '@/components/shared/SelectableListItem';
 import SelectionToolbar from '@/components/shared/SelectionToolbar';
 import UndoSnackbar from '@/components/shared/UndoSnackbar';
-import FloatList, { type FloatListItem } from '@/components/ui/FloatList';
 import { useSelectedDayStore } from '@/stores/selectedDayStore';
 import { useUndoDeleteStore } from '@/stores/useUndoDeleteStore';
 import type { Budget } from '@/domain/finance/types';
@@ -22,13 +25,13 @@ import { useRouter } from 'expo-router';
 import { useFinanceCurrency } from '@/hooks/useFinanceCurrency';
 import { normalizeFinanceCurrency } from '@/utils/financeCurrency';
 import type { FinanceCurrency } from '@/stores/useFinancePreferencesStore';
+import { useAppTheme, type Theme } from '@/constants/theme';
 
 type BudgetState = 'exceeding' | 'warning' | 'within' | 'fixed';
 
-// Extend FloatListItem to work with FloatList
-interface CategoryBudget extends FloatListItem {
+interface CategoryBudget {
   id: string;
-  label: string; // Required by FloatListItem (will be same as name)
+  label: string;
   name: string;
   spent: number;
   limit: number;
@@ -66,9 +69,10 @@ type ProgressAppearance = {
 type ProgressBarProps = {
   percentage: number;
   appearance: ProgressAppearance;
+  styles: ReturnType<typeof createStyles>;
 };
 
-const AnimatedProgressBar: React.FC<ProgressBarProps> = ({ percentage, appearance }) => {
+const AnimatedProgressBar: React.FC<ProgressBarProps> = ({ percentage, appearance, styles }) => {
   const widthValue = useSharedValue(0);
   const [trackWidth, setTrackWidth] = useState(0);
 
@@ -123,36 +127,38 @@ const AnimatedProgressBar: React.FC<ProgressBarProps> = ({ percentage, appearanc
 
 const buildProgressAppearance = (
   state: BudgetState,
-  labels: Record<BudgetState, string>
+  labels: Record<BudgetState, string>,
+  theme: Theme
 ): ProgressAppearance => {
+  const isDark = theme.mode === 'dark';
   switch (state) {
     case 'exceeding':
       return {
-        fillColor: '#FF6B6B',
+        fillColor: theme.colors.danger,
         label: labels.exceeding,
         icon: 'alert',
         textColor: '#FFFFFF',
       };
     case 'warning':
       return {
-        fillColor: '#FFB347',
+        fillColor: theme.colors.warning,
         label: labels.warning,
         icon: 'alert',
         textColor: '#FFFFFF',
       };
     case 'fixed':
       return {
-        fillColor: '#51CF66',
+        fillColor: theme.colors.success,
         label: labels.fixed,
         icon: 'check',
         textColor: '#FFFFFF',
       };
     default:
       return {
-        fillColor: 'rgba(255,255,255,0.4)',
+        fillColor: isDark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.15)',
         label: labels.within,
         icon: 'check',
-        textColor: '#FFFFFF',
+        textColor: isDark ? '#FFFFFF' : theme.colors.textPrimary,
       };
   }
 };
@@ -161,10 +167,12 @@ const MainBudgetProgress: React.FC<{
   budget: { current: number; total: number };
   labels: Record<BudgetState, string>;
   formatValue: (value: number) => string;
-}> = ({ budget, labels, formatValue }) => {
+  theme: Theme;
+  styles: ReturnType<typeof createStyles>;
+}> = ({ budget, labels, formatValue, theme, styles }) => {
   const percentage =
     budget.total === 0 ? 0 : Math.min((budget.current / budget.total) * 100, 125);
-  const appearance = useMemo(() => buildProgressAppearance('within', labels), [labels]);
+  const appearance = useMemo(() => buildProgressAppearance('within', labels, theme), [labels, theme]);
 
   return (
     <View style={styles.mainSection}>
@@ -173,7 +181,7 @@ const MainBudgetProgress: React.FC<{
         <Text style={styles.mainAmount}>/ {formatValue(budget.total)}</Text>
       </View>
 
-      <AnimatedProgressBar percentage={percentage} appearance={appearance} />
+      <AnimatedProgressBar percentage={percentage} appearance={appearance} styles={styles} />
     </View>
   );
 };
@@ -187,6 +195,8 @@ interface CategoryBudgetCardProps {
   onManage?: (budgetId: string) => void;
   onOpen?: (budgetId: string) => void;
   formatValue: (value: number) => string;
+  theme: Theme;
+  styles: ReturnType<typeof createStyles>;
 }
 
 const CategoryBudgetCard: React.FC<CategoryBudgetCardProps> = ({
@@ -198,6 +208,8 @@ const CategoryBudgetCard: React.FC<CategoryBudgetCardProps> = ({
   onManage,
   onOpen,
   formatValue,
+  theme,
+  styles,
 }) => {
   const fade = useSharedValue(0);
   const translateY = useSharedValue(12);
@@ -222,8 +234,8 @@ const CategoryBudgetCard: React.FC<CategoryBudgetCardProps> = ({
   }));
 
   const appearance = useMemo(
-    () => buildProgressAppearance(category.state, labels),
-    [category.state, labels]
+    () => buildProgressAppearance(category.state, labels, theme),
+    [category.state, labels, theme]
   );
 
   const categoriesSummary = category.categories.join(', ');
@@ -256,7 +268,7 @@ const CategoryBudgetCard: React.FC<CategoryBudgetCardProps> = ({
             </Text>
           </View>
 
-          <AnimatedProgressBar percentage={progress} appearance={appearance} />
+          <AnimatedProgressBar percentage={progress} appearance={appearance} styles={styles} />
           <Text style={styles.remainingLabel}>
             {category.budgetKind === 'saving'
               ? `${savedLabel}: ${formatValue(category.spent)}`
@@ -271,6 +283,8 @@ const CategoryBudgetCard: React.FC<CategoryBudgetCardProps> = ({
 };
 
 const BudgetsScreen: React.FC = () => {
+  const theme = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const { strings, locale } = useLocalization();
   const budgetsStrings = strings.financeScreens.budgets;
   const router = useRouter();
@@ -524,6 +538,8 @@ const BudgetsScreen: React.FC = () => {
           budget={aggregate.main}
           labels={budgetsStrings.states}
           formatValue={formatValue}
+          theme={theme}
+          styles={styles}
         />
 
         <View style={styles.sectionHeaderRow}>
@@ -544,43 +560,46 @@ const BudgetsScreen: React.FC = () => {
             subtitle={budgetsStrings.empty.subtitle}
           />
         ) : (
-          <FloatList<CategoryBudget>
-            items={aggregate.categories}
-            horizontal={false}
-            gap={12}
-            onSelect={(item) => handleOpenDetailBudget(item.id)}
-            renderItem={(category, _isSelected) => {
-              const index = aggregate.categories.findIndex((c) => c.id === category.id);
-              const enterSelection = () => {
-                LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-                handleEnterSelectionMode();
-                handleToggleSelection(category.id);
-              };
+          <View style={styles.budgetListContainer}>
+            <FlashList
+              data={aggregate.categories}
+              estimatedItemSize={180}
+              keyExtractor={(item: CategoryBudget) => item.id}
+              ItemSeparatorComponent={() => <View style={styles.verticalSeparator} />}
+              renderItem={({ item: category, index }: { item: CategoryBudget; index: number }) => {
+                const enterSelection = () => {
+                  LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                  handleEnterSelectionMode();
+                  handleToggleSelection(category.id);
+                };
 
-              return (
-                <SelectableListItem
-                  id={category.id}
-                  isSelectionMode={isBudgetSelectionMode}
-                  isSelected={isSelected(category.id)}
-                  onToggleSelect={handleToggleSelection}
-                  onLongPress={enterSelection}
-                  onPress={() => handleOpenDetailBudget(category.id)}
-                  style={isBudgetSelectionMode ? styles.selectionModeItem : undefined}
-                >
-                  <CategoryBudgetCard
-                    category={category}
-                    index={index}
-                    labels={budgetsStrings.states}
-                    actionLabel={manageLabel}
-                    savedLabel={budgetsStrings.detail.savedLabel ?? 'Saved'}
-                    onManage={isBudgetSelectionMode ? undefined : handleManageBudget}
-                    onOpen={isBudgetSelectionMode ? undefined : handleOpenDetailBudget}
-                    formatValue={formatValue}
-                  />
-                </SelectableListItem>
-              );
-            }}
-          />
+                return (
+                  <SelectableListItem
+                    id={category.id}
+                    isSelectionMode={isBudgetSelectionMode}
+                    isSelected={isSelected(category.id)}
+                    onToggleSelect={handleToggleSelection}
+                    onLongPress={enterSelection}
+                    onPress={() => handleOpenDetailBudget(category.id)}
+                    style={isBudgetSelectionMode ? styles.selectionModeItem : undefined}
+                  >
+                    <CategoryBudgetCard
+                      category={category}
+                      index={index}
+                      labels={budgetsStrings.states}
+                      actionLabel={manageLabel}
+                      savedLabel={budgetsStrings.detail.savedLabel ?? 'Saved'}
+                      onManage={isBudgetSelectionMode ? undefined : handleManageBudget}
+                      onOpen={isBudgetSelectionMode ? undefined : handleOpenDetailBudget}
+                      formatValue={formatValue}
+                      theme={theme}
+                      styles={styles}
+                    />
+                  </SelectableListItem>
+                );
+              }}
+            />
+          </View>
         )}
       </ScrollView>
 
@@ -603,11 +622,11 @@ const BudgetsScreen: React.FC = () => {
 
 export default BudgetsScreen;
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   glassSurface: {
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.18)',
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderColor: theme.mode === 'dark' ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.08)',
+    backgroundColor: theme.mode === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
   },
   screen: {
     flex: 1,
@@ -618,17 +637,24 @@ const styles = StyleSheet.create({
     paddingBottom: 120,
     gap: 18,
   },
+  budgetListContainer: {
+    flex: 1,
+    minHeight: 200,
+  },
+  verticalSeparator: {
+    height: 12,
+  },
   dateCaption: {
     fontSize: 12,
     letterSpacing: 0.4,
     textTransform: 'uppercase',
-    color: '#7E8B9A',
+    color: theme.colors.textSecondary,
   },
   sectionHeading: {
     fontSize: 16,
     fontWeight: '600',
     letterSpacing: 0.4,
-    color: '#7E8B9A',
+    color: theme.colors.textSecondary,
   },
   mainSection: {
     gap: 12,
@@ -642,7 +668,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     letterSpacing: 0.2,
-    color: '#7E8B9A',
+    color: theme.colors.textSecondary,
   },
   progressShellWrapper: {
     height: PROGRESS_HEIGHT,
@@ -705,7 +731,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     letterSpacing: 1,
-    color: '#FFFFFF',
+    color: theme.colors.textPrimary,
   },
   categoriesList: {
     gap: 12,
@@ -726,7 +752,7 @@ const styles = StyleSheet.create({
   categorySubtitle: {
     fontSize: 13,
     marginTop: 2,
-    color: '#7E8B9A',
+    color: theme.colors.textSecondary,
   },
   categoryActionButton: {
     paddingHorizontal: 6,
@@ -736,13 +762,13 @@ const styles = StyleSheet.create({
   categoryTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: theme.colors.textPrimary,
   },
   categoryAction: {
     fontSize: 13,
     fontWeight: '500',
     letterSpacing: 0.2,
-    color: '#7E8B9A',
+    color: theme.colors.textSecondary,
   },
   categoryAmountsRow: {
     flexDirection: 'row',
@@ -753,13 +779,13 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '500',
     letterSpacing: 0.2,
-    color: '#7E8B9A',
+    color: theme.colors.textSecondary,
   },
   remainingLabel: {
     fontSize: 13,
     fontWeight: '500',
     marginTop: 4,
-    color: '#7E8B9A',
+    color: theme.colors.textSecondary,
   },
   pressed: {
     opacity: 0.7,
@@ -775,7 +801,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     letterSpacing: 1.2,
-    color: '#7E8B9A',
+    color: theme.colors.textSecondary,
   },
   section: {
     marginBottom: 8,
@@ -784,7 +810,7 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 14,
     fontWeight: '400',
-    color: '#7E8B9A',
+    color: theme.colors.textSecondary,
     marginBottom: 12,
   },
   inputContainer: {
@@ -795,7 +821,7 @@ const styles = StyleSheet.create({
   textInput: {
     fontSize: 15,
     fontWeight: '400',
-    color: '#FFFFFF',
+    color: theme.colors.textPrimary,
   },
   accountScroll: {
     gap: 12,
@@ -814,7 +840,7 @@ const styles = StyleSheet.create({
   accountChipSubtext: {
     fontSize: 11,
     marginTop: 2,
-    color: '#7E8B9A',
+    color: theme.colors.textSecondary,
   },
   periodChipsRow: {
     flexDirection: 'row',
@@ -836,15 +862,15 @@ const styles = StyleSheet.create({
   periodChipLabel: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#9E9E9E',
+    color: theme.colors.textMuted,
   },
   periodChipLabelActive: {
-    color: '#FFFFFF',
+    color: theme.colors.textPrimary,
   },
   rangeSummary: {
     marginTop: 6,
     fontSize: 12,
-    color: '#7E8B9A',
+    color: theme.colors.textSecondary,
   },
   customRangeRow: {
     flexDirection: 'row',
@@ -858,24 +884,24 @@ const styles = StyleSheet.create({
   },
   rangeButtonLabel: {
     fontSize: 12,
-    color: '#7E8B9A',
+    color: theme.colors.textSecondary,
   },
   rangeValue: {
     marginTop: 4,
     fontSize: 15,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: theme.colors.textPrimary,
   },
   rangeError: {
     marginTop: 6,
     fontSize: 12,
-    color: '#F87171',
+    color: theme.colors.danger,
   },
   typeContainer: {
     borderRadius: 16,
   },
   typeOption: {
-    borderBottomColor: 'rgba(255,255,255,0.1)',
+    borderBottomColor: theme.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)',
   },
   typeOptionContent: {
     flexDirection: 'row',
@@ -918,12 +944,12 @@ const styles = StyleSheet.create({
   notificationLabel: {
     fontSize: 15,
     fontWeight: '400',
-    color: '#FFFFFF',
+    color: theme.colors.textPrimary,
   },
   notificationSubtext: {
     fontSize: 13,
     fontWeight: '400',
-    color: '#7E8B9A',
+    color: theme.colors.textSecondary,
     marginTop: 4,
   },
   actionButtons: {
@@ -941,7 +967,7 @@ const styles = StyleSheet.create({
   secondaryButtonText: {
     fontSize: 15,
     fontWeight: '400',
-    color: '#7E8B9A',
+    color: theme.colors.textSecondary,
   },
   primaryButton: {
     flex: 1,
@@ -966,7 +992,7 @@ const styles = StyleSheet.create({
   deleteButtonText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#FF6B6B',
+    color: theme.colors.danger,
   },
   pickerModal: {
     flex: 1,
@@ -987,12 +1013,12 @@ const styles = StyleSheet.create({
   pickerDoneButton: {
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
+    borderColor: theme.mode === 'dark' ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)',
     paddingVertical: 10,
     alignItems: 'center',
   },
   pickerDoneText: {
-    color: '#FFFFFF',
+    color: theme.colors.textPrimary,
     fontWeight: '600',
   },
 });

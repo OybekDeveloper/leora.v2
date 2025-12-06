@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
@@ -8,10 +8,12 @@ import { useAppTheme } from '@/constants/theme';
 import { useFinanceCurrency } from '@/hooks/useFinanceCurrency';
 import { AVAILABLE_FINANCE_CURRENCIES, type FinanceCurrency } from '@/stores/useFinancePreferencesStore';
 import { useLocalization } from '@/localization/useLocalization';
+import { formatNumberWithSpaces } from '@/utils/formatNumber';
 
 const FinanceCurrencyModal = () => {
   const theme = useAppTheme();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { strings } = useLocalization();
   const currencyStrings = strings.modals.financeCurrency;
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -33,9 +35,15 @@ const FinanceCurrencyModal = () => {
   });
 
   const handleChangeRate = (currency: FinanceCurrency, value: string) => {
+    // Faqat raqam va nuqta qabul qilish
+    const cleaned = value.replace(/[^\d.]/g, '');
+    // Bir nechta nuqtani oldini olish
+    const parts = cleaned.split('.');
+    const sanitized = parts.length > 2 ? parts[0] + '.' + parts.slice(1).join('') : cleaned;
+    const num = parseFloat(sanitized) || 0;
     setDraftRates((prev) => ({
       ...prev,
-      [currency]: value.replace(/[^0-9.]/g, ''),
+      [currency]: num > 0 ? formatNumberWithSpaces(num) : sanitized,
     }));
   };
 
@@ -54,7 +62,7 @@ const FinanceCurrencyModal = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['bottom']}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.title}>{currencyStrings.title}</Text>
         <Pressable onPress={() => router.back()} hitSlop={12}>
@@ -122,7 +130,7 @@ const FinanceCurrencyModal = () => {
         </View>
       </ScrollView>
 
-      <Pressable style={styles.saveButton} onPress={handleSave}>
+      <Pressable style={[styles.saveButton, { marginBottom: Math.max(insets.bottom, 20) }]} onPress={handleSave}>
         <Text style={styles.saveButtonLabel}>{currencyStrings.apply}</Text>
       </Pressable>
     </SafeAreaView>

@@ -162,8 +162,6 @@ export default function UniversalFAB() {
 
   const overlayStyle = useAnimatedStyle(() => ({
     opacity: overlayOpacity.value,
-    width: isOpen ? "100%" : 0,
-    height: isOpen ? "100%" : 0
   }));
 
   const fabRotationStyle = useAnimatedStyle(() => ({
@@ -272,7 +270,7 @@ export default function UniversalFAB() {
         >
           <Pressable
             style={StyleSheet.absoluteFill}
-            onPressOut={toggleExpanded}
+            onPress={toggleExpanded}
           >
             <MaskedView
               maskElement={
@@ -320,11 +318,6 @@ export default function UniversalFAB() {
                             case 'add-task':
                               router.push('/(modals)/planner/task');
                               break;
-                            case 'quick-expense':
-                            case 'add-expense':
-                              console.log('Add Expense');
-                              router.navigate('/(modals)/quick-exp');
-                              break;
                             case 'start-focus':
                               router.navigate('/focus-mode');
                               break;
@@ -343,6 +336,8 @@ export default function UniversalFAB() {
                             case 'planner-focus':
                               router.navigate('/focus-mode');
                               break;
+                            case 'quick-expense':
+                            case 'add-expense':
                             case 'finance-income-outcome':
                               router.push({
                                 pathname: '/(modals)/finance/quick-exp',

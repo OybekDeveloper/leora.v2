@@ -1,7 +1,7 @@
 // app/(tabs)/_layout.tsx
 import 'react-native-gesture-handler';
-import React, { memo, useMemo, useRef } from 'react';
-import { Animated, Dimensions, Platform, Pressable, StyleSheet, View } from 'react-native';
+import React, { memo, useEffect, useMemo, useRef } from 'react';
+import { Animated, Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
@@ -16,7 +16,6 @@ import FinanceHeader from '@/components/screens/finance/FinanceHeader';
 import { useAppTheme } from '@/constants/theme';
 import { useLocalization } from '@/localization/useLocalization';
 
-const { width } = Dimensions.get('window');
 const TAB_COUNT = 5 as const;
 
 type IconProps = { color?: string; size?: number; strokeWidth?: number };
@@ -180,8 +179,9 @@ const GlowIndicator = memo(function GlowIndicator({ translateX, width }: GlowInd
 GlowIndicator.displayName = 'GlowIndicator';
 
 /* ---------------------------- Custom TabBar --------------------------- */
-/** We avoid useEffect. We trigger springs only when targetX actually changes. */
+/** Responsive tab bar with proper animation handling for tablets and rapid tab switches */
 const CustomTabBar = memo(function CustomTabBar({ state, navigation }: any) {
+  const { width } = useWindowDimensions();
   const theme = useAppTheme();
   const { strings } = useLocalization();
   const insets = useSafeAreaInsets();
@@ -191,11 +191,24 @@ const CustomTabBar = memo(function CustomTabBar({ state, navigation }: any) {
 
   const translateX = useRef(new Animated.Value(state.index * tabWidth + indicatorOffset)).current;
   const lastTargetRef = useRef<number>(state.index * tabWidth + indicatorOffset);
+  const lastWidthRef = useRef<number>(width);
+
+  // Handle width changes (orientation/resize) - reset position immediately
+  useEffect(() => {
+    if (lastWidthRef.current !== width) {
+      lastWidthRef.current = width;
+      const newTarget = state.index * tabWidth + indicatorOffset;
+      translateX.setValue(newTarget);
+      lastTargetRef.current = newTarget;
+    }
+  }, [width, state.index, tabWidth, indicatorOffset, translateX]);
 
   // Compute current targetX and animate only if it changed:
   const targetX = state.index * tabWidth + indicatorOffset;
   if (lastTargetRef.current !== targetX) {
     lastTargetRef.current = targetX;
+    // Stop any running animation before starting new one (prevents animation queue buildup)
+    translateX.stopAnimation();
     Animated.spring(translateX, {
       toValue: targetX,
       useNativeDriver: true,

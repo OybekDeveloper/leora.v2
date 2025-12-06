@@ -28,6 +28,8 @@ import { useAppTheme } from '@/constants/theme';
 import { useLocalization } from '@/localization/useLocalization';
 import { useFinanceDomainStore } from '@/stores/useFinanceDomainStore';
 import { useShallow } from 'zustand/react/shallow';
+import { FxService } from '@/services/fx/FxService';
+import { normalizeFinanceCurrency } from '@/utils/financeCurrency';
 
 const formatCurrencyDisplay = (value: number, currency?: string) => {
   const resolvedCurrency = currency ?? 'USD';
@@ -170,18 +172,47 @@ export default function DebtDetailModal() {
       return null;
     }
     const startRate = debt.repaymentRateOnStart ?? 1;
-    const currentRate = startRate;
-    const totalPaidBase = payments.reduce((sum, p) => sum + p.convertedAmountToBase, 0);
-    const expectedAtStart = totalPaidBase * startRate;
-    const actualReceived = totalPaidBase * currentRate;
-    const profitLoss = actualReceived - expectedAtStart;
+    // Hozirgi kursni FxService dan olish
+    const currentRate = FxService.getInstance().getRate(
+      normalizeFinanceCurrency(debt.principalCurrency),
+      normalizeFinanceCurrency(debt.repaymentCurrency)
+    ) ?? startRate;
+
+    // Qarz summasi (qolgan)
+    const remainingAmount = debt.principalAmount;
+
+    // Boshlang'ich kursda kutilgan summa
+    const expectedAtStartRate = remainingAmount * startRate;
+    // Hozirgi kursda summa
+    const currentAtCurrentRate = remainingAmount * currentRate;
+
+    // Foyda/zarar hisoblash
+    // Agar men qarz berdim (they_owe_me): kurs oshsa = foyda (ko'proq pul qaytadi)
+    // Agar men qarz oldim (i_owe): kurs tushsa = foyda (kamroq pul to'layman)
+    const rateDifference = currentRate - startRate;
+    const profitLossInRepaymentCurrency = remainingAmount * rateDifference;
+
+    // Principal valyutada foyda/zarar
+    const profitLossInPrincipal = currentRate > 0 ? profitLossInRepaymentCurrency / currentRate : 0;
+
+    // Yo'nalishga qarab foyda/zarar belgilash
+    // they_owe_me: kurs oshsa = foyda (ko'proq pul qaytadi)
+    // i_owe: kurs oshsa = zarar (ko'proq pul to'layman)
+    const isProfit = debt.direction === 'they_owe_me'
+      ? rateDifference >= 0
+      : rateDifference <= 0;
+
     return {
       startRate,
       currentRate,
-      profitLoss,
-      isProfit: profitLoss >= 0,
+      rateDifference,
+      profitLossInRepaymentCurrency,
+      profitLossInPrincipal,
+      isProfit,
+      expectedAtStartRate,
+      currentAtCurrentRate,
     };
-  }, [debt, payments]);
+  }, [debt]);
 
   const handleBack = useCallback(() => {
     router.back();
@@ -466,14 +497,40 @@ export default function DebtDetailModal() {
               ) : (
                 <TrendingDown size={16} color={theme.colors.danger} />
               )}
-              <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>Currency P/L</Text>
+              <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>Valyuta Farqi</Text>
             </View>
             <View style={styles.detailsList}>
-              <DetailRow label="Rate at start" value={`${currencyPL.startRate.toLocaleString()}`} theme={theme} />
-              <DetailRow label="Current rate" value={`${currencyPL.currentRate.toLocaleString()}`} theme={theme} />
               <DetailRow
-                label="Profit/Loss"
-                value={`${currencyPL.isProfit ? '+' : '−'}${formatCurrencyDisplay(Math.abs(currencyPL.profitLoss), debt.baseCurrency)}`}
+                label="Boshlang'ich kurs"
+                value={`1 ${debt.principalCurrency} = ${currencyPL.startRate.toLocaleString()} ${debt.repaymentCurrency}`}
+                theme={theme}
+              />
+              <DetailRow
+                label="Hozirgi kurs"
+                value={`1 ${debt.principalCurrency} = ${currencyPL.currentRate.toLocaleString()} ${debt.repaymentCurrency}`}
+                theme={theme}
+              />
+              <DetailRow
+                label="Kutilgan summa"
+                value={formatCurrencyDisplay(currencyPL.expectedAtStartRate, debt.repaymentCurrency)}
+                theme={theme}
+              />
+              <DetailRow
+                label="Hozirgi summa"
+                value={formatCurrencyDisplay(currencyPL.currentAtCurrentRate, debt.repaymentCurrency)}
+                valueColor={currencyPL.isProfit ? theme.colors.success : theme.colors.danger}
+                theme={theme}
+              />
+              <DetailRow
+                label={currencyPL.isProfit ? 'Foyda' : 'Zarar'}
+                value={`${currencyPL.isProfit ? '+' : '−'}${formatCurrencyDisplay(Math.abs(currencyPL.profitLossInRepaymentCurrency), debt.repaymentCurrency)}`}
+                valueColor={currencyPL.isProfit ? theme.colors.success : theme.colors.danger}
+                theme={theme}
+              />
+              {/* Principal valyutada ham ko'rsatish */}
+              <DetailRow
+                label={`${currencyPL.isProfit ? 'Foyda' : 'Zarar'} (${debt.principalCurrency})`}
+                value={`${currencyPL.isProfit ? '+' : '−'}${formatCurrencyDisplay(Math.abs(currencyPL.profitLossInPrincipal), debt.principalCurrency)}`}
                 valueColor={currencyPL.isProfit ? theme.colors.success : theme.colors.danger}
                 theme={theme}
               />
@@ -485,18 +542,18 @@ export default function DebtDetailModal() {
       {/* Bottom Actions */}
       <View style={[styles.bottomActions, { borderTopColor: theme.colors.border, backgroundColor: theme.colors.background }]}>
         <Pressable
-          onPress={handleEdit}
-          style={[styles.bottomButton, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}
-        >
-          <Edit3 size={18} color={theme.colors.primary} />
-          <Text style={[styles.bottomButtonText, { color: theme.colors.primary }]}>Edit</Text>
-        </Pressable>
-        <Pressable
           onPress={handleDelete}
           style={[styles.bottomButton, { backgroundColor: `${theme.colors.danger}10`, borderColor: `${theme.colors.danger}30` }]}
         >
           <Trash2 size={18} color={theme.colors.danger} />
           <Text style={[styles.bottomButtonText, { color: theme.colors.danger }]}>Delete</Text>
+        </Pressable>
+        <Pressable
+          onPress={handleEdit}
+          style={[styles.bottomButton, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}
+        >
+          <Edit3 size={18} color={theme.colors.primary} />
+          <Text style={[styles.bottomButtonText, { color: theme.colors.primary }]}>Edit</Text>
         </Pressable>
       </View>
     </SafeAreaView>

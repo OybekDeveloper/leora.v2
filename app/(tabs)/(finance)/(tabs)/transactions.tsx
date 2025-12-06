@@ -17,6 +17,9 @@ import { useFinanceDomainStore } from '@/stores/useFinanceDomainStore';
 import type { Transaction as DomainTransaction, Account, Debt } from '@/domain/finance/types';
 import { useShallow } from 'zustand/react/shallow';
 import { type FilterState, useTransactionFilterStore } from '@/stores/useTransactionFilterStore';
+import { useFinanceCurrency } from '@/hooks/useFinanceCurrency';
+import { FxService } from '@/services/fx/FxService';
+import { normalizeFinanceCurrency } from '@/utils/financeCurrency';
 
 const BASE_CURRENCY = 'UZS';
 
@@ -108,6 +111,10 @@ const mapToCardData = (
     amount: transaction.amount,
     currency: transaction.currency ?? BASE_CURRENCY,
 
+    // Base currency amount (for display in user's preferred currency)
+    convertedAmountToBase: transaction.convertedAmountToBase,
+    baseCurrency: transaction.baseCurrency,
+
     // Transfer uchun
     fromAccountName,
     toAccountName,
@@ -122,6 +129,35 @@ const mapToCardData = (
     // Debt payment konvertatsiya (boshqa valyutadan to'langanda)
     originalCurrency: transaction.originalCurrency,
     originalAmount: transaction.originalAmount,
+
+    // Valyuta P/L hisoblash (qarz to'lovi uchun)
+    currencyPL: (() => {
+      if (!relatedDebt?.repaymentCurrency || relatedDebt.repaymentCurrency === relatedDebt.principalCurrency) {
+        return undefined;
+      }
+      const startRate = relatedDebt.repaymentRateOnStart ?? 1;
+      const currentRate = FxService.getInstance().getRate(
+        normalizeFinanceCurrency(relatedDebt.principalCurrency),
+        normalizeFinanceCurrency(relatedDebt.repaymentCurrency)
+      ) ?? startRate;
+
+      if (Math.abs(currentRate - startRate) < 0.0001) return undefined;
+
+      const paymentAmount = transaction.amount;
+      const rateDifference = currentRate - startRate;
+      const profitLossInRepaymentCurrency = paymentAmount * rateDifference;
+      const profitLoss = currentRate > 0 ? profitLossInRepaymentCurrency / currentRate : 0;
+
+      // Foyda/zarar yo'nalishi
+      const isProfit = relatedDebt.direction === 'they_owe_me' ? rateDifference >= 0 : rateDifference <= 0;
+
+      return {
+        startRate,
+        currentRate,
+        profitLoss: Math.abs(profitLoss),
+        isProfit,
+      };
+    })(),
 
     // Meta
     transactionId: transaction.id,
@@ -199,6 +235,8 @@ const TransactionsPage: React.FC = () => {
       debts: state.debts,
     })),
   );
+  // Use globalCurrency from useFinanceCurrency hook (same as index.tsx)
+  const { globalCurrency } = useFinanceCurrency();
 
   // Domain transactions ni CardData ga aylantirish
   const cardTransactions = useMemo<TransactionCardData[]>(
@@ -294,6 +332,7 @@ const TransactionsPage: React.FC = () => {
             group={group}
             onTransactionPress={handleTransactionPress}
             useCardView
+            displayCurrency={globalCurrency}
           />
         ))
       )}

@@ -8,18 +8,18 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  FlatList,
   Animated,
   ActivityIndicator,
 } from 'react-native';
+import { FlashList as FlashListBase } from '@shopify/flash-list';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Swipeable } from 'react-native-gesture-handler';
 import Sortable from 'react-native-sortables';
 import type { SortableGridDragEndParams, SortableGridRenderItem } from 'react-native-sortables';
 import { useRouter } from 'expo-router';
-
 import { Theme, useAppTheme } from '@/constants/theme';
 import { useLocalization } from '@/localization/useLocalization';
+const FlashList = FlashListBase as any;
 
 export default function ManageWidgetModal() {
   const router = useRouter();
@@ -45,8 +45,6 @@ export default function ManageWidgetModal() {
     ) as WidgetType[];
   }, [activeWidgets]);
 
-  // Group inactive widgets by category for horizontal carousels
-  // Each category will be rendered as a separate horizontal FlatList
   const inactiveWidgetsByCategory = useMemo(() => {
     return inactiveWidgets.reduce<Partial<Record<WidgetConfig['category'], WidgetType[]>>>(
       (acc, widgetId) => {
@@ -242,19 +240,20 @@ export default function ManageWidgetModal() {
         <Text style={styles.headerTitle}>{widgetStrings.title}</Text>
       </View>
 
-      {/* Main vertical FlatList - replaces ScrollView to avoid Android nesting issues */}
+      {/* Main vertical FlashList - replaces ScrollView to avoid Android nesting issues */}
       {/* Available widgets at TOP, Active widgets at BOTTOM */}
-      <FlatList
-        data={[]} // Empty data array - all content is in ListHeaderComponent
-        renderItem={null}
+      <FlashList
+        data={[1]} // Dummy data for FlashList
+        renderItem={() => null}
         showsVerticalScrollIndicator={false}
+        estimatedItemSize={100}
         contentContainerStyle={styles.mainListContent}
         ListHeaderComponent={
           <>
             {/* Available Widgets Section - AT THE TOP */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>{widgetStrings.availableWidgets}</Text>
-              <Text style={styles.sectionSubtitle}>{widgetStrings.tapToAdd}</Text>
+            <View style={styles.sectionFullWidth}>
+              <Text style={[styles.sectionTitle, styles.sectionTitleWithPadding]}>{widgetStrings.availableWidgets}</Text>
+              <Text style={[styles.sectionSubtitle, styles.sectionTitleWithPadding]}>{widgetStrings.tapToAdd}</Text>
 
               {availableCategories.length === 0 ? (
                 <View style={styles.emptyState}>
@@ -263,53 +262,60 @@ export default function ManageWidgetModal() {
               ) : (
                 <>
                   {/* Category Tab Bar - horizontal scroll for category selection */}
-                  <FlatList
-                    data={availableCategories}
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    keyExtractor={(category) => category}
-                    renderItem={({ item: category }) => (
-                      <TouchableOpacity
-                        style={[
-                          styles.categoryChip,
-                          selectedCategory === category && styles.categoryChipActive,
-                        ]}
-                        onPress={() => setSelectedCategory(category)}
-                      >
-                        <Text
+                  <View style={styles.categoryListContainer}>
+                    <FlashList
+                      data={availableCategories}
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      keyExtractor={(category: WidgetConfig['category']) => category}
+                      estimatedItemSize={100}
+                      renderItem={({ item: category }: { item: WidgetConfig['category'] }) => (
+                        <TouchableOpacity
                           style={[
-                            styles.categoryChipText,
-                            selectedCategory === category && styles.categoryChipTextActive,
+                            styles.categoryChip,
+                            selectedCategory === category && styles.categoryChipActive,
                           ]}
+                          onPress={() => setSelectedCategory(category)}
                         >
-                          {widgetStrings.categories[category] ?? category}
-                        </Text>
-                      </TouchableOpacity>
-                    )}
-                    contentContainerStyle={styles.categoryTabBar}
-                    ItemSeparatorComponent={() => <View style={{ width: 8 }} />}
-                  />
+                          <Text
+                            style={[
+                              styles.categoryChipText,
+                              selectedCategory === category && styles.categoryChipTextActive,
+                            ]}
+                          >
+                            {widgetStrings.categories[category] ?? category}
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                      ListHeaderComponent={<View style={styles.listEdgeSpacer} />}
+                      ItemSeparatorComponent={() => <View style={styles.horizontalSeparator} />}
+                      ListFooterComponent={<View style={styles.listEdgeSpacer} />}
+                    />
+                  </View>
 
-                  {/* Horizontal FlatList for widgets in selected category */}
-                  {/* DO NOT use ScrollView here - FlatList horizontal mode prevents Android gesture conflicts */}
+                  {/* Horizontal FlashList for widgets in selected category */}
                   {displayedInactiveWidgets.length === 0 ? (
                     <View style={styles.emptyState}>
                       <Text style={styles.emptyText}>{widgetStrings.noWidgetsInCategory}</Text>
                     </View>
                   ) : (
-                    <FlatList
-                      data={displayedInactiveWidgets}
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                      keyExtractor={(widgetId) => widgetId}
-                      renderItem={({ item: widgetId }) => (
-                        <View style={styles.horizontalWidgetItem}>
-                          {renderInactiveWidget(widgetId)}
-                        </View>
-                      )}
-                      contentContainerStyle={styles.horizontalWidgetList}
-                      ItemSeparatorComponent={() => <View style={{ width: 12 }} />}
-                    />
+                    <View style={styles.widgetListContainer}>
+                      <FlashList
+                        data={displayedInactiveWidgets}
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        keyExtractor={(widgetId: WidgetType) => widgetId}
+                        estimatedItemSize={280}
+                        renderItem={({ item: widgetId }: { item: WidgetType }) => (
+                          <View style={styles.horizontalWidgetItem}>
+                            {renderInactiveWidget(widgetId)}
+                          </View>
+                        )}
+                        ListHeaderComponent={<View style={styles.listEdgeSpacer} />}
+                        ItemSeparatorComponent={() => <View style={styles.widgetSeparator} />}
+                        ListFooterComponent={<View style={styles.listEdgeSpacer} />}
+                      />
+                    </View>
                   )}
                 </>
               )}
@@ -377,12 +383,18 @@ const createStyles = (theme: Theme) =>
       paddingHorizontal: 16,
       marginTop: 24,
     },
+    sectionFullWidth: {
+      marginTop: 24,
+    },
     sectionTitle: {
       fontSize: 12,
       fontWeight: '700',
       letterSpacing: 1,
       color: theme.colors.textSecondary,
       marginBottom: 4,
+    },
+    sectionTitleWithPadding: {
+      paddingHorizontal: 16,
     },
     sectionSubtitle: {
       fontSize: 12,
@@ -394,6 +406,22 @@ const createStyles = (theme: Theme) =>
     },
     sortableContainer: {
       flex: 1,
+    },
+    listEdgeSpacer: {
+      width: 16,
+    },
+    horizontalSeparator: {
+      width: 8,
+    },
+    widgetSeparator: {
+      width: 12,
+    },
+    categoryListContainer: {
+      height: 44,
+      marginBottom: 12,
+    },
+    widgetListContainer: {
+      height: 80,
     },
     categoryTabBar: {
       paddingVertical: 8,
@@ -425,7 +453,7 @@ const createStyles = (theme: Theme) =>
     widgetItem: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: theme.colors.surface,
+      backgroundColor: theme.colors.card,
       borderRadius: 12,
       padding: 12,
       minHeight: 72,

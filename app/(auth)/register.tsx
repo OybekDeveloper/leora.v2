@@ -161,8 +161,8 @@ const RegisterScreen = () => {
   );
 
   useEffect(() => {
-    setFinanceRegion(selectedRegion);
-    setSelectedCurrency(getFinanceRegionPreset(selectedRegion).currency);
+    // syncDisplayCurrency: false - valyutani mintaqaga bog'lamaslik, mustaqil tanlash
+    setFinanceRegion(selectedRegion, { syncDisplayCurrency: false });
     setCurrencyQuery('');
   }, [selectedRegion, setFinanceRegion]);
 
@@ -243,11 +243,8 @@ const RegisterScreen = () => {
       setLoggedIn(true);
       setLocked(false);
       updateLastActive();
-      Alert.alert(
-        registerStrings.alerts.successTitle,
-        registerStrings.alerts.successMessage,
-        [{ text: 'OK', onPress: () => router.replace('/(tabs)') }],
-      );
+      // Navigate directly without Alert to prevent double splash screen bug
+      router.replace('/(tabs)');
       return;
     }
 

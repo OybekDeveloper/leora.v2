@@ -161,6 +161,7 @@ function RootNavigator({
   const lockIsLocked = useLockStore((state) => state.isLocked);
   const router = useRouter();
   const segments = useSegments();
+  const hasNavigatedAfterAuth = useRef(false);
   const techniqueKey = useFocusSettingsStore((state) => state.techniqueKey);
   const recordSession = useFocusSettingsStore((state) => state.recordSession);
   const openFocusSettingsModal = useModalStore((state) => state.openFocusSettingsModal);
@@ -273,13 +274,18 @@ function RootNavigator({
     const inAuthGroup = segments[0] === '(auth)';
 
     if (!isAuthenticated) {
+      hasNavigatedAfterAuth.current = false; // Reset flag when logged out
       if (!inAuthGroup) {
         router.replace('/(auth)/login');
       }
       return;
     }
 
+    // Agar allaqachon navigate qilingan bo'lsa, skip (double navigation prevention)
+    if (hasNavigatedAfterAuth.current) return;
+
     if (inAuthGroup) {
+      hasNavigatedAfterAuth.current = true;
       router.replace('/(tabs)');
     }
   }, [isAuthenticated, segments, hasBooted, router]);

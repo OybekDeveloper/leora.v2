@@ -16,7 +16,7 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 
@@ -131,6 +131,7 @@ export default function FocusSettingsModal() {
   const theme = useAppTheme();
   const colors = useThemeColors();
   const strings = useFocusSettingsStrings();
+  const insets = useSafeAreaInsets();
 
   const techniqueKey = useFocusSettingsStore((state) => state.techniqueKey);
   const workMinutes = useFocusSettingsStore((state) => state.workMinutes);
@@ -196,7 +197,7 @@ export default function FocusSettingsModal() {
 
   return (
     <>
-      <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.background }]} edges={['bottom', 'top']}>
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.background }]} edges={['top']}>
         <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
           <Text style={[styles.title, { color: theme.colors.textSecondary }]}>
             {strings.header.title}
@@ -336,7 +337,16 @@ export default function FocusSettingsModal() {
         </KeyboardAvoidingView>
       </SafeAreaView>
 
-      <View style={styles.footerButtons}>
+      <View style={[styles.footerButtons, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+        <AnimatedPressable
+          style={[styles.secondaryButton, { borderColor: theme.colors.border }]}
+          onPress={handleReset}
+        >
+          <Text style={[styles.secondaryButtonText, { color: theme.colors.textSecondary }]}>
+            {strings.buttons.reset}
+          </Text>
+        </AnimatedPressable>
+
         <AnimatedPressable
           style={[
             styles.primaryButton,
@@ -348,15 +358,6 @@ export default function FocusSettingsModal() {
         >
           <Text style={[styles.primaryButtonText, { color: theme.colors.onPrimary }]}>
             {strings.buttons.confirm}
-          </Text>
-        </AnimatedPressable>
-
-        <AnimatedPressable
-          style={[styles.secondaryButton, { borderColor: theme.colors.border }]}
-          onPress={handleReset}
-        >
-          <Text style={[styles.secondaryButtonText, { color: theme.colors.textSecondary }]}>
-            {strings.buttons.reset}
           </Text>
         </AnimatedPressable>
       </View>
@@ -433,13 +434,15 @@ const styles = StyleSheet.create({
   sessionInput: {
     flexBasis: '47%',
     borderRadius: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
+    overflow: 'hidden',
     gap: 8,
+    paddingHorizontal: 14,
+    paddingBottom: 12,
   },
   sessionInputText: {
     fontSize: 18,
     fontWeight: '600',
+    paddingTop: 12,
   },
   sessionInputSuffix: {
     fontSize: 11,

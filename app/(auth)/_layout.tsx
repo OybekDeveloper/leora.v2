@@ -2,9 +2,11 @@ import { Stack, useRouter } from 'expo-router';
 import { useEffect } from 'react';
 
 import { useAuthStore } from '@/stores/useAuthStore';
+import { useOnboardingStore } from '@/stores/useOnboardingStore';
 
 export default function AuthLayout() {
   const { isAuthenticated } = useAuthStore();
+  const { hasSeenOnboarding } = useOnboardingStore();
   const router = useRouter();
 
   useEffect(() => {
@@ -15,7 +17,7 @@ export default function AuthLayout() {
 
   return (
     <Stack
-      initialRouteName="login"
+      initialRouteName={hasSeenOnboarding ? 'login' : 'onboarding'}
       screenOptions={{
         headerShown: false,
         gestureEnabled: true,
@@ -25,6 +27,7 @@ export default function AuthLayout() {
         },
       }}
     >
+      <Stack.Screen name="onboarding" options={{ gestureEnabled: false }} />
       <Stack.Screen name="login" />
       <Stack.Screen name="register" />
       <Stack.Screen name="forgot-password" />

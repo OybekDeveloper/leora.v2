@@ -35,6 +35,7 @@ import {
   type FinanceCurrency,
   useFinancePreferencesStore,
 } from '@/stores/useFinancePreferencesStore';
+import { formatCompactNumber } from '@/utils/formatNumber';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -171,11 +172,18 @@ export default function FinanceReviewScreen() {
     [balanceCurrency, convertAmount, globalCurrency],
   );
   const formatBalanceValue = useCallback(
-    (value: number) =>
-      formatFinanceCurrency(convertToBalanceCurrency(value), {
+    (value: number, compact: boolean = false) => {
+      const converted = convertToBalanceCurrency(value);
+      const absConverted = Math.abs(converted);
+      // Use compact format for large values (> 1 million) or when explicitly requested
+      if (compact || absConverted >= 1000000) {
+        return `${formatCompactNumber(converted, 1, 1000000)} ${balanceCurrency}`;
+      }
+      return formatFinanceCurrency(converted, {
         fromCurrency: balanceCurrency,
         convert: false,
-      }),
+      });
+    },
     [balanceCurrency, convertToBalanceCurrency, formatFinanceCurrency],
   );
 
@@ -454,9 +462,12 @@ export default function FinanceReviewScreen() {
                 styles.transactionAmount,
                 { color: item.isIncome ? theme.colors.success : theme.colors.danger },
               ]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.8}
             >
               {item.isIncome ? '+' : '−'}
-              {formatBalanceValue(item.amount)}
+              {formatBalanceValue(item.amount, true)}
             </Text>
           ),
     },

@@ -8,6 +8,7 @@ import {
   View,
   Switch,
 } from 'react-native';
+import { FlashList as FlashListBase } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { useShallow } from 'zustand/react/shallow';
@@ -33,13 +34,15 @@ import {
   Flame,
   Zap,
   HelpCircle,
+  Flag,
+  Check,
 } from 'lucide-react-native';
+import { Dropdown } from 'react-native-element-dropdown';
 
 import { createThemedStyles, useAppTheme } from '@/constants/theme';
 import { usePlannerDomainStore } from '@/stores/usePlannerDomainStore';
 import { useFinanceDomainStore } from '@/stores/useFinanceDomainStore';
 import { AdaptiveGlassView } from '@/components/ui/AdaptiveGlassView';
-import { FloatList, FloatListItem } from '@/components/ui/FloatList';
 import { useLocalization } from '@/localization/useLocalization';
 import type {
   HabitType,
@@ -50,8 +53,9 @@ import type {
   HabitDifficulty,
   HabitPriority,
 } from '@/domain/planner/types';
-import { Dropdown } from 'react-native-element-dropdown';
-import { Flag, Check } from 'lucide-react-native';
+
+// Cast FlashList to avoid TypeScript generic inference issues
+const FlashList = FlashListBase as any;
 
 type Props = {
   habitId?: string;
@@ -624,38 +628,41 @@ export function HabitComponent({ habitId, presetGoalId }: Props) {
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         {/* Popular Habits */}
         {!habitId && (
-          <View style={styles.section}>
-            <Text style={styles.label}>{habitStrings.popularHabitsLabel}</Text>
-            <FloatList
-              items={POPULAR_HABITS.map((template) => ({
-                id: template.id,
-                label: habitStrings.popularHabits[template.titleKey].title,
-                icon: null,
-                template,
-              })) as (FloatListItem & { template: PopularHabitTemplate })[]}
-              onSelect={(item) => handlePopularHabitSelect((item as any).template)}
-              gap={10}
-              renderItem={(item) => {
-                const template = (item as any).template as PopularHabitTemplate;
-                const Icon = template.icon;
-                const templateStrings = habitStrings.popularHabits[template.titleKey];
-                return (
-                  <AdaptiveGlassView style={styles.popularHabitCard}>
-                    <View style={styles.popularHabitIconWrap}>
-                      <Icon size={24} color={theme.colors.textPrimary} />
-                    </View>
-                    <Text style={styles.popularHabitTitle} numberOfLines={1} ellipsizeMode="tail">
-                      {templateStrings.title}
-                    </Text>
-                    {templateStrings.time ? (
-                      <Text style={styles.popularHabitTime}>
-                        <Clock size={10} color={theme.colors.textMuted} /> {templateStrings.time}
-                      </Text>
-                    ) : null}
-                  </AdaptiveGlassView>
-                );
-              }}
-            />
+          <View style={styles.sectionFullWidth}>
+            <Text style={[styles.label, styles.labelWithPadding]}>{habitStrings.popularHabitsLabel}</Text>
+            <View style={styles.popularHabitsListContainer}>
+              <FlashList
+                data={POPULAR_HABITS}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                estimatedItemSize={130}
+                keyExtractor={(item: PopularHabitTemplate) => item.id}
+                ItemSeparatorComponent={() => <View style={styles.horizontalSeparator} />}
+                ListHeaderComponent={<View style={styles.listEdgeSpacer} />}
+                ListFooterComponent={<View style={styles.listEdgeSpacer} />}
+                renderItem={({ item: template }: { item: PopularHabitTemplate }) => {
+                  const Icon = template.icon;
+                  const templateStrings = habitStrings.popularHabits[template.titleKey];
+                  return (
+                    <Pressable onPress={() => handlePopularHabitSelect(template)}>
+                      <AdaptiveGlassView style={styles.popularHabitCard}>
+                        <View style={styles.popularHabitIconWrap}>
+                          <Icon size={24} color={theme.colors.textPrimary} />
+                        </View>
+                        <Text style={styles.popularHabitTitle} numberOfLines={1} ellipsizeMode="tail">
+                          {templateStrings.title}
+                        </Text>
+                        {templateStrings.time ? (
+                          <Text style={styles.popularHabitTime}>
+                            <Clock size={10} color={theme.colors.textMuted} /> {templateStrings.time}
+                          </Text>
+                        ) : null}
+                      </AdaptiveGlassView>
+                    </Pressable>
+                  );
+                }}
+              />
+            </View>
           </View>
         )}
 
@@ -727,38 +734,42 @@ export function HabitComponent({ habitId, presetGoalId }: Props) {
         </View>
 
         {/* Categories (Habit Type) */}
-        <View style={styles.section}>
-          <Text style={styles.label}>{habitStrings.categoriesLabel}</Text>
-          <FloatList
-            items={HABIT_TYPE_IDS.map((type) => ({
-              id: type.id,
-              label: habitStrings.habitTypes[type.id],
-              icon: null,
-              iconComponent: type.icon,
-            })) as (FloatListItem & { iconComponent: typeof HeartPulse })[]}
-            selectedId={habitType}
-            onSelect={(item) => setHabitType(item.id as HabitType)}
-            gap={10}
-            renderItem={(item, isSelected) => {
-              const Icon = (item as any).iconComponent as typeof HeartPulse;
-              return (
-                <AdaptiveGlassView
-                  style={[styles.typeCard, isSelected && styles.typeCardActive]}
-                >
-                  <View style={[styles.typeIconWrap, isSelected && styles.typeIconWrapActive]}>
-                    <Icon size={18} color={isSelected ? theme.colors.primary : theme.colors.textSecondary} />
-                  </View>
-                  <Text
-                    style={[styles.typeLabel, isSelected && styles.typeLabelActive]}
-                    numberOfLines={1}
-                    ellipsizeMode="tail"
-                  >
-                    {item.label}
-                  </Text>
-                </AdaptiveGlassView>
-              );
-            }}
-          />
+        <View style={styles.sectionFullWidth}>
+          <Text style={[styles.label, styles.labelWithPadding]}>{habitStrings.categoriesLabel}</Text>
+          <View style={styles.habitTypeListContainer}>
+            <FlashList
+              data={HABIT_TYPE_IDS}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              estimatedItemSize={110}
+              keyExtractor={(item: { id: HabitType; icon: typeof HeartPulse }) => item.id}
+              ItemSeparatorComponent={() => <View style={styles.horizontalSeparator} />}
+              ListHeaderComponent={<View style={styles.listEdgeSpacer} />}
+              ListFooterComponent={<View style={styles.listEdgeSpacer} />}
+              renderItem={({ item: type }: { item: { id: HabitType; icon: typeof HeartPulse } }) => {
+                const isSelected = habitType === type.id;
+                const Icon = type.icon;
+                return (
+                  <Pressable onPress={() => setHabitType(type.id)}>
+                    <AdaptiveGlassView
+                      style={[styles.typeCard, isSelected && styles.typeCardActive]}
+                    >
+                      <View style={[styles.typeIconWrap, isSelected && styles.typeIconWrapActive]}>
+                        <Icon size={18} color={isSelected ? theme.colors.primary : theme.colors.textSecondary} />
+                      </View>
+                      <Text
+                        style={[styles.typeLabel, isSelected && styles.typeLabelActive]}
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
+                      >
+                        {habitStrings.habitTypes[type.id]}
+                      </Text>
+                    </AdaptiveGlassView>
+                  </Pressable>
+                );
+              }}
+            />
+          </View>
         </View>
 
         {/* Difficulty */}
@@ -1396,6 +1407,19 @@ const useStyles = createThemedStyles((theme) => ({
   section: {
     gap: 8,
   },
+  sectionFullWidth: {
+    gap: 8,
+    marginHorizontal: -20,
+  },
+  labelWithPadding: {
+    paddingHorizontal: 20,
+  },
+  listEdgeSpacer: {
+    width: 20,
+  },
+  horizontalSeparator: {
+    width: 10,
+  },
   label: {
     fontSize: 14,
     fontWeight: '600',
@@ -1403,6 +1427,12 @@ const useStyles = createThemedStyles((theme) => ({
     marginBottom: 4,
   },
   // Popular Habits
+  popularHabitsListContainer: {
+    height: 130,
+  },
+  habitTypeListContainer: {
+    height: 80,
+  },
   popularHabitsRow: {
     gap: 10,
     paddingVertical: 4,

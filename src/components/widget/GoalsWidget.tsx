@@ -5,6 +5,7 @@ import { Dot } from 'lucide-react-native';
 import { AdaptiveGlassView } from '@/components/ui/AdaptiveGlassView';
 import { useAppTheme } from '@/constants/theme';
 import { useLocalization } from '@/localization/useLocalization';
+import { formatCompactNumber } from '@/utils/formatNumber';
 
 interface GoalsWidgetProps {
   goals?: Goal[];
@@ -67,12 +68,17 @@ const GoalItem = ({ goal, hasData, placeholderText }: GoalItemProps) => {
         <View style={[styles.progressBar, { width, backgroundColor: barColor }]} />
       </View>
 
-  <Text style={[styles.goalTarget, { color: theme.colors.textMuted }]}>
-    {hasData
-      ? `${goal.current.toLocaleString()} / ${goal.target.toLocaleString()} ${goal.unit}`
-      : placeholderText}
-  </Text>
-</View>
+      <Text
+        style={[styles.goalTarget, { color: theme.colors.textMuted }]}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.7}
+      >
+        {hasData
+          ? `${formatCompactNumber(goal.current)} / ${formatCompactNumber(goal.target)} ${goal.unit}`
+          : placeholderText}
+      </Text>
+    </View>
   );
 };
 

@@ -327,6 +327,7 @@ const DEFAULT_CATEGORIES: string[] = [
   'Business',
   'Other',
   'Debt',
+  'Balance Adjustment',
 ];
 
 const createInitialFinanceCollections = () => ({
@@ -346,8 +347,14 @@ const applyTransactionToAccounts = (
   transaction: Transaction,
   multiplier: 1 | -1,
   timestamp: string,
-): Account[] =>
-  accounts.map((account) => {
+): Account[] => {
+  // Balance adjustment transactionlar uchun account balance o'zgartirilmaydi
+  // chunki balance allaqachon updateAccount orqali o'zgartirilgan
+  if (transaction.isBalanceAdjustment) {
+    return accounts;
+  }
+
+  return accounts.map((account) => {
     let delta = 0;
     if (transaction.type === 'transfer') {
       const fromId = transaction.fromAccountId ?? transaction.accountId;
@@ -369,6 +376,7 @@ const applyTransactionToAccounts = (
       updatedAt: timestamp,
     } satisfies Account;
   });
+};
 
 const buildBudgetEntriesForTransaction = (
   transaction: Transaction,

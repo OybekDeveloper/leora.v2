@@ -9,6 +9,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { FlashList as FlashListBase } from '@shopify/flash-list';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -28,8 +29,8 @@ import {
   Wallet,
   X,
 } from 'lucide-react-native';
-
 import { AdaptiveGlassView } from '@/components/ui/AdaptiveGlassView';
+import { formatNumberWithSpaces, parseSpacedNumber } from '@/utils/formatNumber';
 import { useAppTheme } from '@/constants/theme';
 import type { AccountIconId, AccountKind } from '@/types/accounts';
 import { useCustomAccountTypesStore } from '@/stores/useCustomAccountTypesStore';
@@ -43,6 +44,8 @@ import type { AccountType } from '@/domain/finance/types';
 import { useFinanceDomainStore } from '@/stores/useFinanceDomainStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useLocalization } from '@/localization/useLocalization';
+
+const FlashList = FlashListBase as any;
 
 type TypeOption = {
   key: string;
@@ -153,16 +156,22 @@ export default function AddAccountModal() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const editingId = Array.isArray(id) ? id[0] : id ?? null;
 
-  const { accounts, createAccount, updateAccount, clearCustomTypeFromAccounts } = useFinanceDomainStore(
+  const { accounts, createAccount, updateAccount, clearCustomTypeFromAccounts, createTransaction } = useFinanceDomainStore(
     useShallow((state) => ({
       accounts: state.accounts,
       createAccount: state.createAccount,
       updateAccount: state.updateAccount,
       clearCustomTypeFromAccounts: state.clearCustomTypeFromAccounts,
+      createTransaction: state.createTransaction,
     })),
   );
 
-  const baseCurrency = useFinancePreferencesStore((state) => state.baseCurrency);
+  const { baseCurrency, convertAmount } = useFinancePreferencesStore(
+    useShallow((state) => ({
+      baseCurrency: state.baseCurrency,
+      convertAmount: state.convertAmount,
+    })),
+  );
   const {
     customTypes,
     addCustomType,
@@ -216,7 +225,8 @@ export default function AddAccountModal() {
       setFormMode('edit');
       setName(editingAccount.name);
       setDescription('');
-      setAmount(String(editingAccount.currentBalance ?? editingAccount.initialBalance ?? ''));
+      const balance = editingAccount.currentBalance ?? editingAccount.initialBalance ?? 0;
+      setAmount(formatNumberWithSpaces(balance));
       setSelectedCurrency(normalizeFinanceCurrency(editingAccount.currency as FinanceCurrency, baseCurrency));
 
       // Check if this is a custom type account
@@ -304,39 +314,124 @@ export default function AddAccountModal() {
     }
   }, [removeCustomType, clearCustomTypeFromAccounts, selectedCustomTypeId]);
 
+  const handleAmountChange = useCallback((value: string) => {
+    // Remove spaces and non-numeric characters except dot and comma
+    const withoutSpaces = value.replace(/\s/g, '');
+    const sanitized = withoutSpaces.replace(/[^0-9.,-]/g, '').replace(/,/g, '.');
+    const parts = sanitized.split('.');
+    let cleanValue = sanitized;
+    if (parts.length > 2) {
+      cleanValue = `${parts[0]}.${parts.slice(1).join('')}`;
+    }
+    // Format with spaces for display
+    if (cleanValue) {
+      // Handle negative values
+      const isNegative = cleanValue.startsWith('-');
+      const absValue = isNegative ? cleanValue.slice(1) : cleanValue;
+      const num = parseFloat(absValue);
+      if (!isNaN(num)) {
+        const hasDecimal = absValue.includes('.');
+        if (hasDecimal) {
+          const [intPart, decPart] = absValue.split('.');
+          const formattedInt = intPart ? parseInt(intPart, 10).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ') : '0';
+          setAmount(`${isNegative ? '-' : ''}${formattedInt}.${decPart}`);
+        } else {
+          setAmount(`${isNegative ? '-' : ''}${formatNumberWithSpaces(num)}`);
+        }
+      } else {
+        setAmount(cleanValue);
+      }
+    } else {
+      setAmount('');
+    }
+  }, []);
+
   const isEditMode = formMode === 'edit';
   const isSaveDisabled = !name.trim();
 
   const handleSubmit = useCallback(() => {
-    const parsedAmount = Number(amount.replace(/[^0-9.-]+/g, '').trim() || '0');
-    const payloadAmount = Number.isFinite(parsedAmount) ? parsedAmount : 0;
+    const payloadAmount = parseSpacedNumber(amount);
+    const finalAmount = Number.isFinite(payloadAmount) ? payloadAmount : 0;
 
     if (isEditMode && editingAccount) {
+      // Check if balance changed
+      const previousBalance = editingAccount.currentBalance ?? editingAccount.initialBalance ?? 0;
+      const balanceDiff = finalAmount - previousBalance;
+
+      // Update account first
       updateAccount(editingAccount.id, {
         name: name.trim(),
         accountType: mapAccountKindToDomainType(selectedType),
         currency: selectedCurrency,
-        currentBalance: payloadAmount,
+        currentBalance: finalAmount,
         customTypeId: selectedType === 'custom' ? selectedCustomTypeId ?? undefined : undefined,
       });
+
+      // Create adjustment transaction if balance changed
+      if (balanceDiff !== 0) {
+        const isIncome = balanceDiff > 0;
+        createTransaction({
+          userId: 'local-user',
+          type: isIncome ? 'income' : 'expense',
+          accountId: editingAccount.id,
+          amount: Math.abs(balanceDiff),
+          currency: selectedCurrency,
+          baseCurrency: baseCurrency,
+          categoryId: 'Balance Adjustment',
+          description: `${strings.financeScreens?.transactions?.balanceAdjustment ?? 'Balance Adjustment'}: ${editingAccount.name}`,
+          date: new Date().toISOString(),
+          isBalanceAdjustment: true,
+          rateUsedToBase: 1,
+          convertedAmountToBase: Math.abs(balanceDiff),
+        });
+      }
+
       router.back();
       return;
     }
 
-    createAccount({
+    const newAccount = createAccount({
       userId: 'local-user',
       name: name.trim() || 'Account',
       accountType: mapAccountKindToDomainType(selectedType),
       currency: selectedCurrency,
-      initialBalance: payloadAmount,
+      initialBalance: finalAmount,
       linkedGoalId: undefined,
       isArchived: false,
       customTypeId: selectedType === 'custom' ? selectedCustomTypeId ?? undefined : undefined,
     });
+
+    // Create initial balance transaction if amount > 0
+    if (finalAmount > 0 && newAccount) {
+      // Calculate proper conversion to base currency
+      const convertedToBase = selectedCurrency === baseCurrency
+        ? finalAmount
+        : convertAmount(finalAmount, selectedCurrency, baseCurrency);
+      const rateToBase = finalAmount !== 0 ? convertedToBase / finalAmount : 1;
+
+      createTransaction({
+        userId: 'local-user',
+        type: 'income',
+        accountId: newAccount.id,
+        amount: finalAmount,
+        currency: selectedCurrency,
+        baseCurrency: baseCurrency,
+        categoryId: 'Initial Balance',
+        description: `${strings.financeScreens?.transactions?.balanceAdjustment ?? 'Initial Balance'}: ${name.trim() || 'Account'}`,
+        date: new Date().toISOString(),
+        isBalanceAdjustment: true,
+        rateUsedToBase: rateToBase,
+        convertedAmountToBase: convertedToBase,
+      });
+    }
+
     router.back();
   }, [
     amount,
+    baseCurrency,
+    convertAmount,
     createAccount,
+    createTransaction,
     editingAccount,
     isEditMode,
     name,
@@ -344,13 +439,13 @@ export default function AddAccountModal() {
     selectedCurrency,
     selectedType,
     selectedCustomTypeId,
+    strings,
     updateAccount,
   ]);
 
-
   return (
     <>
-      <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.background }]} edges={['bottom',"top"]}>
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.background }]} edges={['top']}>
         <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
           <Text style={[styles.title, { color: theme.colors.textSecondary }]}>
             {isEditMode ? accountStrings.titleEdit ?? 'Edit Account' : accountStrings.titleAdd ?? 'Add New Account'}
@@ -403,50 +498,58 @@ export default function AddAccountModal() {
               </AdaptiveGlassView>
             </View>
 
-            <View style={styles.formGroup}>
-              <Text style={[styles.label, { color: theme.colors.textSecondary }]}>
+            <View style={styles.formGroupFullWidth}>
+              <Text style={[styles.label, styles.labelWithPadding, { color: theme.colors.textSecondary }]}>
                 {accountStrings.typeLabel ?? 'Type'}
               </Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.typeScroll}
-              >
-                {typeOptions.map((option) => {
-                  const isCustom = option.id === 'custom';
-                  const isSelected =
-                    option.id === selectedType && (!isCustom || option.customTypeId === selectedCustomTypeId);
-                  return (
-                    <TypeOptionItem
-                      key={option.key}
-                      option={option}
-                      isSelected={isSelected}
-                      onSelect={() => {
-                        setSelectedType(option.id);
-                        setSelectedCustomTypeId(option.customTypeId ?? null);
-                      }}
-                      onDelete={isCustom && option.customTypeId ? () => handleDeleteCustomType(option.customTypeId!) : undefined}
-                      theme={theme}
-                    />
-                  );
-                })}
-                <View style={styles.typeItem}>
-                  <Pressable
-                    style={[styles.typePressable]}
-                    onPress={toggleAddType}
-                    android_ripple={{ color: theme.colors.borderMuted, borderless: false }}
-                  >
-                    <AdaptiveGlassView style={[styles.typeCard, { borderColor: theme.colors.border }]}>
-                      <View style={styles.typeInner}>
-                        <PlusCircle size={ICON_SIZE} color={theme.colors.textSecondary} strokeWidth={2} />
-                        <Text style={[styles.typeLabel, { color: theme.colors.textSecondary }]}>
-                          {accountStrings.addType ?? 'Add type'}
-                        </Text>
+              <View style={styles.typeListContainer}>
+                <FlashList
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  data={typeOptions}
+                  keyExtractor={(item: TypeOption) => item.key}
+                  estimatedItemSize={120}
+                  renderItem={({ item: option }: { item: TypeOption }) => {
+                    const isCustom = option.id === 'custom';
+                    const isSelected =
+                      option.id === selectedType && (!isCustom || option.customTypeId === selectedCustomTypeId);
+                    return (
+                      <TypeOptionItem
+                        option={option}
+                        isSelected={isSelected}
+                        onSelect={() => {
+                          setSelectedType(option.id);
+                          setSelectedCustomTypeId(option.customTypeId ?? null);
+                        }}
+                        onDelete={isCustom && option.customTypeId ? () => handleDeleteCustomType(option.customTypeId!) : undefined}
+                        theme={theme}
+                      />
+                    );
+                  }}
+                  ListHeaderComponent={<View style={styles.listEdgeSpacer} />}
+                  ItemSeparatorComponent={() => <View style={styles.horizontalSeparator} />}
+                  ListFooterComponent={
+                    <View style={styles.listFooterWithButton}>
+                      <View style={styles.typeItem}>
+                        <Pressable
+                          style={[styles.typePressable]}
+                          onPress={toggleAddType}
+                          android_ripple={{ color: theme.colors.borderMuted, borderless: false }}
+                        >
+                          <AdaptiveGlassView style={[styles.typeCard, { borderColor: theme.colors.border }]}>
+                            <View style={styles.typeInner}>
+                              <PlusCircle size={ICON_SIZE} color={theme.colors.textSecondary} strokeWidth={2} />
+                              <Text style={[styles.typeLabel, { color: theme.colors.textSecondary }]}>
+                                {accountStrings.addType ?? 'Add type'}
+                              </Text>
+                            </View>
+                          </AdaptiveGlassView>
+                        </Pressable>
                       </View>
-                    </AdaptiveGlassView>
-                  </Pressable>
-                </View>
-              </ScrollView>
+                    </View>
+                  }
+                />
+              </View>
               {showAddType && (
                 <Animated.View
                   style={[styles.addTypeContainer, addTypeAnimatedStyle]}
@@ -460,42 +563,46 @@ export default function AddAccountModal() {
                       style={[styles.input, { color: theme.colors.textPrimary }]}
                     />
                   </AdaptiveGlassView>
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.customIconRow}
-                  >
-                    {CUSTOM_ICON_OPTIONS.map((option) => {
-                      const SelectedIcon = option.Icon;
-                      const active = option.id === customIconChoice;
-                      const label = accountStrings.iconOptions?.[option.id] ?? option.label;
-                      return (
-                        <View key={option.id} style={styles.customIconItem}>
-                          <Pressable
-                            onPress={() => setCustomIconChoice(option.id)}
-                            android_ripple={{ color: theme.colors.borderMuted, borderless: false }}
-                            style={({ pressed }) => [styles.customIconPressable, pressed && { opacity: 0.9 }]}
-                          >
-                            <AdaptiveGlassView
-                              style={[
-                                styles.customIconCard,
-                                {
-                                  borderColor: !active ? theme.colors.primary : theme.colors.border,
-                                },
-                              ]}
+                  <View style={styles.iconListContainer}>
+                    <FlashList
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      data={CUSTOM_ICON_OPTIONS}
+                      keyExtractor={(item: CustomIconOption) => item.id}
+                      estimatedItemSize={100}
+                      renderItem={({ item: option }: { item: CustomIconOption }) => {
+                        const SelectedIcon = option.Icon;
+                        const active = option.id === customIconChoice;
+                        const label = accountStrings.iconOptions?.[option.id] ?? option.label;
+                        return (
+                          <View style={styles.customIconItem}>
+                            <Pressable
+                              onPress={() => setCustomIconChoice(option.id)}
+                              android_ripple={{ color: theme.colors.borderMuted, borderless: false }}
+                              style={({ pressed }) => [styles.customIconPressable, pressed && { opacity: 0.9 }]}
                             >
-                              <View style={styles.customIconInner}>
-                                <SelectedIcon size={ICON_SIZE} color={!active ? theme.colors.primary : theme.colors.textSecondary} />
-                                <Text style={[styles.iconChoiceLabel, { color: !active ? theme.colors.primary : theme.colors.textSecondary }]}>
-                                  {label}
-                                </Text>
-                              </View>
-                            </AdaptiveGlassView>
-                          </Pressable>
-                        </View>
-                      );
-                    })}
-                  </ScrollView>
+                              <AdaptiveGlassView
+                                style={[
+                                  styles.customIconCard,
+                                  {
+                                    borderColor: active ? theme.colors.primary : theme.colors.border,
+                                  },
+                                ]}
+                              >
+                                <View style={styles.customIconInner}>
+                                  <SelectedIcon size={ICON_SIZE} color={active ? theme.colors.primary : theme.colors.textSecondary} />
+                                  <Text style={[styles.iconChoiceLabel, { color: active ? theme.colors.primary : theme.colors.textSecondary }]}>
+                                    {label}
+                                  </Text>
+                                </View>
+                              </AdaptiveGlassView>
+                            </Pressable>
+                          </View>
+                        );
+                      }}
+                      ItemSeparatorComponent={() => <View style={styles.horizontalSeparator} />}
+                    />
+                  </View>
                   <AnimatedPressable
                     disabled={!customTypeName.trim()}
                     onPress={handleCreateCustomType}
@@ -512,56 +619,62 @@ export default function AddAccountModal() {
               )}
             </View>
 
-            <View style={styles.formGroup}>
-              <Text style={[styles.label, { color: theme.colors.textSecondary }]}>
+            <View style={styles.formGroupFullWidth}>
+              <Text style={[styles.label, styles.labelWithPadding, { color: theme.colors.textSecondary }]}>
                 {accountStrings.currencyLabel ?? 'Currency'}
               </Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.currencyScroll}
-              >
-                {currencyOptions.map((option) => {
-                  const isSelected = option.code === selectedCurrency;
-                  return (
-                    <View key={option.code} style={styles.currencyItem}>
-                      <Pressable
-                        onPress={() => setSelectedCurrency(option.code)}
-                        android_ripple={{ color: theme.colors.borderMuted, borderless: false }}
-                        style={({ pressed }) => [styles.currencyPressable, pressed && { opacity: 0.9 }]}
-                      >
-                        <AdaptiveGlassView
-                          style={[
-                            styles.currencyCard,
-                            {
-                              borderColor: !isSelected ? theme.colors.primary : theme.colors.border,
-                              backgroundColor: theme.colors.card,
-                            },
-                          ]}
+              <View style={styles.currencyListContainer}>
+                <FlashList
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  data={currencyOptions}
+                  keyExtractor={(item: { code: FinanceCurrency; label: string }) => item.code}
+                  estimatedItemSize={140}
+                  renderItem={({ item: option }: { item: { code: FinanceCurrency; label: string } }) => {
+                    const isSelected = option.code === selectedCurrency;
+                    return (
+                      <View style={styles.currencyItem}>
+                        <Pressable
+                          onPress={() => setSelectedCurrency(option.code)}
+                          android_ripple={{ color: theme.colors.borderMuted, borderless: false }}
+                          style={({ pressed }) => [styles.currencyPressable, pressed && { opacity: 0.9 }]}
                         >
-                          <Text
+                          <AdaptiveGlassView
                             style={[
-                              styles.currencyCode,
-                              { color: !isSelected ? theme.colors.primary : theme.colors.textSecondary },
+                              styles.currencyCard,
+                              {
+                                borderColor: isSelected ? theme.colors.primary : theme.colors.border,
+                                backgroundColor: theme.colors.card,
+                              },
                             ]}
                           >
-                            {option.code}
-                          </Text>
-                          <Text
-                            style={[
-                              styles.currencyLabel,
-                              { color: !isSelected ? theme.colors.primary : theme.colors.textSecondary },
-                            ]}
-                            numberOfLines={2}
-                          >
-                            {option.label}
-                          </Text>
-                        </AdaptiveGlassView>
-                      </Pressable>
-                    </View>
-                  );
-                })}
-              </ScrollView>
+                            <Text
+                              style={[
+                                styles.currencyCode,
+                                { color: isSelected ? theme.colors.primary : theme.colors.textSecondary },
+                              ]}
+                            >
+                              {option.code}
+                            </Text>
+                            <Text
+                              style={[
+                                styles.currencyLabel,
+                                { color: isSelected ? theme.colors.primary : theme.colors.textSecondary },
+                              ]}
+                              numberOfLines={2}
+                            >
+                              {option.label}
+                            </Text>
+                          </AdaptiveGlassView>
+                        </Pressable>
+                      </View>
+                    );
+                  }}
+                  ListHeaderComponent={<View style={styles.listEdgeSpacer} />}
+                  ItemSeparatorComponent={() => <View style={styles.horizontalSeparator} />}
+                  ListFooterComponent={<View style={styles.listEdgeSpacer} />}
+                />
+              </View>
             </View>
 
             <View style={styles.formGroup}>
@@ -571,7 +684,7 @@ export default function AddAccountModal() {
               <AdaptiveGlassView style={[styles.inputGlass, { borderColor: theme.colors.border }]}>
                 <TextInput
                   value={amount}
-                  onChangeText={setAmount}
+                  onChangeText={handleAmountChange}
                   placeholder={
                     (accountStrings.amountPlaceholder as string | undefined)?.replace('{currency}', selectedCurrency) ??
                     `Amount (${selectedCurrency})`
@@ -586,33 +699,34 @@ export default function AddAccountModal() {
 
           </ScrollView>
         </KeyboardAvoidingView>
-      </SafeAreaView>
-      <View style={styles.footerButtons}>
-        <AnimatedPressable
-          style={[
-            styles.primaryButton,
-            { backgroundColor: theme.colors.primary },
-            isSaveDisabled && styles.buttonDisabled,
-          ]}
-          onPress={handleSubmit}
-          disabled={isSaveDisabled}
-        >
-          <Text style={[styles.primaryButtonText, { color: theme.colors.onPrimary }]}>
-            {isEditMode
-              ? accountStrings.primaryActionSave ?? commonStrings.save ?? 'Save'
-              : accountStrings.primaryActionAdd ?? commonStrings.add ?? 'Add'}
-          </Text>
-        </AnimatedPressable>
 
-        <AnimatedPressable
-          style={[styles.secondaryButton, { borderColor: theme.colors.border }]}
-          onPress={handleCancel}
-        >
-          <Text style={[styles.secondaryButtonText, { color: theme.colors.textSecondary }]}>
-            {commonStrings.cancel ?? 'Cancel'}
-          </Text>
-        </AnimatedPressable>
-      </View>
+        <View style={[styles.footerButtons, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+          <AnimatedPressable
+            style={[styles.secondaryButton, { borderColor: theme.colors.border }]}
+            onPress={handleCancel}
+          >
+            <Text style={[styles.secondaryButtonText, { color: theme.colors.textSecondary }]}>
+              {commonStrings.cancel ?? 'Cancel'}
+            </Text>
+          </AnimatedPressable>
+
+          <AnimatedPressable
+            style={[
+              styles.primaryButton,
+              { backgroundColor: theme.colors.primary },
+              isSaveDisabled && styles.buttonDisabled,
+            ]}
+            onPress={handleSubmit}
+            disabled={isSaveDisabled}
+          >
+            <Text style={[styles.primaryButtonText, { color: theme.colors.onPrimary }]}>
+              {isEditMode
+                ? accountStrings.primaryActionSave ?? commonStrings.save ?? 'Save'
+                : accountStrings.primaryActionAdd ?? commonStrings.add ?? 'Add'}
+            </Text>
+          </AnimatedPressable>
+        </View>
+      </SafeAreaView>
     </>
   );
 }
@@ -620,6 +734,33 @@ export default function AddAccountModal() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
+  },
+  typeListContainer: {
+    height: 68,
+  },
+  iconListContainer: {
+    height: 68,
+  },
+  currencyListContainer: {
+    height: 80,
+  },
+  horizontalSeparator: {
+    width: 8,
+  },
+  listEdgeSpacer: {
+    width: 20,
+  },
+  listFooterWithButton: {
+    flexDirection: 'row',
+    paddingLeft: 8,
+    paddingRight: 20,
+  },
+  formGroupFullWidth: {
+    marginBottom: 4,
+    marginHorizontal: -20,
+  },
+  labelWithPadding: {
+    paddingHorizontal: 20,
   },
   header: {
     flexDirection: 'row',
@@ -653,13 +794,13 @@ const styles = StyleSheet.create({
   inputGlass: {
     borderRadius: 16,
     borderWidth: 1,
+    overflow: 'hidden',
   },
   multilineGlass: {
     minHeight: 110,
   },
   input: {
     minHeight: 48,
-    borderRadius: 14,
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 15,
@@ -700,31 +841,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  typeGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginHorizontal: -8,
-    paddingVertical: 4,
-  },
-  typeScroll: {
-    gap: 8,
-    paddingVertical: 4,
-  },
   typeItem: {
     width: 120,
-    paddingHorizontal: 4,
-    marginRight: 8,
+    height: 60,
   },
   typePressable: {
     borderRadius: 14,
     width: '100%',
+    height: '100%',
   },
   typeCard: {
     borderRadius: 14,
     paddingVertical: 10,
     paddingHorizontal: 10,
     alignItems: 'center',
+    justifyContent: 'center',
     width: '100%',
+    height: '100%',
     position: 'relative',
   },
   typeInner: {
@@ -736,7 +869,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
   },
-  deleteButton: {
+  typeDeleteButton: {
     position: 'absolute',
     top: 4,
     right: 4,
@@ -749,22 +882,23 @@ const styles = StyleSheet.create({
     marginTop: 12,
     gap: 12,
   },
-  customIconRow: {
-    gap: 8,
-  },
   customIconItem: {
     width: 100,
+    height: 60,
   },
   customIconPressable: {
     borderRadius: 14,
     width: '100%',
+    height: '100%',
   },
   customIconCard: {
     borderRadius: 14,
     paddingVertical: 10,
     paddingHorizontal: 10,
     alignItems: 'center',
+    justifyContent: 'center',
     width: '100%',
+    height: '100%',
   },
   customIconInner: {
     alignItems: 'center',
@@ -774,25 +908,23 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-  currencyScroll: {
-    gap: 8,
-    paddingVertical: 4,
-  },
   currencyItem: {
     width: 140,
-    paddingHorizontal: 4,
-    marginRight: 8,
+    height: 72,
   },
   currencyPressable: {
     borderRadius: 14,
     width: '100%',
+    height: '100%',
   },
   currencyCard: {
     borderRadius: 14,
     paddingVertical: 12,
     paddingHorizontal: 12,
     alignItems: 'flex-start',
+    justifyContent: 'center',
     width: '100%',
+    height: '100%',
     gap: 6,
   },
   currencyCode: {
@@ -810,8 +942,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
     paddingHorizontal: 20,
-    paddingBottom: 16,
-    paddingTop: 8,
+    paddingTop: 12,
     backgroundColor: 'transparent',
   },
 });
@@ -847,7 +978,7 @@ const TypeOptionItem: React.FC<TypeOptionItemProps> = ({ option, isSelected, onS
                 e.stopPropagation();
                 onDelete();
               }}
-              style={styles.deleteButton}
+              style={styles.typeDeleteButton}
               hitSlop={8}
             >
               <X size={14} color={theme.colors.textMuted} strokeWidth={2} />

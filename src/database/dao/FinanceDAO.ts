@@ -86,6 +86,7 @@ const mapTransaction = (record: any): Transaction => ({
   recurringId: record.recurringId ?? undefined,
   attachments: record.attachments ?? [],
   tags: record.tags ?? [],
+  isBalanceAdjustment: record.isBalanceAdjustment ?? false,
   createdAt: toISODate(record.createdAt)!,
   updatedAt: toISODate(record.updatedAt)!,
 });
@@ -364,6 +365,7 @@ export class TransactionDAO {
         tags: input.tags ?? [],
         splits,
         idempotencyKey: (input as any).idempotencyKey ?? null,
+        isBalanceAdjustment: input.isBalanceAdjustment ?? false,
         createdAt: now,
         updatedAt: now,
         syncStatus: 'local',
@@ -375,11 +377,26 @@ export class TransactionDAO {
   update(id: string, updates: Partial<Transaction>): Transaction | null {
     const record = this.realm.objectForPrimaryKey('Transaction', toObjectId(id)!);
     if (!record) return null;
+    // Fields that are ObjectId type (not string)
+    const objectIdFields = new Set([
+      'accountId', 'fromAccountId', 'toAccountId', 'goalId', 'budgetId',
+      'debtId', 'habitId', 'counterpartyId', 'relatedBudgetId', 'relatedDebtId'
+    ]);
+    // Fields that end with 'Id' but are string type
+    const stringIdFields = new Set(['categoryId', 'subcategoryId', 'feeCategoryId', 'recurringId']);
     this.realm.write(() => {
       Object.entries(updates).forEach(([key, value]) => {
         if (value === undefined) return;
-        if (key.endsWith('Id')) {
+        if (objectIdFields.has(key)) {
+          // Handle ObjectId fields
+          if (value === null || value === '') {
+            (record as any)[key] = null;
+            return;
+          }
           (record as any)[key] = toObjectId(value as string) ?? null;
+        } else if (stringIdFields.has(key)) {
+          // Handle string Id fields - don't convert to ObjectId
+          (record as any)[key] = value ?? null;
         } else if (key === 'date' && value) {
           (record as any).date = new Date(value as string);
         } else {

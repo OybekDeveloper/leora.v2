@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { AdaptiveGlassView } from '@/components/ui/AdaptiveGlassView';
 import { useAppTheme } from '@/constants/theme';
 import { useLocalization } from '@/localization/useLocalization';
+import { formatCompactNumber } from '@/utils/formatNumber';
 
 type CashFlowDayKey = 'mon' | 'tue' | 'wed' | 'thu' | 'fri';
 
@@ -84,40 +85,52 @@ export default function CashFlowWidget({
           <Text style={[styles.summaryLabel, { color: theme.colors.textSecondary }]}>
             {strings.widgets.cashFlow.summary.income}
           </Text>
-            <Text style={[
-              styles.summaryValue,
-              { color: hasData ? theme.colors.textPrimary : theme.colors.textMuted },
-            ]}
+            <Text
+              style={[
+                styles.summaryValue,
+                { color: hasData ? theme.colors.textPrimary : theme.colors.textMuted },
+              ]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.7}
             >
-              {hasData ? `$${totalIncome}` : '--'}
+              {hasData ? `$${formatCompactNumber(totalIncome)}` : '--'}
             </Text>
           </View>
           <View style={[styles.summaryItem, { backgroundColor: theme.colors.cardItem, borderColor: theme.colors.border }]}>
             <Text style={[styles.summaryLabel, { color: theme.colors.textSecondary }]}>
               {strings.widgets.cashFlow.summary.expenses}
             </Text>
-            <Text style={[
-              styles.summaryValue,
-              { color: hasData ? theme.colors.textSecondary : theme.colors.textMuted },
-            ]}
+            <Text
+              style={[
+                styles.summaryValue,
+                { color: hasData ? theme.colors.textSecondary : theme.colors.textMuted },
+              ]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.7}
             >
-              {hasData ? `$${totalExpense}` : '--'}
+              {hasData ? `$${formatCompactNumber(totalExpense)}` : '--'}
             </Text>
           </View>
           <View style={[styles.summaryItem, { backgroundColor: theme.colors.cardItem, borderColor: theme.colors.border }]}>
             <Text style={[styles.summaryLabel, { color: theme.colors.textSecondary }]}>
               {strings.widgets.cashFlow.summary.net}
             </Text>
-            <Text style={[
-              styles.summaryValue,
-              {
-                color: hasData
-                  ? net >= 0 ? theme.colors.textPrimary : theme.colors.textSecondary
-                  : theme.colors.textMuted,
-              },
-            ]}
+            <Text
+              style={[
+                styles.summaryValue,
+                {
+                  color: hasData
+                    ? net >= 0 ? theme.colors.textPrimary : theme.colors.textSecondary
+                    : theme.colors.textMuted,
+                },
+              ]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.7}
             >
-              {hasData ? `$${net}` : '--'}
+              {hasData ? `$${formatCompactNumber(net)}` : '--'}
             </Text>
           </View>
         </View>
@@ -126,11 +139,17 @@ export default function CashFlowWidget({
           {timeline.map((day) => (
             <View key={day.label} style={styles.tableRow}>
               <Text style={[styles.dayLabel, { color: theme.colors.textSecondary }]}>{day.label}</Text>
-              <Text style={[styles.tableValue, { color: hasData ? theme.colors.textPrimary : theme.colors.textMuted }]}>
-                {hasData ? `+$${day.income}` : '--'}
+              <Text
+                style={[styles.tableValue, { color: hasData ? theme.colors.textPrimary : theme.colors.textMuted }]}
+                numberOfLines={1}
+              >
+                {hasData ? `+$${formatCompactNumber(day.income)}` : '--'}
               </Text>
-              <Text style={[styles.tableValue, { color: hasData ? theme.colors.textSecondary : theme.colors.textMuted }]}>
-                {hasData ? `-$${day.expense}` : '--'}
+              <Text
+                style={[styles.tableValue, { color: hasData ? theme.colors.textSecondary : theme.colors.textMuted }]}
+                numberOfLines={1}
+              >
+                {hasData ? `-$${formatCompactNumber(day.expense)}` : '--'}
               </Text>
             </View>
           ))}

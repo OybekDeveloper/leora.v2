@@ -12,13 +12,16 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { FlashList as FlashListBase } from '@shopify/flash-list';
 import DateTimePicker, { DateTimePickerAndroid, DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { AdaptiveGlassView } from '@/components/ui/AdaptiveGlassView';
+import { formatNumberWithSpaces, parseSpacedNumber } from '@/utils/formatNumber';
 import { getCategoriesForType } from '@/constants/financeCategories';
-import { useAppTheme } from '@/constants/theme';
+import { useLocalizedCategories } from '@/hooks/useLocalizedCategories';
+import { useAppTheme, type Theme } from '@/constants/theme';
 import { useLocalization } from '@/localization/useLocalization';
 import { useFinanceDomainStore } from '@/stores/useFinanceDomainStore';
 import { useFinancePreferencesStore } from '@/stores/useFinancePreferencesStore';
@@ -27,6 +30,10 @@ import { addDays, addMonths, startOfMonth, startOfWeek } from '@/utils/calendar'
 import type { BudgetPeriodType } from '@/domain/finance/types';
 import { useShallow } from 'zustand/react/shallow';
 import { usePlannerDomainStore } from '@/stores/usePlannerDomainStore';
+import type { Account } from '@/domain/finance/types';
+import type { FinanceCategory } from '@/constants/financeCategories';
+
+const FlashList = FlashListBase as any;
 
 const formatDate = (date?: Date | null) => {
   if (!date) return '—';
@@ -46,9 +53,11 @@ export default function BudgetModal() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const theme = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const { strings, locale } = useLocalization();
   const commonStrings = (strings as any).common ?? {};
   const closeLabel = commonStrings.close ?? 'Close';
+  const { getLocalizedCategoryName } = useLocalizedCategories();
   const { id, goalId } = useLocalSearchParams<RouteParams>();
   const editingId = Array.isArray(id) ? id[0] : id ?? null;
   const linkedGoalId = Array.isArray(goalId) ? goalId[0] : goalId ?? null;
@@ -128,7 +137,7 @@ export default function BudgetModal() {
   useEffect(() => {
     if (!editingBudget) return;
     setFormName(editingBudget.name);
-    setLimitInput(String(editingBudget.limitAmount));
+    setLimitInput(formatNumberWithSpaces(editingBudget.limitAmount));
     setLimitValue(editingBudget.limitAmount);
     setSelectedAccountId(editingBudget.accountId ?? null);
     setTransactionType(editingBudget.transactionType === 'income' ? 'income' : 'outcome');
@@ -157,10 +166,35 @@ export default function BudgetModal() {
   // When switching budget types, keep the period settings (both types can have periods)
 
   const handleLimitInputChange = useCallback((value: string) => {
-    const cleaned = value.replace(/[^0-9.,]/g, '').replace(/,/g, '.');
-    setLimitInput(cleaned);
-    const parsed = parseFloat(cleaned || '0');
-    setLimitValue(Number.isFinite(parsed) ? parsed : 0);
+    // Remove spaces and non-numeric characters except dot and comma
+    const withoutSpaces = value.replace(/\s/g, '');
+    const sanitized = withoutSpaces.replace(/[^0-9.,]/g, '').replace(/,/g, '.');
+    const parts = sanitized.split('.');
+    let cleanValue = sanitized;
+    if (parts.length > 2) {
+      cleanValue = `${parts[0]}.${parts.slice(1).join('')}`;
+    }
+    // Format with spaces for display
+    if (cleanValue) {
+      const num = parseFloat(cleanValue);
+      if (!isNaN(num)) {
+        const hasDecimal = cleanValue.includes('.');
+        if (hasDecimal) {
+          const [intPart, decPart] = cleanValue.split('.');
+          const formattedInt = intPart ? parseInt(intPart, 10).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ') : '0';
+          setLimitInput(`${formattedInt}.${decPart}`);
+        } else {
+          setLimitInput(formatNumberWithSpaces(num));
+        }
+        setLimitValue(num);
+      } else {
+        setLimitInput(cleanValue);
+        setLimitValue(0);
+      }
+    } else {
+      setLimitInput('');
+      setLimitValue(0);
+    }
   }, []);
 
   const toggleCategory = useCallback((name: string) => {
@@ -366,7 +400,7 @@ export default function BudgetModal() {
               <Text style={[styles.label, { color: theme.colors.textSecondary }]}>
                 {strings.financeScreens.budgets.form.nameLabel as string}
               </Text>
-              <AdaptiveGlassView style={[styles.glassSurface, styles.inputContainer]}>
+              <AdaptiveGlassView style={[styles.glassSurface, styles.inputWrapper]}>
                 <TextInput
                   value={formName}
                   onChangeText={setFormName}
@@ -381,7 +415,7 @@ export default function BudgetModal() {
               <Text style={[styles.label, { color: theme.colors.textSecondary }]}>
                 {`${transactionType === 'income' ? strings.financeScreens.budgets.form.targetAmount : strings.financeScreens.budgets.form.limitAmount} (${selectedAccountId ? accountMap.get(selectedAccountId)?.currency ?? baseCurrency : baseCurrency})`}
               </Text>
-              <AdaptiveGlassView style={[styles.glassSurface, styles.inputContainer]}>
+              <AdaptiveGlassView style={[styles.glassSurface, styles.inputWrapper]}>
                 <TextInput
                   value={limitInput}
                   onChangeText={handleLimitInputChange}
@@ -393,29 +427,35 @@ export default function BudgetModal() {
               </AdaptiveGlassView>
             </View>
 
-            <View style={styles.section}>
-              <Text style={[styles.label, { color: theme.colors.textSecondary }]}>{strings.financeScreens.debts.modal.accountLabel}</Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.accountScroll}
-              >
-                {accounts.map((account) => {
-                  const isSelected = account.id === selectedAccountId;
-                  return (
-                    <Pressable key={account.id} onPress={() => setSelectedAccountId(account.id)} style={({ pressed }) => [pressed && styles.pressed]}>
-                      <AdaptiveGlassView
-                        style={[styles.glassSurface, styles.accountChip, { opacity: isSelected ? 1 : 0.6 }]}
-                      >
-                        <Text style={[styles.accountChipLabel, { color: isSelected ? '#FFFFFF' : '#9E9E9E' }]}>
-                          {account.name}
-                        </Text>
-                        <Text style={styles.accountChipSubtext}>{account.currency}</Text>
-                      </AdaptiveGlassView>
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
+            <View style={styles.sectionFullWidth}>
+              <Text style={[styles.label, styles.labelWithPadding, { color: theme.colors.textSecondary }]}>{strings.financeScreens.debts.modal.accountLabel}</Text>
+              <View style={styles.accountListContainer}>
+                <FlashList
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  data={accounts}
+                  keyExtractor={(item: Account) => item.id}
+                  estimatedItemSize={140}
+                  renderItem={({ item: account }: { item: Account }) => {
+                    const isSelected = account.id === selectedAccountId;
+                    return (
+                      <Pressable onPress={() => setSelectedAccountId(account.id)} style={({ pressed }) => [pressed && styles.pressed]}>
+                        <AdaptiveGlassView
+                          style={[styles.glassSurface, styles.accountChip, { opacity: isSelected ? 1 : 0.6 }]}
+                        >
+                          <Text style={[styles.accountChipLabel, { color: isSelected ? theme.colors.textPrimary : theme.colors.textMuted }]}>
+                            {account.name}
+                          </Text>
+                          <Text style={styles.accountChipSubtext}>{account.currency}</Text>
+                        </AdaptiveGlassView>
+                      </Pressable>
+                    );
+                  }}
+                  ListHeaderComponent={<View style={styles.listEdgeSpacer} />}
+                  ItemSeparatorComponent={() => <View style={styles.horizontalSeparator} />}
+                  ListFooterComponent={<View style={styles.listEdgeSpacer} />}
+                />
+              </View>
             </View>
 
             {/* Period section - show for both budget types */}
@@ -467,32 +507,38 @@ export default function BudgetModal() {
               </View>
             )}
 
-            <View style={[styles.section, { paddingHorizontal: 0 }]}> 
-              <Text style={[styles.label, { paddingHorizontal: 20, color: theme.colors.textSecondary }]}>
+            <View style={styles.sectionFullWidth}>
+              <Text style={[styles.label, styles.labelWithPadding, { color: theme.colors.textSecondary }]}>
                 {strings.financeScreens.transactions.details.category}
               </Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.categoryChipScroll}
-              >
-                {availableCategories.map((category) => {
-                  const isActive = selectedCategories.includes(category.name);
-                  const Icon = category.icon;
-                  return (
-                    <Pressable key={category.id} onPress={() => toggleCategory(category.name)} style={({ pressed }) => [pressed && styles.pressed]}>
-                      <AdaptiveGlassView
-                        style={[styles.glassSurface, styles.categoryChipCard, { opacity: isActive ? 1 : 0.6 }]}
-                      >
-                        <Icon size={20} color={isActive ? '#FFFFFF' : '#9E9E9E'} />
-                        <Text style={[styles.categoryChipLabel, { color: isActive ? '#FFFFFF' : '#9E9E9E' }]}>
-                          {category.name}
-                        </Text>
-                      </AdaptiveGlassView>
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
+              <View style={styles.categoryListContainer}>
+                <FlashList
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  data={availableCategories}
+                  keyExtractor={(item: FinanceCategory) => item.id}
+                  estimatedItemSize={100}
+                  renderItem={({ item: category }: { item: FinanceCategory }) => {
+                    const isActive = selectedCategories.includes(category.name);
+                    const Icon = category.icon;
+                    return (
+                      <Pressable onPress={() => toggleCategory(category.name)} style={({ pressed }) => [pressed && styles.pressed]}>
+                        <AdaptiveGlassView
+                          style={[styles.glassSurface, styles.categoryChipCard, { opacity: isActive ? 1 : 0.6 }]}
+                        >
+                          <Icon size={20} color={isActive ? theme.colors.textPrimary : theme.colors.textMuted} />
+                          <Text style={[styles.categoryChipLabel, { color: isActive ? theme.colors.textPrimary : theme.colors.textMuted }]}>
+                            {getLocalizedCategoryName(category.name)}
+                          </Text>
+                        </AdaptiveGlassView>
+                      </Pressable>
+                    );
+                  }}
+                  ListHeaderComponent={<View style={styles.listEdgeSpacer} />}
+                  ItemSeparatorComponent={() => <View style={styles.horizontalSeparator} />}
+                  ListFooterComponent={<View style={styles.listEdgeSpacer} />}
+                />
+              </View>
             </View>
 
             <View style={styles.section}>
@@ -524,7 +570,7 @@ export default function BudgetModal() {
               style={[styles.glassSurface, styles.primaryButtonInner, { opacity: !isBudgetFormValid ? 0.4 : 1 }]}
             >
               <Text
-                style={[styles.primaryButtonText, { color: !isBudgetFormValid ? '#7E8B9A' : '#FFFFFF' }]}
+                style={[styles.primaryButtonText, { color: !isBudgetFormValid ? theme.colors.textMuted : theme.colors.onPrimary }]}
               >
                 {editingBudget
                   ? strings.financeScreens.debts.modal.buttons.saveChanges
@@ -565,7 +611,7 @@ export default function BudgetModal() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   safeArea: {
     flex: 1,
   },
@@ -593,28 +639,43 @@ const styles = StyleSheet.create({
   section: {
     gap: 10,
   },
+  sectionFullWidth: {
+    gap: 10,
+    marginHorizontal: -20,
+  },
+  labelWithPadding: {
+    paddingHorizontal: 20,
+  },
   label: {
     fontSize: 13,
     fontWeight: '600',
   },
   glassSurface: {
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.18)',
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderColor: theme.mode === 'dark' ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.08)',
+    backgroundColor: theme.mode === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
   },
-  inputContainer: {
+  inputWrapper: {
     borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    overflow: 'hidden',
   },
   textInput: {
     fontSize: 16,
     fontWeight: '600',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
   },
-  accountScroll: {
-    paddingVertical: 4,
-    paddingHorizontal: 2,
-    gap: 12,
+  accountListContainer: {
+    height: 68,
+  },
+  categoryListContainer: {
+    height: 56,
+  },
+  listEdgeSpacer: {
+    width: 20,
+  },
+  horizontalSeparator: {
+    width: 12,
   },
   accountChip: {
     borderRadius: 16,
@@ -628,7 +689,7 @@ const styles = StyleSheet.create({
   },
   accountChipSubtext: {
     fontSize: 12,
-    color: '#9E9E9E',
+    color: theme.colors.textSecondary,
   },
   periodChipsRow: {
     flexDirection: 'row',
@@ -639,23 +700,23 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
+    borderColor: theme.mode === 'dark' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)',
   },
   periodChipActive: {
-    borderColor: '#FFFFFF',
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
   },
   periodChipLabel: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#7E8B9A',
+    color: theme.colors.textSecondary,
   },
   periodChipLabelActive: {
-    color: '#FFFFFF',
+    color: theme.colors.textPrimary,
   },
   rangeSummary: {
     fontSize: 12,
-    color: '#7E8B9A',
+    color: theme.colors.textSecondary,
   },
   customRangeRow: {
     flexDirection: 'row',
@@ -670,16 +731,16 @@ const styles = StyleSheet.create({
   rangeButtonLabel: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#7E8B9A',
+    color: theme.colors.textSecondary,
   },
   rangeValue: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: theme.colors.textPrimary,
   },
   rangeError: {
     marginTop: 6,
-    color: '#FF6B6B',
+    color: theme.colors.danger,
     fontSize: 12,
     fontWeight: '600',
   },
@@ -689,7 +750,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
     marginBottom: 4,
     borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: theme.mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
     padding: 4,
   },
   typeTab: {
@@ -699,20 +760,15 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   typeTabActive: {
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: theme.mode === 'dark' ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)',
   },
   typeTabLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#7E8B9A',
+    color: theme.colors.textSecondary,
   },
   typeTabLabelActive: {
-    color: '#FFFFFF',
-  },
-  categoryChipScroll: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    gap: 12,
+    color: theme.colors.textPrimary,
   },
   categoryChipCard: {
     borderRadius: 16,
@@ -737,11 +793,11 @@ const styles = StyleSheet.create({
   notificationLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: theme.colors.textPrimary,
   },
   notificationSubtext: {
     fontSize: 12,
-    color: '#7E8B9A',
+    color: theme.colors.textSecondary,
     marginTop: 2,
   },
   actionButtons: {
@@ -755,12 +811,12 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: theme.mode === 'dark' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)',
     paddingVertical: 14,
     alignItems: 'center',
   },
   secondaryButtonText: {
-    color: '#FFFFFF',
+    color: theme.colors.textPrimary,
     fontSize: 15,
     fontWeight: '600',
   },
@@ -773,6 +829,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: theme.colors.primary,
   },
   primaryButtonText: {
     fontSize: 15,
@@ -787,10 +844,10 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.18)',
+    borderColor: theme.mode === 'dark' ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.08)',
   },
   deleteButtonText: {
-    color: '#FF6B6B',
+    color: theme.colors.danger,
     fontSize: 15,
     fontWeight: '700',
   },
@@ -810,16 +867,17 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     paddingBottom: 16,
     overflow: 'hidden',
+    backgroundColor: theme.colors.card,
   },
   pickerDoneButton: {
     alignItems: 'center',
     paddingVertical: 12,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: theme.mode === 'dark' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)',
   },
   pickerDoneText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: theme.colors.textPrimary,
   },
 });

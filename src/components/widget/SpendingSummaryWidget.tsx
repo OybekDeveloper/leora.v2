@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { AdaptiveGlassView } from '@/components/ui/AdaptiveGlassView';
 import { useAppTheme } from '@/constants/theme';
 import { useLocalization } from '@/localization/useLocalization';
+import { formatCompactNumber } from '@/utils/formatNumber';
 
 interface SpendingCategory {
   label: string;
@@ -72,8 +73,11 @@ export default function SpendingSummaryWidget({
           {list.map((item) => (
             <View key={item.label} style={styles.row}>
               <Text style={[styles.rowLabel, { color: theme.colors.textSecondary }]}>{item.label}</Text>
-              <Text style={[styles.rowValue, { color: hasData ? theme.colors.textSecondary : theme.colors.textMuted }]}>
-                {hasData ? `-$${item.amount}` : '--'}
+              <Text
+                style={[styles.rowValue, { color: hasData ? theme.colors.textSecondary : theme.colors.textMuted }]}
+                numberOfLines={1}
+              >
+                {hasData ? `-$${formatCompactNumber(item.amount)}` : '--'}
               </Text>
             </View>
           ))}
@@ -83,8 +87,13 @@ export default function SpendingSummaryWidget({
           <Text style={[styles.footerLabel, { color: theme.colors.textSecondary }]}>
             {strings.widgets.spendingSummary.total}
           </Text>
-          <Text style={[styles.footerValue, { color: hasData ? theme.colors.textPrimary : theme.colors.textMuted }]}>
-            {hasData ? `-$${totalSpent}` : '--'}
+          <Text
+            style={[styles.footerValue, { color: hasData ? theme.colors.textPrimary : theme.colors.textMuted }]}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.7}
+          >
+            {hasData ? `-$${formatCompactNumber(totalSpent)}` : '--'}
           </Text>
         </View>
       </AdaptiveGlassView>

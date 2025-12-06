@@ -10,6 +10,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { FlashList as FlashListBase } from '@shopify/flash-list';
 import DateTimePicker, {
   DateTimePickerAndroid,
   DateTimePickerEvent,
@@ -28,6 +29,9 @@ import {
   useTransactionFilterStore,
 } from '@/stores/useTransactionFilterStore';
 import { useShallow } from 'zustand/react/shallow';
+import { formatNumberWithSpaces } from '@/utils/formatNumber';
+
+const FlashList = FlashListBase as any;
 
 type FilterOption = {
   id: string;
@@ -116,6 +120,22 @@ export default function FinanceTransactionFilterModal() {
   const handleOptionSelect = useCallback(
     (key: keyof FilterState, value: string) => {
       setDraftFilters((prev) => ({ ...prev, [key]: value }));
+    },
+    [],
+  );
+
+  const handleAmountChange = useCallback(
+    (key: 'minAmount' | 'maxAmount', text: string) => {
+      // Faqat raqam va nuqta qabul qilish
+      const cleaned = text.replace(/[^\d.]/g, '');
+      // Bir nechta nuqtani oldini olish
+      const parts = cleaned.split('.');
+      const sanitized = parts.length > 2 ? parts[0] + '.' + parts.slice(1).join('') : cleaned;
+      const num = parseFloat(sanitized) || 0;
+      setDraftFilters((prev) => ({
+        ...prev,
+        [key]: num > 0 ? formatNumberWithSpaces(num) : sanitized,
+      }));
     },
     [],
   );
@@ -247,34 +267,78 @@ export default function FinanceTransactionFilterModal() {
             </View>
           </View>
 
-          <View style={styles.section}>
-            <Text style={[styles.label, { color: theme.colors.textSecondary }]}>
+          <View style={styles.sectionFullWidth}>
+            <Text style={[styles.label, styles.labelWithPadding, { color: theme.colors.textSecondary }]}>
               {filterStrings.category}
             </Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.row}
-            >
-              {categoryOptionsWithMeta.map((option) => {
-                const active = option.id === draftFilters.category;
-                const Icon = option.icon;
+            <View style={styles.horizontalListContainer}>
+              <FlashList
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                data={categoryOptionsWithMeta}
+                keyExtractor={(item: CategoryOptionMeta) => item.id}
+                estimatedItemSize={100}
+                renderItem={({ item: option }: { item: CategoryOptionMeta }) => {
+                  const active = option.id === draftFilters.category;
+                  const Icon = option.icon;
+                  return (
+                    <Pressable
+                      onPress={() => handleOptionSelect('category', option.id)}
+                      style={({ pressed }) => [
+                        styles.chip,
+                        {
+                          borderColor: theme.colors.border,
+                          backgroundColor: active ? theme.colors.primary : 'transparent',
+                        },
+                        pressed && styles.pressed,
+                      ]}
+                    >
+                      <View style={styles.categoryChip}>
+                        <Icon size={16} color={active ? theme.colors.onPrimary : theme.colors.textPrimary} />
+                        <Text
+                          style={[
+                            styles.chipLabel,
+                            { color: active ? theme.colors.onPrimary : theme.colors.textPrimary },
+                          ]}
+                        >
+                          {option.label}
+                        </Text>
+                      </View>
+                    </Pressable>
+                  );
+                }}
+                ListHeaderComponent={<View style={styles.listEdgeSpacer} />}
+                ItemSeparatorComponent={() => <View style={styles.horizontalSeparator} />}
+                ListFooterComponent={<View style={styles.listEdgeSpacer} />}
+              />
+            </View>
+          </View>
 
-                return (
-                  <Pressable
-                    key={option.id}
-                    onPress={() => handleOptionSelect('category', option.id)}
-                    style={({ pressed }) => [
-                      styles.chip,
-                      {
-                        borderColor: theme.colors.border,
-                        backgroundColor: active ? theme.colors.primary : 'transparent',
-                      },
-                      pressed && styles.pressed,
-                    ]}
-                  >
-                    <View style={styles.categoryChip}>
-                      <Icon size={16} color={active ? theme.colors.onPrimary : theme.colors.textPrimary} />
+          <View style={styles.sectionFullWidth}>
+            <Text style={[styles.label, styles.labelWithPadding, { color: theme.colors.textSecondary }]}>
+              {filterStrings.accounts}
+            </Text>
+            <View style={styles.horizontalListContainer}>
+              <FlashList
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                data={resolvedAccountOptions}
+                keyExtractor={(item: FilterOption) => item.id}
+                estimatedItemSize={80}
+                renderItem={({ item: option }: { item: FilterOption }) => {
+                  const active = option.id === draftFilters.account;
+                  return (
+                    <Pressable
+                      onPress={() => handleOptionSelect('account', option.id)}
+                      style={({ pressed }) => [
+                        styles.chip,
+                        {
+                          borderColor: theme.colors.border,
+                          backgroundColor: active ? theme.colors.primary : 'transparent',
+                        },
+                        pressed && styles.pressed,
+                      ]}
+                    >
                       <Text
                         style={[
                           styles.chipLabel,
@@ -283,49 +347,14 @@ export default function FinanceTransactionFilterModal() {
                       >
                         {option.label}
                       </Text>
-                    </View>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-          </View>
-
-          <View style={styles.section}>
-            <Text style={[styles.label, { color: theme.colors.textSecondary }]}>
-              {filterStrings.accounts}
-            </Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.row}
-            >
-              {resolvedAccountOptions.map((option) => {
-                const active = option.id === draftFilters.account;
-                return (
-                  <Pressable
-                    key={option.id}
-                    onPress={() => handleOptionSelect('account', option.id)}
-                    style={({ pressed }) => [
-                      styles.chip,
-                      {
-                        borderColor: theme.colors.border,
-                        backgroundColor: active ? theme.colors.primary : 'transparent',
-                      },
-                      pressed && styles.pressed,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.chipLabel,
-                        { color: active ? theme.colors.onPrimary : theme.colors.textPrimary },
-                      ]}
-                    >
-                      {option.label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
+                    </Pressable>
+                  );
+                }}
+                ListHeaderComponent={<View style={styles.listEdgeSpacer} />}
+                ItemSeparatorComponent={() => <View style={styles.horizontalSeparator} />}
+                ListFooterComponent={<View style={styles.listEdgeSpacer} />}
+              />
+            </View>
           </View>
 
           <View style={styles.section}>
@@ -336,7 +365,7 @@ export default function FinanceTransactionFilterModal() {
               <View style={styles.inputRow}>
                 <TextInput
                   value={draftFilters.minAmount}
-                  onChangeText={(text) => handleOptionSelect('minAmount', text.replace(/[^0-9.]/g, ''))}
+                  onChangeText={(text) => handleAmountChange('minAmount', text)}
                   keyboardType="numeric"
                   placeholder={filterStrings.from}
                   placeholderTextColor={theme.colors.textSecondary}
@@ -345,7 +374,7 @@ export default function FinanceTransactionFilterModal() {
                 <Text style={[styles.separator, { color: theme.colors.textSecondary }]}>-</Text>
                 <TextInput
                   value={draftFilters.maxAmount}
-                  onChangeText={(text) => handleOptionSelect('maxAmount', text.replace(/[^0-9.]/g, ''))}
+                  onChangeText={(text) => handleAmountChange('maxAmount', text)}
                   keyboardType="numeric"
                   placeholder={filterStrings.to}
                   placeholderTextColor={theme.colors.textSecondary}
@@ -483,6 +512,22 @@ const styles = StyleSheet.create({
   },
   section: {
     gap: 12,
+  },
+  sectionFullWidth: {
+    gap: 12,
+    marginHorizontal: -20,
+  },
+  horizontalListContainer: {
+    height: 52,
+  },
+  listEdgeSpacer: {
+    width: 20,
+  },
+  horizontalSeparator: {
+    width: 10,
+  },
+  labelWithPadding: {
+    paddingHorizontal: 20,
   },
   label: {
     fontSize: 14,

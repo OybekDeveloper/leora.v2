@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { AdaptiveGlassView } from '@/components/ui/AdaptiveGlassView';
 import { useAppTheme } from '@/constants/theme';
 import { useLocalization } from '@/localization/useLocalization';
+import { formatCompactNumber } from '@/utils/formatNumber';
 
 interface BudgetItem {
   label: string;
@@ -77,8 +78,13 @@ export default function BudgetProgressWidget({
               <View key={item.label} style={styles.row}>
                 <View style={styles.rowHeader}>
                   <Text style={[styles.rowLabel, { color: theme.colors.textSecondary }]}>{item.label}</Text>
-                  <Text style={[styles.rowValue, { color: hasData ? theme.colors.textPrimary : theme.colors.textMuted }]}>
-                    {hasData ? `$${item.used} / $${item.total}` : '--'}
+                  <Text
+                    style={[styles.rowValue, { color: hasData ? theme.colors.textPrimary : theme.colors.textMuted }]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.7}
+                  >
+                    {hasData ? `$${formatCompactNumber(item.used)} / $${formatCompactNumber(item.total)}` : '--'}
                   </Text>
                 </View>
                 <View style={[styles.progressBackground, { backgroundColor: theme.colors.background }]}>

@@ -24,12 +24,47 @@ import { useRouter } from 'expo-router';
 import type { FinanceCurrency } from '@/stores/useFinancePreferencesStore';
 import { normalizeFinanceCurrency } from '@/utils/financeCurrency';
 import type { Debt as LegacyDebt } from '@/types/store.types';
+import type { Debt as DomainDebt } from '@/domain/finance/types';
 import { mapDomainDebtToLegacy } from '@/utils/finance/debtMappers';
+import { FxService } from '@/services/fx/FxService';
+import { formatCompactNumber } from '@/utils/formatNumber';
 
 type DebtSectionData = {
   title: string;
   debts: LegacyDebt[];
+  domainDebts: DomainDebt[];
   isIncoming: boolean;
+};
+
+// Valyuta P/L hisoblash
+const calculateCurrencyPL = (debt: DomainDebt) => {
+  if (!debt.repaymentCurrency || debt.repaymentCurrency === debt.principalCurrency) {
+    return null;
+  }
+
+  const startRate = debt.repaymentRateOnStart ?? 1;
+  const currentRate = FxService.getInstance().getRate(
+    normalizeFinanceCurrency(debt.principalCurrency),
+    normalizeFinanceCurrency(debt.repaymentCurrency)
+  ) ?? startRate;
+  const rateDifference = currentRate - startRate;
+
+  if (Math.abs(rateDifference) < 0.0001) return null;
+
+  const remainingAmount = debt.principalAmount;
+  const profitLossInRepaymentCurrency = remainingAmount * rateDifference;
+  const profitLossInPrincipal = currentRate > 0 ? profitLossInRepaymentCurrency / currentRate : 0;
+
+  // Foyda/zarar yo'nalishi:
+  // "they_owe_me" (men berdim): Kurs oshsa = foyda (ko'proq qaytarishadi)
+  // "i_owe" (men oldim): Kurs tushsa = foyda (kamroq qaytaraman)
+  const isProfit = debt.direction === 'they_owe_me' ? rateDifference >= 0 : rateDifference <= 0;
+
+  return {
+    profitLossInPrincipal: Math.abs(profitLossInPrincipal),
+    isProfit,
+    currency: debt.principalCurrency,
+  };
 };
 
 const formatDueIn = (
@@ -98,6 +133,7 @@ const createStyles = (theme: Theme) =>
       fontSize: 28,
       fontWeight: '800',
       letterSpacing: 0.5,
+      flexShrink: 1,
     },
     summaryRow: {
       flexDirection: 'row',
@@ -122,6 +158,7 @@ const createStyles = (theme: Theme) =>
       fontSize: 18,
       fontWeight: '700',
       letterSpacing: 0.3,
+      flexShrink: 1,
     },
     summaryMiniChange: {
       fontSize: 12,
@@ -183,6 +220,7 @@ const createStyles = (theme: Theme) =>
       fontSize: 16,
       fontWeight: '600',
       color: theme.colors.textPrimary,
+      flexShrink: 1,
     },
     secondary: {
       fontSize: 12,
@@ -220,15 +258,29 @@ const createStyles = (theme: Theme) =>
       fontWeight: '600',
       color: theme.colors.textPrimary,
     },
+    currencyPLBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: theme.radius.md,
+    },
+    currencyPLText: {
+      fontSize: 11,
+      fontWeight: '600',
+    },
   });
 
 const DebtCard = ({
   debt,
+  domainDebt,
   strings,
   onPress,
   formatAmount,
 }: {
   debt: LegacyDebt;
+  domainDebt?: DomainDebt;
   strings: DebtsStrings;
   onPress?: () => void;
   formatAmount: (value: number, currency: FinanceCurrency) => string;
@@ -239,6 +291,12 @@ const DebtCard = ({
   const currency = normalizeFinanceCurrency(debt.currency);
   // Pul oqimi nuqtai nazaridan: lent = pul chiqdi (-), borrowed = pul kirdi (+)
   const signedAmount = `${isLent ? '−' : '+'}${formatAmount(debt.remainingAmount, currency)}`;
+
+  // Valyuta P/L hisoblash
+  const currencyPL = useMemo(() => {
+    if (!domainDebt) return null;
+    return calculateCurrencyPL(domainDebt);
+  }, [domainDebt]);
 
   return (
     <Pressable onPress={onPress} style={({ pressed }) => (pressed ? { opacity: 0.95 } : undefined)}>
@@ -259,6 +317,9 @@ const DebtCard = ({
                 styles.amount,
                 { color: isLent ? theme.colors.danger : theme.colors.success },
               ]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.8}
             >
               {signedAmount}
             </Text>
@@ -267,6 +328,34 @@ const DebtCard = ({
                 {formatAmount(debt.remainingAmount, currency)} / {formatAmount(debt.amount, currency)}
               </Text>
             ) : null}
+            {/* Valyuta P/L badge */}
+            {currencyPL && (
+              <View
+                style={[
+                  styles.currencyPLBadge,
+                  {
+                    backgroundColor: currencyPL.isProfit
+                      ? 'rgba(34, 197, 94, 0.15)'
+                      : 'rgba(239, 68, 68, 0.15)',
+                  },
+                ]}
+              >
+                {currencyPL.isProfit ? (
+                  <TrendingUp size={10} color={theme.colors.success} />
+                ) : (
+                  <TrendingDown size={10} color={theme.colors.danger} />
+                )}
+                <Text
+                  style={[
+                    styles.currencyPLText,
+                    { color: currencyPL.isProfit ? theme.colors.success : theme.colors.danger },
+                  ]}
+                >
+                  {currencyPL.isProfit ? '+' : '-'}
+                  {formatAmount(currencyPL.profitLossInPrincipal, normalizeFinanceCurrency(currencyPL.currency))}
+                </Text>
+              </View>
+            )}
           </View>
         </View>
 
@@ -321,10 +410,11 @@ const DebtSection = ({
       <Text style={styles.sectionTitle}>{section.title}</Text>
       <View style={styles.sectionDivider} />
       <View style={{ gap: theme.spacing.md }}>
-        {section.debts.map((debt) => (
+        {section.debts.map((debt, index) => (
           <DebtCard
             key={debt.id}
             debt={debt}
+            domainDebt={section.domainDebts[index]}
             strings={strings}
             onPress={() => onCardPress?.(debt)}
             formatAmount={formatAmount}
@@ -349,11 +439,33 @@ const DebtsScreen: React.FC = () => {
     formatCurrency,
     convertAmount,
     globalCurrency,
-    formatAccountAmount,
+    formatAccountAmount: originalFormatAccountAmount,
   } = useFinanceCurrency();
+
+  // Wrapper with compact formatting for large amounts
+  const formatAccountAmount = React.useCallback(
+    (value: number, currency: FinanceCurrency) => {
+      const absValue = Math.abs(value);
+      if (absValue >= 1000000) {
+        return `${formatCompactNumber(absValue, 1, 1000000)} ${currency}`;
+      }
+      return originalFormatAccountAmount(value, currency);
+    },
+    [originalFormatAccountAmount]
+  );
 
   const incoming = useMemo(() => debts.filter((debt) => debt.type === 'lent'), [debts]);
   const outgoing = useMemo(() => debts.filter((debt) => debt.type === 'borrowed'), [debts]);
+
+  // Domain debts for P/L calculation
+  const incomingDomain = useMemo(
+    () => domainDebts.filter((d) => d.direction === 'they_owe_me'),
+    [domainDebts]
+  );
+  const outgoingDomain = useMemo(
+    () => domainDebts.filter((d) => d.direction === 'i_owe'),
+    [domainDebts]
+  );
 
   const summaryMetrics = useMemo(() => {
     const totalGiven = incoming.reduce(
@@ -364,8 +476,36 @@ const DebtsScreen: React.FC = () => {
       (sum, debt) => sum + convertAmount(debt.remainingAmount, normalizeFinanceCurrency(debt.currency), globalCurrency),
       0,
     );
-    const formatValue = (value: number) =>
-      formatCurrency(value, { fromCurrency: globalCurrency, convert: false });
+    const formatValue = (value: number) => {
+      const absValue = Math.abs(value);
+      // Use compact format for large numbers (> 1 million)
+      if (absValue >= 1000000) {
+        return `${formatCompactNumber(value, 1, 1000000)} ${globalCurrency}`;
+      }
+      return formatCurrency(value, { fromCurrency: globalCurrency, convert: false });
+    };
+
+    // Umumiy valyuta P/L hisoblash
+    let totalPL = 0;
+    let totalPLProfit = 0;
+    let totalPLLoss = 0;
+
+    domainDebts.forEach((debt) => {
+      const pl = calculateCurrencyPL(debt);
+      if (pl) {
+        const plInGlobal = convertAmount(
+          pl.profitLossInPrincipal,
+          normalizeFinanceCurrency(pl.currency),
+          globalCurrency
+        );
+        if (pl.isProfit) {
+          totalPLProfit += plInGlobal;
+        } else {
+          totalPLLoss += plInGlobal;
+        }
+      }
+    });
+    totalPL = totalPLProfit - totalPLLoss;
 
     return {
       balance: formatValue(totalGiven - totalTaken),
@@ -377,8 +517,14 @@ const DebtsScreen: React.FC = () => {
         amount: formatValue(totalTaken),
         change: debtsStrings.summary.takenChange,
       },
+      currencyPL: {
+        total: totalPL,
+        formatted: formatValue(Math.abs(totalPL)),
+        isProfit: totalPL >= 0,
+        hasData: totalPLProfit > 0 || totalPLLoss > 0,
+      },
     };
-  }, [convertAmount, debtsStrings.summary, formatCurrency, globalCurrency, incoming, outgoing]);
+  }, [convertAmount, debtsStrings.summary, formatCurrency, globalCurrency, incoming, outgoing, domainDebts]);
 
   const handleDebtPress = React.useCallback(
     (debt: LegacyDebt) => {
@@ -390,10 +536,10 @@ const DebtsScreen: React.FC = () => {
   // Faqat ma'lumot bor bo'limlarni ko'rsatish
   const sections: DebtSectionData[] = useMemo(
     () => [
-      { title: debtsStrings.sections.incoming, debts: incoming, isIncoming: true },
-      { title: debtsStrings.sections.outgoing, debts: outgoing, isIncoming: false },
+      { title: debtsStrings.sections.incoming, debts: incoming, domainDebts: incomingDomain, isIncoming: true },
+      { title: debtsStrings.sections.outgoing, debts: outgoing, domainDebts: outgoingDomain, isIncoming: false },
     ].filter((section) => section.debts.length > 0),
-    [debtsStrings.sections, incoming, outgoing],
+    [debtsStrings.sections, incoming, outgoing, incomingDomain, outgoingDomain],
   );
 
   const isEmpty = debts.length === 0;
@@ -422,7 +568,12 @@ const DebtsScreen: React.FC = () => {
                 <Text style={[styles.summaryBalanceLabel, { color: theme.colors.textSecondary }]}>
                   {debtsStrings.summary.balanceLabel}
                 </Text>
-                <Text style={[styles.summaryBalanceValue, { color: theme.colors.textPrimary }]}>
+                <Text
+                  style={[styles.summaryBalanceValue, { color: theme.colors.textPrimary }]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.7}
+                >
                   {summaryMetrics.balance}
                 </Text>
               </AdaptiveGlassView>
@@ -440,7 +591,12 @@ const DebtsScreen: React.FC = () => {
                     </Text>
                     <TrendingUp size={14} color={theme.colors.success} />
                   </View>
-                  <Text style={[styles.summaryMiniValue, { color: theme.colors.success }]}>
+                  <Text
+                    style={[styles.summaryMiniValue, { color: theme.colors.success }]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.7}
+                  >
                     {summaryMetrics.given.amount}
                   </Text>
                   <Text style={[styles.summaryMiniChange, { color: theme.colors.textSecondary }]}>
@@ -460,7 +616,12 @@ const DebtsScreen: React.FC = () => {
                     </Text>
                     <TrendingDown size={14} color={theme.colors.danger} />
                   </View>
-                  <Text style={[styles.summaryMiniValue, { color: theme.colors.danger }]}>
+                  <Text
+                    style={[styles.summaryMiniValue, { color: theme.colors.danger }]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.7}
+                  >
                     {summaryMetrics.taken.amount}
                   </Text>
                   <Text style={[styles.summaryMiniChange, { color: theme.colors.textSecondary }]}>
@@ -468,6 +629,50 @@ const DebtsScreen: React.FC = () => {
                   </Text>
                 </AdaptiveGlassView>
               </View>
+              {/* Valyuta P/L Summary */}
+              {summaryMetrics.currencyPL.hasData && (
+                <AdaptiveGlassView
+                  style={[
+                    styles.glassSurface,
+                    styles.summaryMiniCard,
+                    {
+                      backgroundColor: summaryMetrics.currencyPL.isProfit
+                        ? 'rgba(34, 197, 94, 0.08)'
+                        : 'rgba(239, 68, 68, 0.08)',
+                    },
+                  ]}
+                >
+                  <View style={styles.summaryMiniHeader}>
+                    <Text style={[styles.summaryMiniLabel, { color: theme.colors.textSecondary }]}>
+                      Valyuta Farqi
+                    </Text>
+                    {summaryMetrics.currencyPL.isProfit ? (
+                      <TrendingUp size={14} color={theme.colors.success} />
+                    ) : (
+                      <TrendingDown size={14} color={theme.colors.danger} />
+                    )}
+                  </View>
+                  <Text
+                    style={[
+                      styles.summaryMiniValue,
+                      {
+                        color: summaryMetrics.currencyPL.isProfit
+                          ? theme.colors.success
+                          : theme.colors.danger,
+                      },
+                    ]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.7}
+                  >
+                    {summaryMetrics.currencyPL.isProfit ? '+' : '-'}
+                    {summaryMetrics.currencyPL.formatted}
+                  </Text>
+                  <Text style={[styles.summaryMiniChange, { color: theme.colors.textSecondary }]}>
+                    Kurs o'zgarishi
+                  </Text>
+                </AdaptiveGlassView>
+              )}
             </View>
 
             {sections.map((section) => (

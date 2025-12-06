@@ -5,6 +5,7 @@ import { ArrowDownLeft, ArrowUpRight, Dot } from 'lucide-react-native';
 import { AdaptiveGlassView } from '@/components/ui/AdaptiveGlassView';
 import { useAppTheme } from '@/constants/theme';
 import { useLocalization } from '@/localization/useLocalization';
+import { formatCompactNumber } from '@/utils/formatNumber';
 
 interface Transaction {
   id: string;
@@ -97,18 +98,23 @@ export default function TransactionsWidget({
                   {transaction.date}
                 </Text>
               </View>
-              <Text style={[
-                styles.transactionAmount,
-                {
-                  color: hasData
-                    ? transaction.type === 'income'
-                      ? theme.colors.textPrimary
-                      : theme.colors.textSecondary
-                    : theme.colors.textMuted,
-                }
-              ]}>
+              <Text
+                style={[
+                  styles.transactionAmount,
+                  {
+                    color: hasData
+                      ? transaction.type === 'income'
+                        ? theme.colors.textPrimary
+                        : theme.colors.textSecondary
+                      : theme.colors.textMuted,
+                  }
+                ]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.7}
+              >
                 {hasData
-                  ? `${transaction.type === 'income' ? '+' : '-'}${transaction.amount.toLocaleString()} ${transaction.currency}`
+                  ? `${transaction.type === 'income' ? '+' : '-'}${formatCompactNumber(transaction.amount)} ${transaction.currency}`
                   : '--'}
               </Text>
             </View>

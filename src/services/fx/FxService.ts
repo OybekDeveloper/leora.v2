@@ -96,7 +96,30 @@ export class FxService {
 
   overrideRate(input: FxOverrideInput) {
     const spreadMultiplier = this._spreadPercent / 100;
-    // Always create new record for journal history
+    const now = new Date();
+    const nowIso = now.toISOString();
+
+    // Find and close previous active rate for this currency pair
+    try {
+      const records = this.dao.list();
+      const previousActiveRate = records.find(
+        (rate) =>
+          rate.fromCurrency === input.fromCurrency &&
+          rate.toCurrency === input.toCurrency &&
+          !rate.effectiveUntil, // Still active (no end date)
+      );
+
+      if (previousActiveRate) {
+        // Close the previous rate
+        this.dao.update(previousActiveRate.id, {
+          effectiveUntil: nowIso,
+        });
+      }
+    } catch {
+      // Ignore errors when updating previous rate
+    }
+
+    // Create new record with effectiveFrom timestamp
     this.dao.create({
       fromCurrency: input.fromCurrency,
       toCurrency: input.toCurrency,
@@ -106,7 +129,9 @@ export class FxService {
       rateAsk: input.rateAsk ?? input.rate * (1 + spreadMultiplier),
       source: 'manual',
       isOverridden: true,
-      date: new Date().toISOString(),
+      date: nowIso,
+      effectiveFrom: nowIso,
+      // effectiveUntil is null - this is now the active rate
     });
   }
 
@@ -126,20 +151,39 @@ export class FxService {
     return this.dao.delete(id);
   }
 
-  getRate(fromCurrency: FinanceCurrency, toCurrency: FinanceCurrency): number {
+  /**
+   * Get exchange rate, optionally at a specific point in time
+   * @param fromCurrency Source currency
+   * @param toCurrency Target currency
+   * @param atTime Optional timestamp to get historical rate
+   * @returns Exchange rate
+   */
+  getRate(fromCurrency: FinanceCurrency, toCurrency: FinanceCurrency, atTime?: Date): number {
     if (fromCurrency === toCurrency) {
       return 1;
     }
     try {
       const records = this.dao.list();
+      const timestamp = atTime ?? new Date();
 
       // To'g'ridan-to'g'ri kursni qidirish
+      // If atTime provided, find rate that was effective at that time
       const direct = records
-        .filter(
-          (rate) =>
-            rate.fromCurrency === fromCurrency &&
-            rate.toCurrency === toCurrency,
-        )
+        .filter((rate) => {
+          if (rate.fromCurrency !== fromCurrency || rate.toCurrency !== toCurrency) {
+            return false;
+          }
+          // If we have time-based tracking, use it
+          if (atTime && rate.effectiveFrom) {
+            const effectiveFrom = new Date(rate.effectiveFrom);
+            const effectiveUntil = rate.effectiveUntil ? new Date(rate.effectiveUntil) : null;
+            // Rate is valid if: effectiveFrom <= timestamp AND (effectiveUntil is null OR timestamp < effectiveUntil)
+            if (timestamp < effectiveFrom) return false;
+            if (effectiveUntil && timestamp >= effectiveUntil) return false;
+            return true;
+          }
+          return true;
+        })
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
 
       if (direct) {
@@ -148,11 +192,20 @@ export class FxService {
 
       // Teskari kursni qidirish
       const inverse = records
-        .filter(
-          (rate) =>
-            rate.fromCurrency === toCurrency &&
-            rate.toCurrency === fromCurrency,
-        )
+        .filter((rate) => {
+          if (rate.fromCurrency !== toCurrency || rate.toCurrency !== fromCurrency) {
+            return false;
+          }
+          // If we have time-based tracking, use it
+          if (atTime && rate.effectiveFrom) {
+            const effectiveFrom = new Date(rate.effectiveFrom);
+            const effectiveUntil = rate.effectiveUntil ? new Date(rate.effectiveUntil) : null;
+            if (timestamp < effectiveFrom) return false;
+            if (effectiveUntil && timestamp >= effectiveUntil) return false;
+            return true;
+          }
+          return true;
+        })
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
 
       if (inverse && inverse.rate > 0) {
@@ -166,6 +219,27 @@ export class FxService {
     const fromRate = DEFAULT_EXCHANGE_RATES[fromCurrency] ?? 1;
     const toRate = DEFAULT_EXCHANGE_RATES[toCurrency] ?? 1;
     return fromRate / toRate;
+  }
+
+  /**
+   * Get rate history for a currency pair
+   * @param fromCurrency Source currency
+   * @param toCurrency Target currency
+   * @returns Array of rates sorted by date (newest first)
+   */
+  getRateHistory(fromCurrency: FinanceCurrency, toCurrency: FinanceCurrency) {
+    try {
+      const records = this.dao.list();
+      return records
+        .filter(
+          (rate) =>
+            rate.fromCurrency === fromCurrency &&
+            rate.toCurrency === toCurrency,
+        )
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    } catch {
+      return [];
+    }
   }
 
   // Transfer uchun kurs olish (bid/ask bilan)

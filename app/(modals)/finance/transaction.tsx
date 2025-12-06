@@ -24,6 +24,7 @@ import { useFinancePreferencesStore } from '@/stores/useFinancePreferencesStore'
 import { normalizeFinanceCurrency } from '@/utils/financeCurrency';
 import { useShallow } from 'zustand/react/shallow';
 import { useLocalization } from '@/localization/useLocalization';
+import { formatNumberWithSpaces, parseSpacedNumber } from '@/utils/formatNumber';
 
 const formatDisplayCurrency = (value: number, currency: string = 'USD') => {
   try {
@@ -124,7 +125,7 @@ export default function TransferModal() {
 
     setFromAccountId(editingTransaction.accountId ?? editingTransaction.fromAccountId ?? accounts[0]?.id ?? null);
     setToAccountId(editingTransaction.toAccountId ?? accounts[1]?.id ?? null);
-    setAmount(editingTransaction.amount.toString());
+    setAmount(formatNumberWithSpaces(editingTransaction.amount));
     setTransferDate(new Date(editingTransaction.date));
 
     const noteText = editingTransaction.description ?? '';
@@ -147,10 +148,7 @@ export default function TransferModal() {
     }
   }, [accounts, fromAccountId, toAccountId]);
 
-  const amountNumber = useMemo(() => {
-    const parsed = parseFloat(amount.replace(/,/g, '.'));
-    return Number.isFinite(parsed) ? parsed : 0;
-  }, [amount]);
+  const amountNumber = useMemo(() => parseSpacedNumber(amount), [amount]);
 
   const needsConversion = useMemo(() => {
     if (!fromAccount || !toAccount) return false;
@@ -213,14 +211,13 @@ export default function TransferModal() {
     !fromAccount || !toAccount || fromAccount.id === toAccount.id || amountNumber <= 0;
 
   const handleAmountChange = useCallback((value: string) => {
-    const sanitized = value.replace(/[^0-9.,]/g, '').replace(/,/g, '.');
-    const parts = sanitized.split('.');
-    if (parts.length > 2) {
-      const [integer, fraction] = parts;
-      setAmount(`${integer}.${fraction}`);
-      return;
-    }
-    setAmount(sanitized);
+    // Faqat raqam va nuqta qabul qilish
+    const cleaned = value.replace(/[^\d.]/g, '');
+    // Bir nechta nuqtani oldini olish
+    const parts = cleaned.split('.');
+    const sanitized = parts.length > 2 ? parts[0] + '.' + parts.slice(1).join('') : cleaned;
+    const num = parseFloat(sanitized) || 0;
+    setAmount(num > 0 ? formatNumberWithSpaces(num) : sanitized);
   }, []);
 
   const handleExchangeRateChange = useCallback((value: string) => {
@@ -442,7 +439,7 @@ export default function TransferModal() {
               <Text style={[styles.label, { color: theme.colors.textSecondary }]}>
                 {detailStrings.amount ?? 'Amount'}
               </Text>
-              <AdaptiveGlassView style={styles.inputContainer}>
+              <AdaptiveGlassView style={styles.inputWrapper}>
                 <TextInput
                   value={amount}
                   onChangeText={handleAmountChange}
@@ -524,7 +521,7 @@ export default function TransferModal() {
               <Text style={[styles.label, { color: theme.colors.textSecondary }]}>
                 {detailStrings.note ?? 'Note'}
               </Text>
-              <AdaptiveGlassView style={styles.noteContainer}>
+              <AdaptiveGlassView style={styles.noteWrapper}>
                 <TextInput
                   value={note}
                   onChangeText={setNote}
@@ -629,15 +626,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  inputContainer: {
+  inputWrapper: {
     borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    overflow: 'hidden',
   },
   textInput: {
     fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
   },
   exchangeRateLabelRow: {
     flexDirection: 'row',
@@ -723,10 +721,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#FFFFFF',
   },
-  noteContainer: {
+  noteWrapper: {
     borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    overflow: 'hidden',
     minHeight: 90,
   },
   noteInput: {
@@ -735,6 +732,8 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
     color: '#FFFFFF',
     minHeight: 70,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
   },
   footerButtons: {
     flexDirection: 'row',

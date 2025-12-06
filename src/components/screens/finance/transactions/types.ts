@@ -40,6 +40,10 @@ export type TransactionCardData = {
   amount: number;
   currency: string;
 
+  // Base currency amount (for display in user's preferred currency)
+  convertedAmountToBase?: number;
+  baseCurrency?: string;
+
   // Transfer uchun
   fromAccountName?: string;
   toAccountName?: string;
@@ -54,6 +58,14 @@ export type TransactionCardData = {
   // Debt payment konvertatsiya uchun (boshqa valyutadan to'langanda)
   originalCurrency?: string; // Qarz valyutasi (masalan USD)
   originalAmount?: number; // Qarz valyutasidagi summa (masalan 10 USD)
+
+  // Valyuta P/L (qarz to'lovi uchun)
+  currencyPL?: {
+    startRate: number; // Qarz olingandagi kurs
+    currentRate: number; // To'lov vaqtidagi kurs
+    profitLoss: number; // Foyda/zarar summasi (principal valyutada)
+    isProfit: boolean; // Foyda yoki zarar
+  };
 
   // Meta
   transactionId: string;

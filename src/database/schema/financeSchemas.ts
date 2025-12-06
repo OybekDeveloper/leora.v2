@@ -79,6 +79,7 @@ export const TransactionSchema: ObjectSchema = {
     originalCurrency: 'string?',
     originalAmount: 'double?',
     conversionRate: 'double?',
+    isBalanceAdjustment: { type: 'bool', default: false },
     recurringId: 'string?',
     attachments: 'string[]',
     tags: 'string[]',
@@ -190,6 +191,12 @@ export const DebtSchema: ObjectSchema = {
     linkedBudgetId: 'objectId?',
     fundingAccountId: 'objectId?',
     fundingTransactionId: 'objectId?',
+    // Dual account system for debts
+    lentFromAccountId: 'objectId?',    // Where money came from when lending
+    returnToAccountId: 'objectId?',    // Where repayment will go
+    receivedToAccountId: 'objectId?',  // Where borrowed money went
+    payFromAccountId: 'objectId?',     // Where payments come from
+    customRateUsed: 'double?',         // Custom exchange rate at creation
     reminderEnabled: { type: 'bool', default: false },
     reminderTime: 'string?',
     status: 'string',
@@ -218,6 +225,9 @@ export const FxRateSchema: ObjectSchema = {
     spreadPercent: { type: 'double', default: 0.5 },   // Spread foizi
     source: 'string',
     isOverridden: { type: 'bool', default: false },
+    // Time-based rate tracking
+    effectiveFrom: 'date?',                            // When this rate became effective
+    effectiveUntil: 'date?',                           // When next rate took over (optional)
     idempotencyKey: 'string?',
     createdAt: { type: 'date', default: now },
     updatedAt: { type: 'date', default: now },

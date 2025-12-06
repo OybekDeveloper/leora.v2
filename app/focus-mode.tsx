@@ -70,12 +70,14 @@ const FocusToggle = ({
   value,
   onToggle,
   colors,
+  styles,
 }: {
   label: string;
   icon: keyof typeof MaterialCommunityIcons.glyphMap;
   value: boolean;
   onToggle: () => void;
   colors: ReturnType<typeof useThemeColors>;
+  styles: ReturnType<typeof createStyles>;
 }) => {
   const progress = useSharedValue(value ? 1 : 0);
   const press = useSharedValue(0);
@@ -105,9 +107,9 @@ const FocusToggle = ({
       onPressOut={() => (press.value = withSpring(0))}
       style={containerStyle}
     >
-      <AdaptiveGlassView style={[styles.glassSurface, styles.toggleCard]}>
+      <AdaptiveGlassView style={[styles.glassSurface, styles.toggleCard, { backgroundColor: colors.cardItem }]}>
         <View style={styles.toggleLeft}>
-          <AdaptiveGlassView style={[styles.glassSurface, styles.iconTile]}>
+          <AdaptiveGlassView style={[styles.glassSurface, styles.iconTile, { backgroundColor: colors.surfaceElevated }]}>
             <MaterialCommunityIcons name={icon} size={18} color={colors.textSecondary} />
           </AdaptiveGlassView>
           <Text style={[styles.toggleLabel, { color: colors.textPrimary }]}>{label}</Text>
@@ -123,9 +125,11 @@ const FocusToggle = ({
 const TimerRing = ({
   progress,
   colors,
+  styles,
 }: {
   progress: SharedValue<number>;
   colors: ReturnType<typeof useThemeColors>;
+  styles: ReturnType<typeof createStyles>;
 }) => {
   const animatedProps = useAnimatedProps(() => {
     const p = Math.min(Math.max(progress.value, 0), 1);
@@ -175,6 +179,8 @@ const TimerRing = ({
 export default function FocusModeScreen() {
   const colors = useThemeColors();
   const theme = useAppTheme();
+  const isDarkMode = theme.mode === 'dark';
+  const styles = useMemo(() => createStyles(isDarkMode), [isDarkMode]);
   const router = useRouter();
   const params = useLocalSearchParams<{ taskId?: string }>();
   const { strings } = useLocalization();
@@ -379,7 +385,6 @@ export default function FocusModeScreen() {
     finalizeFocus(achieved);
   }, [elapsedSeconds, finalizeFocus, timerState, totalSeconds]);
 
-  const isDarkMode = theme.mode === 'dark';
   const timerTextColor = isDarkMode ? colors.white : colors.textPrimary;
   const editInputBorderColor = isDarkMode ? 'rgba(255,255,255,0.24)' : colors.border;
   const timerActionBackground = colors.primary;
@@ -397,13 +402,13 @@ export default function FocusModeScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Back"
               >
-                <AdaptiveGlassView style={[styles.glassSurface, styles.headerIcon, styles.headerBack]}>
+                <AdaptiveGlassView style={[styles.glassSurface, styles.headerIcon, styles.headerBack, { backgroundColor: colors.surfaceElevated }]}>
                   <Feather name="chevron-left" size={18} color={colors.textSecondary} />
                 </AdaptiveGlassView>
               </Pressable>
               <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>{localStrings.header.title}</Text>
               <Pressable onPress={openSettings} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
-                <AdaptiveGlassView style={[styles.glassSurface, styles.headerIcon]}>
+                <AdaptiveGlassView style={[styles.glassSurface, styles.headerIcon, { backgroundColor: colors.surfaceElevated }]}>
                   <Feather name="settings" size={18} color={colors.textSecondary} />
                 </AdaptiveGlassView>
               </Pressable>
@@ -411,7 +416,7 @@ export default function FocusModeScreen() {
 
           <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer} showsVerticalScrollIndicator={false}>
             {focusTask && (
-              <AdaptiveGlassView style={[styles.glassSurface, styles.focusedTaskCard]}>
+              <AdaptiveGlassView style={[styles.glassSurface, styles.focusedTaskCard, { backgroundColor: colors.card }]}>
                 <Text style={[styles.focusedTaskLabel, { color: colors.textSecondary }]}>{localStrings.task.cardLabel}</Text>
                 <Text style={[styles.focusedTaskTitle, { color: colors.textPrimary }]} numberOfLines={1}>
                   {focusTask.title}
@@ -429,7 +434,7 @@ export default function FocusModeScreen() {
             <View style={styles.hero}>
               <Text style={[styles.sessionTitle, { color: colors.textSecondary }]}>{technique.label}</Text>
               <View style={styles.timerContainer}>
-                <TimerRing progress={progress} colors={colors} />
+                <TimerRing progress={progress} colors={colors} styles={styles} />
                 <View style={styles.timerContent}>
                   {!isEditingDuration && (
                     <Text style={[styles.statusInside, { color: colors.textSecondary }]}>
@@ -519,12 +524,13 @@ export default function FocusModeScreen() {
                     value={!!toggles[opt.id]}
                     onToggle={() => toggleSetting(opt.id)}
                     colors={colors}
+                    styles={styles}
                   />
                 </React.Fragment>
               ))}
             </View>
 
-            <AdaptiveGlassView style={[styles.glassSurface, styles.statisticsCard]}>
+            <AdaptiveGlassView style={[styles.glassSurface, styles.statisticsCard, { backgroundColor: colors.card }]}>
               <Text style={[styles.statisticsTitle, { color: colors.textSecondary }]}>{localStrings.statistics.title}</Text>
               <View style={styles.statisticsRow}>
                 <Text style={[styles.statisticsLabel, { color: colors.textSecondary }]}>{localStrings.statistics.focusTime}</Text>
@@ -555,7 +561,7 @@ export default function FocusModeScreen() {
                 style={[
                   styles.glassSurface,
                   styles.bottomButtonInner,
-                  { opacity: isResetDisabled ? 0.4 : 1 },
+                  { opacity: isResetDisabled ? 0.4 : 1, backgroundColor: colors.cardItem },
                 ]}
               >
                 <Text style={[styles.bottomButtonText, { color: resetLabelColor }]}>{localStrings.buttons.reset}</Text>
@@ -574,7 +580,7 @@ export default function FocusModeScreen() {
                 style={[
                   styles.glassSurface,
                   styles.bottomButtonInner,
-                  { opacity: isFinishDisabled ? 0.4 : 1 },
+                  { opacity: isFinishDisabled ? 0.4 : 1, backgroundColor: colors.cardItem },
                 ]}
               >
                 <Text style={[styles.bottomButtonText, { color: finishLabelColor }]}>{localStrings.buttons.finish}</Text>
@@ -588,14 +594,14 @@ export default function FocusModeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (isDark: boolean) => StyleSheet.create({
   safeArea: { flex: 1 },
   flex: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, paddingBottom: 8 },
   glassSurface: {
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.18)',
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderColor: isDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.08)',
+    backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
   },
   headerIcon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   headerBack: { width: 40 },

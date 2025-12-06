@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  FlatList,
   Platform,
   Pressable,
   StyleSheet,
@@ -8,13 +7,16 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { FlashList as FlashListBase } from '@shopify/flash-list';
+
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-
 import { Theme, useAppTheme } from '@/constants/theme';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalization } from '@/localization/useLocalization';
+
+const FlashList = FlashListBase as any;
 
 const SUGGESTIONS = [
   'How to improve focus',
@@ -66,10 +68,11 @@ export default function SearchModalScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <FlatList
+      <FlashList
         data={filtered}
-        keyExtractor={(item) => item}
-        renderItem={({ item }) => (
+        keyExtractor={(item: string) => item}
+        estimatedItemSize={60}
+        renderItem={({ item }: { item: string }) => (
           <Pressable
             onPress={() => handleSelect(item)}
             style={({ pressed }) => [styles.resultItem, pressed && { opacity: 0.6 }]}

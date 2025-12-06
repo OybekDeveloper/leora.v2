@@ -19,6 +19,10 @@ import { createThemedStyles, useAppTheme } from '@/constants/theme';
 import { LevelProgress } from '@/components/shared/LevelProgress';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { usePlannerDomainStore } from '@/stores/usePlannerDomainStore';
+import { useFinanceDomainStore } from '@/stores/useFinanceDomainStore';
+import { useRealm } from '@/utils/RealmContext';
+import { storage } from '@/utils/storage';
+import * as Updates from 'expo-updates';
 import { useLocalization } from '@/localization/useLocalization';
 import type { AppTranslations } from '@/localization/strings';
 import type { User } from '@/types/auth.types';
@@ -87,6 +91,9 @@ const ProfileScreen = () => {
   const deleteAccount = useAuthStore((state) => state.deleteAccount);
   const logout = useAuthStore((state) => state.logout);
   const tasks = usePlannerDomainStore((state) => state.tasks);
+  const resetPlannerData = usePlannerDomainStore((state) => state.reset);
+  const resetFinanceData = useFinanceDomainStore((state) => state.reset);
+  const realm = useRealm();
   const editSheetRef = useRef<BottomSheetHandle>(null);
   const regionSheetRef = useRef<BottomSheetHandle>(null);
   const currencySheetRef = useRef<BottomSheetHandle>(null);
@@ -99,7 +106,7 @@ const ProfileScreen = () => {
     bio: user?.bio ?? '',
     visibility: (user?.visibility ?? 'friends') as VisibilityOption,
   });
-  const [confirmAction, setConfirmAction] = useState<'delete' | 'logout' | null>(null);
+  const [confirmAction, setConfirmAction] = useState<'delete' | 'logout' | 'reset' | null>(null);
   const [currencyQuery, setCurrencyQuery] = useState('');
   const [currencySheetMode, setCurrencySheetMode] = useState<'display' | 'override'>('display');
   const [syncingRates, setSyncingRates] = useState(false);
@@ -382,6 +389,25 @@ const ProfileScreen = () => {
     await logout();
     router.replace('/(auth)/login');
   }, [logout, router]);
+
+  const handleResetAllData = useCallback(async () => {
+    setConfirmAction(null);
+
+    // 1. Clear Realm database - delete all objects
+    realm.write(() => {
+      realm.deleteAll();
+    });
+
+    // 2. Clear AsyncStorage persisted data
+    await storage.removeItem('planner-domain');
+
+    // 3. Reset Zustand stores to initial state
+    resetFinanceData();
+    resetPlannerData();
+
+    // 4. Reload app to clear all stale references
+    await Updates.reloadAsync();
+  }, [realm, resetFinanceData, resetPlannerData]);
 
   const avatarElement = user?.profileImage ? (
     <Image source={user.profileImage} style={styles.avatarImage} />
@@ -699,6 +725,9 @@ const ProfileScreen = () => {
           <Pressable style={[styles.secondaryButton]} onPress={() => setConfirmAction('logout')}>
             <Text style={styles.secondaryButtonLabel}>{profileStrings.buttons.logout}</Text>
           </Pressable>
+          <Pressable style={[styles.dangerButton]} onPress={() => setConfirmAction('reset')}>
+            <Text style={styles.dangerButtonLabel}>{profileStrings.buttons.resetAllData}</Text>
+          </Pressable>
           <Pressable style={[styles.dangerButton]} onPress={() => setConfirmAction('delete')}>
             <Text style={styles.dangerButtonLabel}>{profileStrings.buttons.delete}</Text>
           </Pressable>
@@ -715,24 +744,42 @@ const ProfileScreen = () => {
       />
       <ConfirmDialog
         visible={confirmAction !== null}
-        title=
-          {confirmAction === 'delete'
+        title={
+          confirmAction === 'delete'
             ? profileStrings.buttons.confirmDeleteTitle
-            : strings.more.confirmLogout.title}
-        message=
-          {confirmAction === 'delete'
+            : confirmAction === 'reset'
+              ? profileStrings.buttons.confirmResetTitle
+              : strings.more.confirmLogout.title
+        }
+        message={
+          confirmAction === 'delete'
             ? profileStrings.buttons.confirmDeleteMessage
-            : strings.more.confirmLogout.message}
-        confirmLabel=
-          {confirmAction === 'delete'
+            : confirmAction === 'reset'
+              ? profileStrings.buttons.confirmResetMessage
+              : strings.more.confirmLogout.message
+        }
+        confirmLabel={
+          confirmAction === 'delete'
             ? profileStrings.buttons.confirmDeleteConfirm
-            : strings.more.confirmLogout.confirm}
-        cancelLabel=
-          {confirmAction === 'delete'
+            : confirmAction === 'reset'
+              ? profileStrings.buttons.confirmResetConfirm
+              : strings.more.confirmLogout.confirm
+        }
+        cancelLabel={
+          confirmAction === 'delete'
             ? profileStrings.buttons.confirmDeleteCancel
-            : strings.more.confirmLogout.cancel}
+            : confirmAction === 'reset'
+              ? profileStrings.buttons.confirmResetCancel
+              : strings.more.confirmLogout.cancel
+        }
         onCancel={() => setConfirmAction(null)}
-        onConfirm={confirmAction === 'delete' ? handleDeleteAccount : handleLogout}
+        onConfirm={
+          confirmAction === 'delete'
+            ? handleDeleteAccount
+            : confirmAction === 'reset'
+              ? handleResetAllData
+              : handleLogout
+        }
       />
       <CustomBottomSheet
         ref={regionSheetRef}

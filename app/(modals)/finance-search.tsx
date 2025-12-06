@@ -1,9 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { FlashList as FlashListBase } from '@shopify/flash-list';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-
 import { useAppTheme } from '@/constants/theme';
 import { useFinanceDomainStore } from '@/stores/useFinanceDomainStore';
 import { useFinanceCurrency } from '@/hooks/useFinanceCurrency';
@@ -11,6 +11,7 @@ import { normalizeFinanceCurrency } from '@/utils/financeCurrency';
 import { useShallow } from 'zustand/react/shallow';
 import { useLocalization } from '@/localization/useLocalization';
 
+const FlashList = FlashListBase as any;
 type ResultType = 'account' | 'transaction' | 'budget' | 'debt';
 
 interface SearchResult {
@@ -166,11 +167,12 @@ const FinanceSearchModal = () => {
         )}
       </View>
 
-      <FlatList
+      <FlashList
         data={results}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item: SearchResult) => item.id}
         contentContainerStyle={styles.listContent}
-        renderItem={({ item }) => (
+        estimatedItemSize={80}
+        renderItem={({ item }: { item: SearchResult }) => (
           <Pressable style={styles.resultRow} onPress={() => handleNavigate(item.route)}>
             <View>
               <Text style={styles.resultTitle}>{item.title}</Text>
@@ -179,6 +181,7 @@ const FinanceSearchModal = () => {
             {item.amount ? <Text style={styles.resultAmount}>{item.amount}</Text> : null}
           </Pressable>
         )}
+        ItemSeparatorComponent={() => <View style={styles.separator} />}
         ListEmptyComponent={
           query ? (
             <Text style={styles.emptyText}>{searchStrings.noResults}</Text>
@@ -232,7 +235,9 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>) =>
     listContent: {
       paddingHorizontal: 20,
       paddingBottom: 40,
-      gap: 10,
+    },
+    separator: {
+      height: 10,
     },
     resultRow: {
       borderRadius: 18,

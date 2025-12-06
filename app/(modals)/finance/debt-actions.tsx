@@ -10,6 +10,7 @@ import {
   Platform,
   KeyboardAvoidingView,
 } from 'react-native';
+import { FlashList as FlashListBase } from '@shopify/flash-list';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
@@ -27,9 +28,15 @@ import { AdaptiveGlassView } from '@/components/ui/AdaptiveGlassView';
 import { useAppTheme } from '@/constants/theme';
 import { useLocalization } from '@/localization/useLocalization';
 import { useFinanceDomainStore } from '@/stores/useFinanceDomainStore';
-import AccountPicker from '@/components/shared/AccountPicker';
-import type { Debt } from '@/domain/finance/types';
+import type { Debt, Account } from '@/domain/finance/types';
 import { useShallow } from 'zustand/react/shallow';
+import { formatNumberWithSpaces, parseSpacedNumber } from '@/utils/formatNumber';
+import { FxService } from '@/services/fx/FxService';
+import { TrendingUp, TrendingDown } from 'lucide-react-native';
+import { normalizeFinanceCurrency } from '@/utils/financeCurrency';
+import type { FinanceCurrency } from '@/stores/useFinancePreferencesStore';
+
+const FlashList = FlashListBase as any;
 
 // =====================================================
 // Utility Functions
@@ -123,16 +130,107 @@ const PaymentForm = ({ debt, isPartial, onClose, onSubmit }: PaymentFormProps) =
   const theme = useAppTheme();
   const { strings } = useLocalization();
   const debtActionsStrings = strings.financeScreens.debts.actions;
+  const currencyConversionStrings = (debtActionsStrings as any)?.currencyConversion ?? {};
   const isIOwe = debt.direction === 'i_owe';
 
-  const [amount, setAmount] = useState(isPartial ? '' : debt.principalAmount.toString());
+  // Accounts from store
+  const accounts = useFinanceDomainStore((state) => state.accounts);
+
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(debt.fundingAccountId ?? null);
   const [note, setNote] = useState('');
-  const [paymentDate, setPaymentDate] = useState(new Date());
-  const [showDatePicker, setShowDatePicker] = useState(false);
+
+  // To'lov valyutasi avtomatik aniqlanadi:
+  // 1. Agar qarz uchun repaymentCurrency tanlangan bo'lsa - shu valyutada
+  // 2. Aks holda - tanlangan account valyutasida
+  const selectedAccount = useMemo(
+    () => accounts.find((a) => a.id === selectedAccountId),
+    [accounts, selectedAccountId]
+  );
+
+  const paymentCurrency = useMemo<FinanceCurrency>(() => {
+    // Agar qarz yaratilganda repaymentCurrency tanlangan bo'lsa - shu valyutada qaytarish
+    if (debt.repaymentCurrency) {
+      return debt.repaymentCurrency as FinanceCurrency;
+    }
+    // Aks holda tanlangan account valyutasida
+    if (selectedAccount?.currency) {
+      return selectedAccount.currency as FinanceCurrency;
+    }
+    // Default: qarz valyutasi
+    return (debt.principalCurrency as FinanceCurrency) ?? 'USD';
+  }, [debt.repaymentCurrency, debt.principalCurrency, selectedAccount?.currency]);
+
+  // Amount ni to'lov valyutasida hisoblash (2 kasrgacha yaxlitlash)
+  const paymentAmountInCurrency = useMemo(() => {
+    if (paymentCurrency === debt.principalCurrency) {
+      return Math.round(debt.principalAmount * 100) / 100;
+    }
+    // Valyuta konvertatsiya
+    const rate = FxService.getInstance().getRate(
+      normalizeFinanceCurrency(debt.principalCurrency),
+      normalizeFinanceCurrency(paymentCurrency)
+    ) ?? 1;
+    return Math.round(debt.principalAmount * rate * 100) / 100;
+  }, [debt.principalAmount, debt.principalCurrency, paymentCurrency]);
+
+  const [amount, setAmount] = useState(isPartial ? '' : formatNumberWithSpaces(paymentAmountInCurrency));
+
+  // Account select handler
+  const handleAccountSelect = useCallback((accountId: string) => {
+    setSelectedAccountId(accountId);
+  }, []);
+
+  // Valyuta farqi hisoblash (faqat repaymentCurrency mavjud bo'lganda)
+  const currencyInfo = useMemo(() => {
+    // Faqat qarz yaratilganda repaymentCurrency tanlangan bo'lsa ko'rsatish
+    if (!debt.repaymentCurrency || debt.repaymentCurrency === debt.principalCurrency) {
+      return null;
+    }
+    const startRate = debt.repaymentRateOnStart ?? 1;
+    const currentRate = FxService.getInstance().getRate(
+      normalizeFinanceCurrency(debt.principalCurrency),
+      normalizeFinanceCurrency(debt.repaymentCurrency)
+    ) ?? startRate;
+    const rateDifference = currentRate - startRate;
+    const remainingAmount = debt.principalAmount;
+
+    // Kutilgan va hozirgi summa
+    const expectedAtStartRate = remainingAmount * startRate;
+    const currentAtCurrentRate = remainingAmount * currentRate;
+    const profitLoss = currentAtCurrentRate - expectedAtStartRate;
+
+    // Yo'nalishga qarab foyda/zarar
+    const isProfit = debt.direction === 'they_owe_me' ? rateDifference >= 0 : rateDifference <= 0;
+
+    return {
+      startRate,
+      currentRate,
+      expectedAtStartRate,
+      currentAtCurrentRate,
+      profitLoss,
+      isProfit,
+      hasChange: Math.abs(rateDifference) > 0.0001,
+    };
+  }, [debt]);
+
+  const handleAmountChange = (text: string) => {
+    // Faqat raqam va nuqta qabul qilish
+    const cleaned = text.replace(/[^\d.]/g, '');
+    // Bir nechta nuqtani oldini olish
+    const parts = cleaned.split('.');
+    let sanitized = parts.length > 2 ? parts[0] + '.' + parts.slice(1).join('') : cleaned;
+    // 2 kasrgacha cheklash
+    if (parts.length === 2 && parts[1].length > 2) {
+      sanitized = parts[0] + '.' + parts[1].substring(0, 2);
+    }
+    const num = parseFloat(sanitized) || 0;
+    // 2 kasrgacha yaxlitlash
+    const rounded = Math.round(num * 100) / 100;
+    setAmount(rounded > 0 ? formatNumberWithSpaces(rounded) : sanitized);
+  };
 
   const handleSubmit = () => {
-    const parsedAmount = parseFloat(amount) || 0;
+    const parsedAmount = parseSpacedNumber(amount);
     if (parsedAmount <= 0) {
       Alert.alert(debtActionsStrings?.errors?.invalidAmount ?? 'Invalid amount', debtActionsStrings?.errors?.enterValidAmount ?? 'Please enter a valid amount');
       return;
@@ -144,16 +242,8 @@ const PaymentForm = ({ debt, isPartial, onClose, onSubmit }: PaymentFormProps) =
       );
       return;
     }
-    onSubmit(parsedAmount, selectedAccountId, paymentDate, note || undefined);
-  };
-
-  const handleDateChange = (_event: unknown, selectedDate?: Date) => {
-    if (Platform.OS === 'android') {
-      setShowDatePicker(false);
-    }
-    if (selectedDate) {
-      setPaymentDate(selectedDate);
-    }
+    // To'lov sanasi avtomatik - bugun
+    onSubmit(parsedAmount, selectedAccountId, new Date(), note || undefined);
   };
 
   return (
@@ -172,18 +262,119 @@ const PaymentForm = ({ debt, isPartial, onClose, onSubmit }: PaymentFormProps) =
         </Text>
       </View>
 
-      {/* Amount Input */}
+      {/* Account Selection - FlashList (Amount inputdan oldin) */}
       <View style={styles.fieldContainer}>
         <Text style={[styles.fieldLabel, { color: theme.colors.textSecondary }]}>
-          {debtActionsStrings?.fields?.amount ?? 'Amount'}
+          {debtActionsStrings?.fields?.account ?? 'Account'}
+        </Text>
+        <View style={styles.accountListWrapper}>
+          <FlashList
+            data={accounts}
+            keyExtractor={(item: Account) => item.id}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            estimatedItemSize={140}
+            renderItem={({ item: account }: { item: Account }) => {
+              const active = account.id === selectedAccountId;
+              return (
+                <Pressable
+                  onPress={() => handleAccountSelect(account.id)}
+                  style={({ pressed }) => [
+                    styles.accountChip,
+                    active && styles.accountChipActive,
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  <Text style={[styles.accountChipLabel, { color: active ? '#0E0E0E' : '#FFFFFF' }]}>
+                    {account.name}
+                  </Text>
+                  <Text style={[styles.accountChipSubtext, { color: active ? '#0E0E0E' : '#9E9E9E' }]}>
+                    {formatCurrencyDisplay(account.currentBalance ?? 0, account.currency)}
+                  </Text>
+                </Pressable>
+              );
+            }}
+            ListHeaderComponent={<View style={styles.listEdgeSpacer} />}
+            ItemSeparatorComponent={() => <View style={styles.horizontalSeparator} />}
+            ListFooterComponent={<View style={styles.listEdgeSpacer} />}
+          />
+        </View>
+      </View>
+
+      {/* Valyuta farqi info (faqat repaymentCurrency tanlangan bo'lsa) */}
+      {currencyInfo && (
+        <View style={[styles.currencyInfoCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+          <View style={styles.currencyInfoHeader}>
+            {currencyInfo.isProfit ? (
+              <TrendingUp size={16} color={theme.colors.success} />
+            ) : (
+              <TrendingDown size={16} color={theme.colors.danger} />
+            )}
+            <Text style={[styles.currencyInfoTitle, { color: theme.colors.textPrimary }]}>
+              {currencyConversionStrings.title ?? 'Currency Conversion'}
+            </Text>
+          </View>
+          <View style={styles.currencyInfoContent}>
+            <View style={styles.currencyInfoRow}>
+              <Text style={[styles.currencyInfoLabel, { color: theme.colors.textSecondary }]}>
+                {currencyConversionStrings.debtCurrency ?? 'Debt currency'}:
+              </Text>
+              <Text style={[styles.currencyInfoValue, { color: theme.colors.textPrimary }]}>
+                {formatCurrencyDisplay(debt.principalAmount, debt.principalCurrency)}
+              </Text>
+            </View>
+            <View style={styles.currencyInfoRow}>
+              <Text style={[styles.currencyInfoLabel, { color: theme.colors.textSecondary }]}>
+                {isIOwe
+                  ? (currencyConversionStrings.repaymentCurrency ?? 'Repayment currency')
+                  : (currencyConversionStrings.receiveCurrency ?? 'Receive currency')}:
+              </Text>
+              <Text style={[styles.currencyInfoValue, { color: theme.colors.textPrimary }]}>
+                {debt.repaymentCurrency}
+              </Text>
+            </View>
+            <View style={styles.currencyInfoRow}>
+              <Text style={[styles.currencyInfoLabel, { color: theme.colors.textSecondary }]}>
+                {currencyConversionStrings.startRate ?? 'Start rate'}:
+              </Text>
+              <Text style={[styles.currencyInfoValue, { color: theme.colors.textPrimary }]}>
+                1 {debt.principalCurrency} = {currencyInfo.startRate.toLocaleString()} {debt.repaymentCurrency}
+              </Text>
+            </View>
+            <View style={styles.currencyInfoRow}>
+              <Text style={[styles.currencyInfoLabel, { color: theme.colors.textSecondary }]}>
+                {currencyConversionStrings.currentRate ?? 'Current rate'}:
+              </Text>
+              <Text style={[styles.currencyInfoValue, { color: theme.colors.textPrimary }]}>
+                1 {debt.principalCurrency} = {currencyInfo.currentRate.toLocaleString()} {debt.repaymentCurrency}
+              </Text>
+            </View>
+            {currencyInfo.hasChange && (
+              <View style={[styles.currencyInfoPL, { backgroundColor: currencyInfo.isProfit ? `${theme.colors.success}15` : `${theme.colors.danger}15` }]}>
+                <Text style={[styles.currencyInfoPLText, { color: currencyInfo.isProfit ? theme.colors.success : theme.colors.danger }]}>
+                  {currencyInfo.isProfit
+                    ? `${currencyConversionStrings.profit ?? 'Profit'}: +`
+                    : `${currencyConversionStrings.loss ?? 'Loss'}: −`}
+                  {formatCurrencyDisplay(Math.abs(currencyInfo.profitLoss), debt.repaymentCurrency ?? paymentCurrency)}
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
+      )}
+
+      {/* Amount Input - to'lov valyutasida */}
+      <View style={styles.fieldContainer}>
+        <Text style={[styles.fieldLabel, { color: theme.colors.textSecondary }]}>
+          {debtActionsStrings?.fields?.amount ?? 'Amount'} ({paymentCurrency})
         </Text>
         <View style={[styles.amountInputContainer, { borderColor: theme.colors.border, backgroundColor: theme.colors.card }]}>
           <Text style={[styles.currencyPrefix, { color: theme.colors.textSecondary }]}>
-            {debt.principalCurrency}
+            {paymentCurrency}
           </Text>
           <TextInput
             value={amount}
-            onChangeText={setAmount}
+            onChangeText={handleAmountChange}
             keyboardType="decimal-pad"
             placeholder="0.00"
             placeholderTextColor={theme.colors.textMuted}
@@ -192,58 +383,11 @@ const PaymentForm = ({ debt, isPartial, onClose, onSubmit }: PaymentFormProps) =
           />
         </View>
         <Text style={[styles.fieldHelper, { color: theme.colors.textMuted }]}>
-          {debtActionsStrings?.fields?.remaining ?? 'Remaining'}: {formatCurrencyDisplay(debt.principalAmount, debt.principalCurrency)}
+          {debtActionsStrings?.fields?.remaining ?? 'Remaining'}: {formatCurrencyDisplay(paymentAmountInCurrency, paymentCurrency)}
+          {paymentCurrency !== debt.principalCurrency && (
+            ` (${formatCurrencyDisplay(debt.principalAmount, debt.principalCurrency)})`
+          )}
         </Text>
-      </View>
-
-      {/* Payment Date */}
-      <View style={styles.fieldContainer}>
-        <Text style={[styles.fieldLabel, { color: theme.colors.textSecondary }]}>
-          {debtActionsStrings?.fields?.paymentDate ?? 'Payment Date'}
-        </Text>
-        <Pressable
-          onPress={() => setShowDatePicker(!showDatePicker)}
-          style={[styles.dateButton, { borderColor: theme.colors.border, backgroundColor: theme.colors.card }]}
-        >
-          <CalendarDays size={18} color={theme.colors.textSecondary} />
-          <Text style={[styles.dateButtonText, { color: theme.colors.textPrimary }]}>
-            {formatDate(paymentDate.toISOString())}
-          </Text>
-          <ChevronDown size={16} color={theme.colors.textMuted} />
-        </Pressable>
-
-        {showDatePicker && (
-          <View style={[styles.datePickerInline, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
-            <DateTimePicker
-              value={paymentDate}
-              mode="date"
-              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-              onChange={handleDateChange}
-              maximumDate={new Date()}
-              themeVariant={theme.mode}
-            />
-            {Platform.OS === 'ios' && (
-              <Pressable
-                onPress={() => setShowDatePicker(false)}
-                style={[styles.datePickerDone, { backgroundColor: theme.colors.primary }]}
-              >
-                <Text style={[styles.datePickerDoneText, { color: theme.colors.onPrimary }]}>
-                  {debtActionsStrings?.buttons?.done ?? 'Done'}
-                </Text>
-              </Pressable>
-            )}
-          </View>
-        )}
-      </View>
-
-      {/* Account Picker */}
-      <View style={[styles.fieldContainer, { zIndex: 100 }]}>
-        <AccountPicker
-          label={debtActionsStrings?.fields?.account ?? 'Account'}
-          selectedAccountId={selectedAccountId}
-          onSelect={(account) => setSelectedAccountId(account?.id ?? null)}
-          placeholder={debtActionsStrings?.fields?.selectAccount ?? 'Select account...'}
-        />
       </View>
 
       {/* Note */}
@@ -889,6 +1033,49 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     textAlign: 'center',
   },
+  // Currency Info Card Styles
+  currencyInfoCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 14,
+    marginBottom: 16,
+    gap: 12,
+  },
+  currencyInfoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  currencyInfoTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  currencyInfoContent: {
+    gap: 8,
+  },
+  currencyInfoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  currencyInfoLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  currencyInfoValue: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  currencyInfoPL: {
+    marginTop: 4,
+    padding: 10,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  currencyInfoPLText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
   fieldContainer: {
     gap: 8,
     marginBottom: 16,
@@ -1062,5 +1249,39 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
     textAlign: 'center',
+  },
+  // FlashList styles for account selection
+  accountListWrapper: {
+    height: 60,
+    marginHorizontal: -16,
+  },
+  accountChip: {
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 100,
+  },
+  accountChipActive: {
+    backgroundColor: '#E0E0E0',
+  },
+  accountChipLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  accountChipSubtext: {
+    fontSize: 11,
+    marginTop: 2,
+  },
+  listEdgeSpacer: {
+    width: 16,
+  },
+  horizontalSeparator: {
+    width: 10,
+  },
+  pressed: {
+    opacity: 0.8,
   },
 });

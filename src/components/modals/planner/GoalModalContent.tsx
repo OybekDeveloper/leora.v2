@@ -36,10 +36,13 @@ import {
   CircleDot,
 } from 'lucide-react-native';
 
+import { FlashList as FlashListBase } from '@shopify/flash-list';
 import { StepIndicator } from '@/components/modals/StepIndicator';
 import { SmartHint } from '@/components/modals/SmartHint';
-import { FloatList, type FloatListItem } from '@/components/ui/FloatList';
 import { useLocalization } from '@/localization/useLocalization';
+
+// Cast FlashList to avoid TypeScript generic inference issues
+const FlashList = FlashListBase as any;
 import { useGoalModalContentLocalization } from '@/localization/planner/goalModalContent';
 import type { FinanceMode, GoalType, MetricKind } from '@/domain/planner/types';
 import { usePlannerDomainStore } from '@/stores/usePlannerDomainStore';
@@ -207,24 +210,24 @@ export function GoalModalContent({ goalId }: Props) {
     [budgets, formData.linkedBudgetId],
   );
 
-  // FloatList items for goal types
-  const goalTypeItems = useMemo<(FloatListItem & { id: GoalType })[]>(() => [
-    { id: 'financial', label: t.goalTypes.money, icon: renderIcon('dollar', 16, formData.goalType === 'financial' ? theme.colors.primary : theme.colors.textSecondary) },
-    { id: 'health', label: t.goalTypes.health, icon: renderIcon('heart', 16, formData.goalType === 'health' ? theme.colors.primary : theme.colors.textSecondary) },
-    { id: 'education', label: t.goalTypes.learning, icon: renderIcon('book', 16, formData.goalType === 'education' ? theme.colors.primary : theme.colors.textSecondary) },
-    { id: 'productivity', label: t.goalTypes.career, icon: renderIcon('briefcase', 16, formData.goalType === 'productivity' ? theme.colors.primary : theme.colors.textSecondary) },
-    { id: 'personal', label: t.goalTypes.personal, icon: renderIcon('target', 16, formData.goalType === 'personal' ? theme.colors.primary : theme.colors.textSecondary) },
-  ], [formData.goalType, theme.colors.primary, theme.colors.textSecondary, t]);
+  // Goal type items for FlashList
+  const goalTypeItems = useMemo(() => [
+    { id: 'financial' as GoalType, label: t.goalTypes.money, iconId: 'dollar' },
+    { id: 'health' as GoalType, label: t.goalTypes.health, iconId: 'heart' },
+    { id: 'education' as GoalType, label: t.goalTypes.learning, iconId: 'book' },
+    { id: 'productivity' as GoalType, label: t.goalTypes.career, iconId: 'briefcase' },
+    { id: 'personal' as GoalType, label: t.goalTypes.personal, iconId: 'target' },
+  ], [t]);
 
-  // FloatList items for finance modes
-  const financeModeItems = useMemo<(FloatListItem & { id: FinanceMode })[]>(() => [
-    { id: 'save', label: t.financeModes.save.label, icon: renderIcon('banknote', 16, formData.financeMode === 'save' ? theme.colors.primary : theme.colors.textSecondary) },
-    { id: 'spend', label: t.financeModes.spend.label, icon: renderIcon('shopping', 16, formData.financeMode === 'spend' ? theme.colors.primary : theme.colors.textSecondary) },
-    { id: 'debt_close', label: t.financeModes.debtClose.label, icon: renderIcon('credit', 16, formData.financeMode === 'debt_close' ? theme.colors.primary : theme.colors.textSecondary) },
-  ], [formData.financeMode, theme.colors.primary, theme.colors.textSecondary, t]);
+  // Finance mode items for FlashList
+  const financeModeItems = useMemo(() => [
+    { id: 'save' as FinanceMode, label: t.financeModes.save.label, iconId: 'banknote' },
+    { id: 'spend' as FinanceMode, label: t.financeModes.spend.label, iconId: 'shopping' },
+    { id: 'debt_close' as FinanceMode, label: t.financeModes.debtClose.label, iconId: 'credit' },
+  ], [t]);
 
-  // FloatList items for currencies
-  const currencyItems = useMemo<FloatListItem[]>(() =>
+  // Currency items for FlashList
+  const currencyItems = useMemo(() =>
     AVAILABLE_FINANCE_CURRENCIES.map((curr) => ({
       id: curr,
       label: curr,
@@ -232,16 +235,16 @@ export function GoalModalContent({ goalId }: Props) {
     [],
   );
 
-  // FloatList items for metric kinds (non-financial)
-  const metricKindItems = useMemo<(FloatListItem & { id: MetricKind })[]>(() => [
-    { id: 'count', label: t.metricOptions.number.label, icon: renderIcon('hash', 16, formData.metricKind === 'count' ? theme.colors.primary : theme.colors.textSecondary) },
-    { id: 'duration', label: t.metricOptions.time.label, icon: renderIcon('timer', 16, formData.metricKind === 'duration' ? theme.colors.primary : theme.colors.textSecondary) },
-    { id: 'weight', label: t.metricOptions.weight.label, icon: renderIcon('scale', 16, formData.metricKind === 'weight' ? theme.colors.primary : theme.colors.textSecondary) },
-    { id: 'custom', label: t.metricOptions.custom.label, icon: renderIcon('settings', 16, formData.metricKind === 'custom' ? theme.colors.primary : theme.colors.textSecondary) },
-  ], [formData.metricKind, theme.colors.primary, theme.colors.textSecondary, t]);
+  // Metric kind items for FlashList
+  const metricKindItems = useMemo(() => [
+    { id: 'count' as MetricKind, label: t.metricOptions.number.label, iconId: 'hash' },
+    { id: 'duration' as MetricKind, label: t.metricOptions.time.label, iconId: 'timer' },
+    { id: 'weight' as MetricKind, label: t.metricOptions.weight.label, iconId: 'scale' },
+    { id: 'custom' as MetricKind, label: t.metricOptions.custom.label, iconId: 'settings' },
+  ], [t]);
 
-  // FloatList items for deadline presets
-  const deadlinePresetItems = useMemo<FloatListItem[]>(() => [
+  // Deadline preset items for FlashList
+  const deadlinePresetItems = useMemo(() => [
     { id: '1m', label: t.deadlinePresets.oneMonth },
     { id: '3m', label: t.deadlinePresets.threeMonths },
     { id: '6m', label: t.deadlinePresets.sixMonths },
@@ -352,7 +355,7 @@ export function GoalModalContent({ goalId }: Props) {
   }, [budgets]);
 
   // Handle deadline preset selection
-  const handleDeadlinePresetSelect = useCallback((item: FloatListItem) => {
+  const handleDeadlinePresetSelect = useCallback((item: { id: string; label: string }) => {
     const today = new Date();
     switch (item.id) {
       case '1m':
@@ -679,20 +682,38 @@ export function GoalModalContent({ goalId }: Props) {
         <Text style={styles.characterCount}>{formData.title.length}/100</Text>
       </View>
 
-      <View style={styles.fieldContainer}>
-        <Text style={styles.fieldLabel}>{t.step1.category}</Text>
-        <FloatList
-          items={goalTypeItems}
-          selectedId={formData.goalType}
-          onSelect={(item) => updateField('goalType', item.id)}
-          horizontal
-          gap={10}
-        />
-        {formData.goalType && (
-          <SmartHint
-            type="tip"
-            message={`Examples: ${getGoalExamples(formData.goalType)}`}
+      <View style={styles.fieldContainerFullWidth}>
+        <Text style={[styles.fieldLabel, styles.labelWithPadding]}>{t.step1.category}</Text>
+        <View style={styles.goalTypeListContainer}>
+          <FlashList
+            data={goalTypeItems}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            estimatedItemSize={100}
+            keyExtractor={(item: { id: GoalType; label: string; iconId: string }) => item.id}
+            ItemSeparatorComponent={() => <View style={styles.horizontalSeparator} />}
+            ListHeaderComponent={<View style={styles.listEdgeSpacer} />}
+            ListFooterComponent={<View style={styles.listEdgeSpacer} />}
+            renderItem={({ item }: { item: { id: GoalType; label: string; iconId: string } }) => {
+              const isSelected = formData.goalType === item.id;
+              return (
+                <Pressable onPress={() => updateField('goalType', item.id)}>
+                  <AdaptiveGlassView style={[styles.chip, isSelected && styles.chipSelected]}>
+                    {renderIcon(item.iconId, 16, isSelected ? '#FFFFFF' : theme.colors.textSecondary)}
+                    <Text style={[styles.chipLabel, isSelected && styles.chipLabelSelected]}>{item.label}</Text>
+                  </AdaptiveGlassView>
+                </Pressable>
+              );
+            }}
           />
+        </View>
+        {formData.goalType && (
+          <View style={styles.labelWithPadding}>
+            <SmartHint
+              type="tip"
+              message={`Examples: ${getGoalExamples(formData.goalType)}`}
+            />
+          </View>
         )}
       </View>
 
@@ -724,15 +745,31 @@ export function GoalModalContent({ goalId }: Props) {
 
         {isFinancial ? (
           <>
-            <View style={styles.fieldContainer}>
-              <Text style={styles.fieldLabel}>{t.step2.goalType}</Text>
-              <FloatList
-                items={financeModeItems}
-                selectedId={formData.financeMode}
-                onSelect={(item) => updateField('financeMode', item.id)}
-                horizontal
-                gap={10}
-              />
+            <View style={styles.fieldContainerFullWidth}>
+              <Text style={[styles.fieldLabel, styles.labelWithPadding]}>{t.step2.goalType}</Text>
+              <View style={styles.financeModeListContainer}>
+                <FlashList
+                  data={financeModeItems}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  estimatedItemSize={100}
+                  keyExtractor={(item: { id: FinanceMode; label: string; iconId: string }) => item.id}
+                  ItemSeparatorComponent={() => <View style={styles.horizontalSeparator} />}
+                  ListHeaderComponent={<View style={styles.listEdgeSpacer} />}
+                  ListFooterComponent={<View style={styles.listEdgeSpacer} />}
+                  renderItem={({ item }: { item: { id: FinanceMode; label: string; iconId: string } }) => {
+                    const isSelected = formData.financeMode === item.id;
+                    return (
+                      <Pressable onPress={() => updateField('financeMode', item.id)}>
+                        <AdaptiveGlassView style={[styles.chip, isSelected && styles.chipSelected]}>
+                          {renderIcon(item.iconId, 16, isSelected ? '#FFFFFF' : theme.colors.textSecondary)}
+                          <Text style={[styles.chipLabel, isSelected && styles.chipLabelSelected]}>{item.label}</Text>
+                        </AdaptiveGlassView>
+                      </Pressable>
+                    );
+                  }}
+                />
+              </View>
             </View>
 
             <View style={styles.fieldContainer}>
@@ -754,13 +791,26 @@ export function GoalModalContent({ goalId }: Props) {
                 return null;
               })()}
               {!formData.linkedBudgetId && (
-                <FloatList
-                  items={currencyItems}
-                  selectedId={formData.currency}
-                  onSelect={(item) => updateField('currency', item.id as FinanceCurrency)}
-                  horizontal
-                  gap={10}
-                />
+                <View style={styles.currencyListContainer}>
+                  <FlashList
+                    data={currencyItems}
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    estimatedItemSize={60}
+                    keyExtractor={(item: { id: string; label: string }) => item.id}
+                    ItemSeparatorComponent={() => <View style={styles.horizontalSeparator} />}
+                    renderItem={({ item }: { item: { id: string; label: string } }) => {
+                      const isSelected = formData.currency === item.id;
+                      return (
+                        <Pressable onPress={() => updateField('currency', item.id as FinanceCurrency)}>
+                          <AdaptiveGlassView style={[styles.chip, isSelected && styles.chipSelected]}>
+                            <Text style={[styles.chipLabel, isSelected && styles.chipLabelSelected]}>{item.label}</Text>
+                          </AdaptiveGlassView>
+                        </Pressable>
+                      );
+                    }}
+                  />
+                </View>
               )}
             </View>
 
@@ -800,15 +850,31 @@ export function GoalModalContent({ goalId }: Props) {
           </>
         ) : (
           <>
-            <View style={styles.fieldContainer}>
-              <Text style={styles.fieldLabel}>{t.step2.whatMeasure}</Text>
-              <FloatList
-                items={metricKindItems}
-                selectedId={formData.metricKind}
-                onSelect={(item) => updateField('metricKind', item.id)}
-                horizontal
-                gap={10}
-              />
+            <View style={styles.fieldContainerFullWidth}>
+              <Text style={[styles.fieldLabel, styles.labelWithPadding]}>{t.step2.whatMeasure}</Text>
+              <View style={styles.metricKindListContainer}>
+                <FlashList
+                  data={metricKindItems}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  estimatedItemSize={100}
+                  keyExtractor={(item: { id: MetricKind; label: string; iconId: string }) => item.id}
+                  ItemSeparatorComponent={() => <View style={styles.horizontalSeparator} />}
+                  ListHeaderComponent={<View style={styles.listEdgeSpacer} />}
+                  ListFooterComponent={<View style={styles.listEdgeSpacer} />}
+                  renderItem={({ item }: { item: { id: MetricKind; label: string; iconId: string } }) => {
+                    const isSelected = formData.metricKind === item.id;
+                    return (
+                      <Pressable onPress={() => updateField('metricKind', item.id)}>
+                        <AdaptiveGlassView style={[styles.chip, isSelected && styles.chipSelected]}>
+                          {renderIcon(item.iconId, 16, isSelected ? '#FFFFFF' : theme.colors.textSecondary)}
+                          <Text style={[styles.chipLabel, isSelected && styles.chipLabelSelected]}>{item.label}</Text>
+                        </AdaptiveGlassView>
+                      </Pressable>
+                    );
+                  }}
+                />
+              </View>
             </View>
 
             {(formData.metricKind === 'count' || formData.metricKind === 'duration') && (
@@ -884,14 +950,27 @@ export function GoalModalContent({ goalId }: Props) {
       </View>
 
       {!formData.targetDate && (
-        <View style={styles.fieldContainer}>
-          <Text style={styles.fieldLabel}>{t.step3.quickSelect}</Text>
-          <FloatList
-            items={deadlinePresetItems}
-            onSelect={handleDeadlinePresetSelect}
-            horizontal
-            gap={10}
-          />
+        <View style={styles.fieldContainerFullWidth}>
+          <Text style={[styles.fieldLabel, styles.labelWithPadding]}>{t.step3.quickSelect}</Text>
+          <View style={styles.deadlinePresetListContainer}>
+            <FlashList
+              data={deadlinePresetItems}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              estimatedItemSize={80}
+              keyExtractor={(item: { id: string; label: string }) => item.id}
+              ItemSeparatorComponent={() => <View style={styles.horizontalSeparator} />}
+              ListHeaderComponent={<View style={styles.listEdgeSpacer} />}
+              ListFooterComponent={<View style={styles.listEdgeSpacer} />}
+              renderItem={({ item }: { item: { id: string; label: string } }) => (
+                <Pressable onPress={() => handleDeadlinePresetSelect(item)}>
+                  <AdaptiveGlassView style={styles.chip}>
+                    <Text style={styles.chipLabel}>{item.label}</Text>
+                  </AdaptiveGlassView>
+                </Pressable>
+              )}
+            />
+          </View>
         </View>
       )}
 
@@ -1267,6 +1346,34 @@ const useStyles = createThemedStyles((theme) => ({
   },
   fieldContainer: {
     gap: 10,
+  },
+  fieldContainerFullWidth: {
+    gap: 10,
+    marginHorizontal: -20,
+  },
+  labelWithPadding: {
+    paddingHorizontal: 20,
+  },
+  listEdgeSpacer: {
+    width: 20,
+  },
+  horizontalSeparator: {
+    width: 10,
+  },
+  goalTypeListContainer: {
+    height: 52,
+  },
+  financeModeListContainer: {
+    height: 52,
+  },
+  currencyListContainer: {
+    height: 52,
+  },
+  metricKindListContainer: {
+    height: 52,
+  },
+  deadlinePresetListContainer: {
+    height: 52,
   },
   fieldLabel: {
     fontSize: 15,

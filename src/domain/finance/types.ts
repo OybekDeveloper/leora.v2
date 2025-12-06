@@ -88,6 +88,7 @@ export interface Transaction {
   originalAmount?: number; // Qarz valyutasidagi summa (masalan 10 USD)
   conversionRate?: number; // Konvertatsiya kursi (masalan 12500 UZS/USD)
   isPending?: boolean;
+  isBalanceAdjustment?: boolean; // Account balance qo'lda o'zgartirilganda yaratilgan transaction
   createdAt: string;
   updatedAt: string;
 }
@@ -176,6 +177,18 @@ export interface Debt {
   linkedBudgetId?: string;
   fundingAccountId?: string;
   fundingTransactionId?: string;
+
+  // Dual account system for debts
+  // For "they_owe_me" (lending)
+  lentFromAccountId?: string;    // Where money came from when lending
+  returnToAccountId?: string;    // Where repayment will go
+
+  // For "i_owe" (borrowing)
+  receivedToAccountId?: string;  // Where borrowed money went
+  payFromAccountId?: string;     // Where payments come from
+
+  // Custom exchange rate used at creation
+  customRateUsed?: number;
   reminderEnabled?: boolean;
   reminderTime?: string;
   status: DebtStatus;
@@ -216,6 +229,9 @@ export interface FxRate {
   spreadPercent?: number;          // Spread foizi
   source: 'cbu' | 'cbr' | 'tcmb' | 'sama' | 'cbuae' | 'ecb' | 'fed' | 'boe' | 'market_api' | 'manual';
   isOverridden: boolean;
+  // Time-based rate tracking
+  effectiveFrom?: string;          // ISO timestamp - when this rate became effective
+  effectiveUntil?: string;         // ISO timestamp - when next rate took over (optional)
   createdAt: string;
   updatedAt: string;
 }

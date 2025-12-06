@@ -16,6 +16,7 @@ import { useFinanceDomainStore } from '@/stores/useFinanceDomainStore';
 import {
   AVAILABLE_FINANCE_CURRENCIES,
   type FinanceCurrency,
+  useFinancePreferencesStore,
 } from '@/stores/useFinancePreferencesStore';
 import { useShallow } from 'zustand/react/shallow';
 
@@ -36,6 +37,7 @@ export default function AccountFilterModal() {
       accounts: state.accounts,
     })),
   );
+  const setGlobalCurrency = useFinancePreferencesStore((state) => state.setGlobalCurrency);
 
   // Parse initial values from params
   const initialSelectedIds = params.selectedAccountIds
@@ -51,6 +53,9 @@ export default function AccountFilterModal() {
   }, [router]);
 
   const handleApply = useCallback(() => {
+    // Save currency to store so it persists across tabs and refreshes
+    setGlobalCurrency(balanceCurrency);
+
     // Navigate back to finance review with updated params
     router.replace({
       pathname: '/(tabs)/(finance)/(tabs)',
@@ -59,7 +64,7 @@ export default function AccountFilterModal() {
         balanceCurrency,
       },
     });
-  }, [router, selectedAccountIds, balanceCurrency]);
+  }, [router, selectedAccountIds, balanceCurrency, setGlobalCurrency]);
 
   const handleSelectAll = useCallback(() => {
     setSelectedAccountIds([]);

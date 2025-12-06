@@ -7,12 +7,13 @@ import Animated, {
   withDelay,
   withTiming,
 } from 'react-native-reanimated';
-import { ArrowRight } from 'lucide-react-native';
+import { ArrowRight, TrendingUp, TrendingDown } from 'lucide-react-native';
 
 import { useAppTheme } from '@/constants/theme';
 import TransactionCardIcon from './TransactionCardIcon';
 import TransactionStatusBadge from './TransactionStatusBadge';
 import type { TransactionCardData } from './types';
+import { formatCompactNumber } from '@/utils/formatNumber';
 
 type TransactionCardProps = {
   data: TransactionCardData;
@@ -21,14 +22,19 @@ type TransactionCardProps = {
 };
 
 const formatAmount = (amount: number, currency: string): string => {
+  const absAmount = Math.abs(amount);
+  // Use compact format for large amounts (> 1 million)
+  if (absAmount >= 1000000) {
+    return `${formatCompactNumber(absAmount, 1, 1000000)} ${currency}`;
+  }
   try {
     return new Intl.NumberFormat(currency === 'UZS' ? 'uz-UZ' : 'en-US', {
       style: 'currency',
       currency,
       maximumFractionDigits: currency === 'UZS' ? 0 : 2,
-    }).format(Math.abs(amount));
+    }).format(absAmount);
   } catch {
-    return `${currency} ${Math.abs(amount).toFixed(currency === 'UZS' ? 0 : 2)}`;
+    return `${currency} ${absAmount.toFixed(currency === 'UZS' ? 0 : 2)}`;
   }
 };
 
@@ -158,7 +164,38 @@ const TransactionCard: React.FC<TransactionCardProps> = ({
       );
     }
 
+    // Base currency konvertatsiyasi (agar boshqa valyutada bo'lsa)
+    if (data.convertedAmountToBase && data.baseCurrency && data.baseCurrency !== data.currency) {
+      return (
+        <Text style={[styles.conversion, { color: theme.colors.textMuted }]}>
+          ≈ {formatAmount(data.convertedAmountToBase, data.baseCurrency)}
+        </Text>
+      );
+    }
+
     return null;
+  };
+
+  // Valyuta P/L badge (qarz to'lovi uchun)
+  const renderCurrencyPL = () => {
+    if (!data.currencyPL) return null;
+
+    const { profitLoss, isProfit } = data.currencyPL;
+    const plColor = isProfit ? theme.colors.success : theme.colors.danger;
+    const backgroundColor = isProfit ? 'rgba(34, 197, 94, 0.12)' : 'rgba(239, 68, 68, 0.12)';
+
+    return (
+      <View style={[styles.currencyPLBadge, { backgroundColor }]}>
+        {isProfit ? (
+          <TrendingUp size={10} color={plColor} />
+        ) : (
+          <TrendingDown size={10} color={plColor} />
+        )}
+        <Text style={[styles.currencyPLText, { color: plColor }]}>
+          {isProfit ? '+' : '-'}{formatAmount(profitLoss, data.originalCurrency ?? data.currency)}
+        </Text>
+      </View>
+    );
   };
 
   return (
@@ -194,6 +231,8 @@ const TransactionCard: React.FC<TransactionCardProps> = ({
           <Text style={[styles.amount, { color: theme.colors.textPrimary }]}>
             {getAmountSign()} {formatAmount(data.amount, data.currency)}
           </Text>
+
+          {renderCurrencyPL()}
 
           <TransactionStatusBadge
             status={data.status}
@@ -258,6 +297,18 @@ const styles = StyleSheet.create({
   },
   time: {
     fontSize: 11,
+  },
+  currencyPLBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  currencyPLText: {
+    fontSize: 10,
+    fontWeight: '600',
   },
 });
 

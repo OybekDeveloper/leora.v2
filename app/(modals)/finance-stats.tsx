@@ -96,7 +96,7 @@ const FinanceStatsModal = () => {
   }, [accounts, budgets, convertAmount, debts, formatCurrency, globalCurrency, strings.financeScreens, transactions]);
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['bottom']}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.title}>Finance statistics</Text>
         <View style={styles.headerMeta}>

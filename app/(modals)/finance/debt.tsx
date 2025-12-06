@@ -12,12 +12,14 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { FlashList as FlashListBase } from '@shopify/flash-list';
 import DateTimePicker, { DateTimePickerAndroid, DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { AdaptiveGlassView } from '@/components/ui/AdaptiveGlassView';
 import CounterpartyPicker from '@/components/shared/CounterpartyPicker';
+import { formatNumberWithSpaces, parseSpacedNumber } from '@/utils/formatNumber';
 import { useAppTheme } from '@/constants/theme';
 import { useLocalization } from '@/localization/useLocalization';
 import { useFinanceDomainStore } from '@/stores/useFinanceDomainStore';
@@ -29,7 +31,9 @@ import {
 import { useShallow } from 'zustand/react/shallow';
 import { usePlannerDomainStore } from '@/stores/usePlannerDomainStore';
 import { FxService } from '@/services/fx/FxService';
-import type { Counterparty } from '@/domain/finance/types';
+import type { Counterparty, Account } from '@/domain/finance/types';
+
+const FlashList = FlashListBase as any;
 
 const ensureCurrency = (value?: string): FinanceCurrency => {
   if (!value) return 'USD';
@@ -106,6 +110,7 @@ export default function DebtModal() {
   const [customRepaymentRate, setCustomRepaymentRate] = useState('');
   const [isFixedRepaymentAmount, setIsFixedRepaymentAmount] = useState(false);
 
+
   const handleCounterpartySelect = useCallback((counterparty: Counterparty | null) => {
     if (counterparty) {
       setPerson(counterparty.displayName);
@@ -121,13 +126,18 @@ export default function DebtModal() {
     setDebtType(mapDirectionToDebtType(editingDebt.direction));
     setPerson(editingDebt.counterpartyName);
     setSelectedCounterpartyId(editingDebt.counterpartyId ?? null);
-    setAmount(String(editingDebt.principalOriginalAmount ?? editingDebt.principalAmount ?? ''));
+    const principalValue = editingDebt.principalOriginalAmount ?? editingDebt.principalAmount ?? 0;
+    setAmount(formatNumberWithSpaces(principalValue));
     setCurrency(ensureCurrency(editingDebt.principalCurrency));
     setStartDate(new Date(editingDebt.startDate));
     setExpectedReturnDate(editingDebt.dueDate ? new Date(editingDebt.dueDate) : null);
     setNote(editingDebt.description ?? '');
     setReminderEnabled(Boolean(editingDebt.reminderEnabled));
-    setSelectedAccountId(editingDebt.fundingAccountId ?? null);
+    // Load account - use fundingAccountId or direction-specific account
+    const accountId = editingDebt.direction === 'they_owe_me'
+      ? (editingDebt.lentFromAccountId ?? editingDebt.fundingAccountId)
+      : (editingDebt.receivedToAccountId ?? editingDebt.fundingAccountId);
+    setSelectedAccountId(accountId ?? null);
     // Multi-currency repayment
     if (editingDebt.repaymentCurrency) {
       setUseDifferentRepaymentCurrency(true);
@@ -141,28 +151,61 @@ export default function DebtModal() {
     }
   }, [editingDebt]);
 
+  // Account tanlanganda yoki o'zgarganda valyutani avtomatik o'rnatish
   useEffect(() => {
     if (!selectedAccountId && accounts[0]) {
       setSelectedAccountId(accounts[0].id);
+      setCurrency(ensureCurrency(accounts[0].currency));
+    } else if (selectedAccountId) {
+      const account = accounts.find(a => a.id === selectedAccountId);
+      if (account && !editingDebt) {
+        setCurrency(ensureCurrency(account.currency));
+      }
     }
-  }, [accounts, selectedAccountId]);
+  }, [accounts, selectedAccountId, editingDebt]);
+
+  // Account tanlash handler
+  const handleAccountSelect = useCallback((accountId: string) => {
+    setSelectedAccountId(accountId);
+    const account = accounts.find(a => a.id === accountId);
+    if (account) {
+      setCurrency(ensureCurrency(account.currency));
+    }
+  }, [accounts]);
 
   const amountNumber = useMemo(() => {
-    const parsed = parseFloat(amount.replace(/,/g, '.'));
-    return Number.isFinite(parsed) ? parsed : 0;
+    return parseSpacedNumber(amount);
   }, [amount]);
 
   const isSaveDisabled = !person.trim() || amountNumber <= 0;
 
   const handleAmountChange = useCallback((value: string) => {
-    const sanitized = value.replace(/[^0-9.,]/g, '').replace(/,/g, '.');
+    // Remove spaces and non-numeric characters except dot and comma
+    const withoutSpaces = value.replace(/\s/g, '');
+    const sanitized = withoutSpaces.replace(/[^0-9.,]/g, '').replace(/,/g, '.');
     const parts = sanitized.split('.');
+    let cleanValue = sanitized;
     if (parts.length > 2) {
-      const [integer, fraction] = parts;
-      setAmount(`${integer}.${fraction}`);
-      return;
+      cleanValue = `${parts[0]}.${parts.slice(1).join('')}`;
     }
-    setAmount(sanitized);
+    // Format with spaces for display
+    if (cleanValue) {
+      const num = parseFloat(cleanValue);
+      if (!isNaN(num)) {
+        const hasDecimal = cleanValue.includes('.');
+        if (hasDecimal) {
+          const [intPart, decPart] = cleanValue.split('.');
+          const formattedInt = intPart ? parseInt(intPart, 10).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ') : '0';
+          setAmount(`${formattedInt}.${decPart}`);
+        } else {
+          setAmount(formatNumberWithSpaces(num));
+        }
+      } else {
+        setAmount(cleanValue);
+      }
+    } else {
+      setAmount('');
+    }
   }, []);
 
   const applyDate = useCallback((target: 'start' | 'expected', date: Date) => {
@@ -212,6 +255,13 @@ export default function DebtModal() {
 
     const direction = mapDebtTypeToDirection(debtType);
 
+    // Calculate base currency rate (debt currency -> base currency) - always auto
+    let rateOnStart = 1;
+    if (currency !== baseCurrency) {
+      // Get current FX rate from service
+      rateOnStart = FxService.getInstance().getRate(currency, baseCurrency) ?? 1;
+    }
+
     // Calculate repayment rate
     let repaymentRateOnStart: number | undefined;
     if (useDifferentRepaymentCurrency) {
@@ -224,6 +274,20 @@ export default function DebtModal() {
       }
     }
 
+    // Account mapping based on direction (single account system)
+    const accountFields = direction === 'they_owe_me'
+      ? {
+          // Lending: where money came from
+          lentFromAccountId: selectedAccountId ?? undefined,
+        }
+      : {
+          // Borrowing: where borrowed money went
+          receivedToAccountId: selectedAccountId ?? undefined,
+        };
+
+    // Calculate principal base value using rate
+    const principalBaseValue = amountNumber * rateOnStart;
+
     const payload = {
       userId: 'local-user',
       direction,
@@ -234,13 +298,16 @@ export default function DebtModal() {
       principalCurrency: currency,
       principalOriginalCurrency: currency,
       baseCurrency,
-      rateOnStart: 1,
+      rateOnStart,
+      principalBaseValue,
       startDate: startDate.toISOString(),
       dueDate: expectedReturnDate ? expectedReturnDate.toISOString() : undefined,
       reminderEnabled,
       fundingAccountId: selectedAccountId ?? undefined,
       description: note.trim() || undefined,
       linkedGoalId: editingDebt?.linkedGoalId ?? linkedGoalId ?? undefined,
+      // Account mapping
+      ...accountFields,
       // Multi-currency repayment fields
       repaymentCurrency: useDifferentRepaymentCurrency ? repaymentCurrency : undefined,
       repaymentAmount: useDifferentRepaymentCurrency && repaymentRateOnStart
@@ -336,18 +403,36 @@ export default function DebtModal() {
             <Text style={[styles.label, { color: theme.colors.textSecondary }]}>
               {debtStrings.typeLabel ?? 'Type'}
             </Text>
-            <AdaptiveGlassView style={[styles.glassSurface, styles.typeContainer]}>
-              <Pressable onPress={() => setDebtType('borrowed')} style={({ pressed }) => [styles.typeOption, { borderBottomWidth: 1 }, pressed && styles.pressed]}>
-                <Text style={[styles.typeLabel, { color: debtType === 'borrowed' ? '#FFFFFF' : '#7E8B9A' }]}>
+            <View style={styles.typeTabs}>
+              <Pressable
+                onPress={() => setDebtType('borrowed')}
+                style={[
+                  styles.typeTab,
+                  debtType === 'borrowed' && styles.typeTabActive,
+                ]}
+              >
+                <Text style={[
+                  styles.typeTabLabel,
+                  debtType === 'borrowed' && styles.typeTabLabelActive,
+                ]}>
                   {debtStrings.borrowedLabel ?? 'I Owe'}
                 </Text>
               </Pressable>
-              <Pressable onPress={() => setDebtType('lent')} style={({ pressed }) => [styles.typeOption, pressed && styles.pressed]}>
-                <Text style={[styles.typeLabel, { color: debtType === 'lent' ? '#FFFFFF' : '#7E8B9A' }]}>
+              <Pressable
+                onPress={() => setDebtType('lent')}
+                style={[
+                  styles.typeTab,
+                  debtType === 'lent' && styles.typeTabActive,
+                ]}
+              >
+                <Text style={[
+                  styles.typeTabLabel,
+                  debtType === 'lent' && styles.typeTabLabelActive,
+                ]}>
                   {debtStrings.lentLabel ?? 'They Owe Me'}
                 </Text>
               </Pressable>
-            </AdaptiveGlassView>
+            </View>
           </View>
 
             <View style={styles.section}>
@@ -360,11 +445,41 @@ export default function DebtModal() {
               />
             </View>
 
+            {/* Account tanlash - Amount dan oldin, chunki valyuta accountdan olinadi */}
+            <View style={styles.sectionFullWidth}>
+              <Text style={[styles.label, styles.labelWithPadding, { color: theme.colors.textSecondary }]}>
+                {debtType === 'lent'
+                  ? (debtStrings.lentFromAccount ?? 'Given from account')
+                  : (debtStrings.receivedToAccount ?? 'Received to account')}
+              </Text>
+              <View style={styles.accountListContainer}>
+                <FlashList
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  data={accounts}
+                  keyExtractor={(item: Account) => item.id}
+                  estimatedItemSize={140}
+                  renderItem={({ item: account }: { item: Account }) => {
+                    const active = account.id === selectedAccountId;
+                    return (
+                      <Pressable onPress={() => handleAccountSelect(account.id)} style={({ pressed }) => [styles.accountChip, active && styles.accountChipActive, pressed && styles.pressed]}>
+                        <Text style={[styles.accountChipLabel, { color: active ? '#0E0E0E' : '#FFFFFF' }]}>{account.name}</Text>
+                        <Text style={[styles.accountChipSubtext, { color: active ? '#0E0E0E' : '#9E9E9E' }]}>{account.currency}</Text>
+                      </Pressable>
+                    );
+                  }}
+                  ListHeaderComponent={<View style={styles.listEdgeSpacer} />}
+                  ItemSeparatorComponent={() => <View style={styles.horizontalSeparator} />}
+                  ListFooterComponent={<View style={styles.listEdgeSpacer} />}
+                />
+              </View>
+            </View>
+
             <View style={styles.section}>
               <Text style={[styles.label, { color: theme.colors.textSecondary }]}>
                 {`${(strings.financeScreens.transactions.details.amount as string) ?? 'Amount'} (${currency})`}
               </Text>
-              <AdaptiveGlassView style={[styles.glassSurface, styles.inputContainer]}>
+              <AdaptiveGlassView style={[styles.glassSurface, styles.inputWrapper]}>
                 <TextInput
                   value={amount}
                   onChangeText={handleAmountChange}
@@ -376,28 +491,20 @@ export default function DebtModal() {
               </AdaptiveGlassView>
             </View>
 
-            <View style={styles.section}>
-              <Text style={[styles.label, { color: theme.colors.textSecondary }]}>{debtStrings.currency ?? 'Currency'}</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.currencyScroll}>
-                {AVAILABLE_FINANCE_CURRENCIES.map((code) => {
-                  const active = currency === code;
-                  return (
-                    <Pressable key={code} onPress={() => setCurrency(code)} style={({ pressed }) => [styles.currencyPill, active && styles.currencyPillActive, pressed && styles.pressed]}>
-                      <Text style={[styles.currencyLabel, { color: active ? '#0E0E0E' : '#FFFFFF' }]}>{code}</Text>
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
-            </View>
-
-            {/* Multi-currency repayment */}
+            {/* Multi-currency repayment/collection */}
             <View style={styles.section}>
               <AdaptiveGlassView style={[styles.glassSurface, styles.reminderRow]}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.reminderLabel}>{debtStrings.differentCurrency ?? 'Repay in different currency'}</Text>
+                  <Text style={styles.reminderLabel}>
+                    {debtType === 'borrowed'
+                      ? (debtStrings.differentCurrencyRepay ?? 'Repay in different currency')
+                      : (debtStrings.differentCurrencyReceive ?? 'Receive in different currency')}
+                  </Text>
                   <Text style={styles.reminderSubtext}>
                     {useDifferentRepaymentCurrency
-                      ? `${debtStrings.repayIn ?? 'Repay in'} ${repaymentCurrency}`
+                      ? (debtType === 'borrowed'
+                          ? `${debtStrings.repayIn ?? 'Repay in'} ${repaymentCurrency}`
+                          : `${debtStrings.receiveIn ?? 'Receive in'} ${repaymentCurrency}`)
                       : debtStrings.sameCurrency ?? 'Same currency'}
                   </Text>
                 </View>
@@ -407,35 +514,46 @@ export default function DebtModal() {
 
             {useDifferentRepaymentCurrency && (
               <>
-                <View style={styles.section}>
-                  <Text style={[styles.label, { color: theme.colors.textSecondary }]}>
-                    {debtStrings.repaymentCurrency ?? 'Repayment Currency'}
+                <View style={styles.sectionFullWidth}>
+                  <Text style={[styles.label, styles.labelWithPadding, { color: theme.colors.textSecondary }]}>
+                    {debtType === 'borrowed'
+                      ? (debtStrings.repaymentCurrency ?? 'Repayment Currency')
+                      : (debtStrings.receiveCurrency ?? 'Receive Currency')}
                   </Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.currencyScroll}>
-                    {AVAILABLE_FINANCE_CURRENCIES.filter((c) => c !== currency).map((code) => {
-                      const active = repaymentCurrency === code;
-                      return (
-                        <Pressable
-                          key={code}
-                          onPress={() => setRepaymentCurrency(code)}
-                          style={({ pressed }) => [
-                            styles.currencyPill,
-                            active && styles.currencyPillActive,
-                            pressed && styles.pressed,
-                          ]}
-                        >
-                          <Text style={[styles.currencyLabel, { color: active ? '#0E0E0E' : '#FFFFFF' }]}>{code}</Text>
-                        </Pressable>
-                      );
-                    })}
-                  </ScrollView>
+                  <View style={styles.currencyListContainer}>
+                    <FlashList
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      data={AVAILABLE_FINANCE_CURRENCIES.filter((c) => c !== currency)}
+                      keyExtractor={(item: FinanceCurrency) => item}
+                      estimatedItemSize={60}
+                      renderItem={({ item: code }: { item: FinanceCurrency }) => {
+                        const active = repaymentCurrency === code;
+                        return (
+                          <Pressable
+                            onPress={() => setRepaymentCurrency(code)}
+                            style={({ pressed }) => [
+                              styles.currencyPill,
+                              active && styles.currencyPillActive,
+                              pressed && styles.pressed,
+                            ]}
+                          >
+                            <Text style={[styles.currencyLabel, { color: active ? '#0E0E0E' : '#FFFFFF' }]}>{code}</Text>
+                          </Pressable>
+                        );
+                      }}
+                      ListHeaderComponent={<View style={styles.listEdgeSpacer} />}
+                      ItemSeparatorComponent={() => <View style={styles.horizontalSeparator} />}
+                      ListFooterComponent={<View style={styles.listEdgeSpacer} />}
+                    />
+                  </View>
                 </View>
 
                 <View style={styles.section}>
                   <Text style={[styles.label, { color: theme.colors.textSecondary }]}>
                     {debtStrings.exchangeRate ?? 'Exchange Rate'} ({currency} → {repaymentCurrency})
                   </Text>
-                  <AdaptiveGlassView style={[styles.glassSurface, styles.inputContainer]}>
+                  <AdaptiveGlassView style={[styles.glassSurface, styles.inputWrapper]}>
                     <TextInput
                       value={customRepaymentRate}
                       onChangeText={setCustomRepaymentRate}
@@ -450,7 +568,11 @@ export default function DebtModal() {
                 <View style={styles.section}>
                   <AdaptiveGlassView style={[styles.glassSurface, styles.reminderRow]}>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.reminderLabel}>{debtStrings.fixedAmount ?? 'Fixed repayment amount'}</Text>
+                      <Text style={styles.reminderLabel}>
+                        {debtType === 'borrowed'
+                          ? (debtStrings.fixedAmount ?? 'Fixed repayment amount')
+                          : (debtStrings.fixedReceiveAmount ?? 'Fixed receive amount')}
+                      </Text>
                       <Text style={styles.reminderSubtext}>
                         {isFixedRepaymentAmount
                           ? debtStrings.fixedAmountEnabled ?? 'Amount locked at start rate'
@@ -464,7 +586,7 @@ export default function DebtModal() {
             )}
 
             <View style={styles.section}>
-              <Text style={[styles.label, { color: theme.colors.textSecondary }]}>{debtStrings.date ?? 'Date'}</Text>
+              <Text style={[styles.label, { color: theme.colors.textSecondary }]}>{debtStrings.dateLabel ?? 'Date'}</Text>
               <View style={styles.dateRow}>
                 <Pressable onPress={() => openDatePicker('start')} style={({ pressed }) => [styles.dateButton, pressed && styles.pressed]}>
                   <AdaptiveGlassView style={[styles.glassSurface, styles.dateChip]}>
@@ -480,23 +602,8 @@ export default function DebtModal() {
             </View>
 
             <View style={styles.section}>
-              <Text style={[styles.label, { color: theme.colors.textSecondary }]}>{debtStrings.accountLabel ?? 'Account'}</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.accountScroll}>
-                {accounts.map((account) => {
-                  const active = account.id === selectedAccountId;
-                  return (
-                    <Pressable key={account.id} onPress={() => setSelectedAccountId(account.id)} style={({ pressed }) => [styles.accountChip, active && styles.accountChipActive, pressed && styles.pressed]}>
-                      <Text style={[styles.accountChipLabel, { color: active ? '#0E0E0E' : '#FFFFFF' }]}>{account.name}</Text>
-                      <Text style={[styles.accountChipSubtext, { color: active ? '#0E0E0E' : '#9E9E9E' }]}>{account.currency}</Text>
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
-            </View>
-
-            <View style={styles.section}>
               <Text style={[styles.label, { color: theme.colors.textSecondary }]}>{debtStrings.note ?? 'Note'}</Text>
-              <AdaptiveGlassView style={[styles.glassSurface, styles.noteContainer]}>
+              <AdaptiveGlassView style={[styles.glassSurface, styles.noteWrapper]}>
                 <TextInput
                   value={note}
                   onChangeText={setNote}
@@ -600,6 +707,25 @@ const styles = StyleSheet.create({
   section: {
     gap: 10,
   },
+  sectionFullWidth: {
+    gap: 10,
+    marginHorizontal: -20,
+  },
+  labelWithPadding: {
+    paddingHorizontal: 20,
+  },
+  listEdgeSpacer: {
+    width: 20,
+  },
+  horizontalSeparator: {
+    width: 10,
+  },
+  currencyListContainer: {
+    height: 44,
+  },
+  accountListContainer: {
+    height: 60,
+  },
   label: {
     fontSize: 13,
     fontWeight: '600',
@@ -609,35 +735,47 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.18)',
     backgroundColor: 'rgba(255,255,255,0.04)',
   },
-  typeContainer: {
+  typeTabs: {
+    flexDirection: 'row',
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    padding: 4,
+  },
+  typeTab: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: 10,
+  },
+  typeTabActive: {
+    backgroundColor: 'rgba(255,255,255,0.12)',
+  },
+  typeTabLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#7E8B9A',
+  },
+  typeTabLabelActive: {
+    color: '#FFFFFF',
+  },
+  inputWrapper: {
     borderRadius: 16,
     overflow: 'hidden',
-  },
-  typeOption: {
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
-  typeLabel: {
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  inputContainer: {
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
   },
   textInput: {
     fontSize: 16,
     fontWeight: '600',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
   },
-  currencyScroll: {
-    paddingVertical: 4,
-    paddingHorizontal: 2,
-    gap: 10,
+  rateHint: {
+    fontSize: 12,
+    marginTop: 4,
   },
   currencyPill: {
     paddingHorizontal: 14,
-    paddingVertical: 10,
+    height: 40,
+    justifyContent: 'center',
     borderRadius: 14,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.2)',
@@ -666,16 +804,13 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#FFFFFF',
   },
-  accountScroll: {
-    paddingVertical: 4,
-    gap: 10,
-  },
   accountChip: {
     borderRadius: 16,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.2)',
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    height: 56,
+    justifyContent: 'center',
     minWidth: 140,
   },
   accountChipActive: {
@@ -688,10 +823,9 @@ const styles = StyleSheet.create({
   accountChipSubtext: {
     fontSize: 12,
   },
-  noteContainer: {
+  noteWrapper: {
     borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    overflow: 'hidden',
     minHeight: 120,
   },
   noteInput: {
@@ -699,6 +833,8 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     minHeight: 100,
     textAlignVertical: 'top',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
   },
   reminderRow: {
     borderRadius: 16,

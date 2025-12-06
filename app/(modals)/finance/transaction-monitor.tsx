@@ -9,6 +9,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { FlashList as FlashListBase } from '@shopify/flash-list';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import DateTimePicker, {
@@ -22,6 +23,9 @@ import { useLocalization } from '@/localization/useLocalization';
 import { useFinanceDomainStore } from '@/stores/useFinanceDomainStore';
 import { useFinanceCurrency } from '@/hooks/useFinanceCurrency';
 import { useShallow } from 'zustand/react/shallow';
+import type { Transaction } from '@/domain/finance/types';
+
+const FlashList = FlashListBase as any;
 
 export default function TransactionMonitorModal() {
   const router = useRouter();
@@ -294,25 +298,33 @@ export default function TransactionMonitorModal() {
               {reviewStrings.monitorResults}
             </Text>
             {monitorFilteredTransactions.length ? (
-              monitorFilteredTransactions.map((transaction) => (
-                <View key={transaction.id} style={[styles.monitorTransactionCard, { borderColor: theme.colors.border }]}>
-                  <Text style={[styles.monitorRowTitle, { color: theme.colors.textPrimary }]} numberOfLines={2}>
-                    {transaction.description ?? transaction.categoryId ?? '—'}
-                  </Text>
-                  <Text
-                    style={{ color: transaction.type === 'income' ? theme.colors.success : theme.colors.danger }}
-                  >
-                    {transaction.type === 'income' ? '+' : '−'}{' '}
-                    {formatFinanceCurrency(transaction.amount, {
-                      fromCurrency: (transaction.currency ?? globalCurrency) as any,
-                      convert: false,
-                    })}
-                  </Text>
-                  <Text style={[styles.monitorRowTime, { color: theme.colors.textMuted }]}>
-                    {new Date(transaction.date).toLocaleString()}
-                  </Text>
-                </View>
-              ))
+              <View style={styles.transactionListContainer}>
+                <FlashList
+                  data={monitorFilteredTransactions}
+                  keyExtractor={(item: Transaction) => item.id}
+                  estimatedItemSize={80}
+                  renderItem={({ item: transaction }: { item: Transaction }) => (
+                    <View style={[styles.monitorTransactionCard, { borderColor: theme.colors.border }]}>
+                      <Text style={[styles.monitorRowTitle, { color: theme.colors.textPrimary }]} numberOfLines={2}>
+                        {transaction.description ?? transaction.categoryId ?? '—'}
+                      </Text>
+                      <Text
+                        style={{ color: transaction.type === 'income' ? theme.colors.success : theme.colors.danger }}
+                      >
+                        {transaction.type === 'income' ? '+' : '−'}{' '}
+                        {formatFinanceCurrency(transaction.amount, {
+                          fromCurrency: (transaction.currency ?? globalCurrency) as any,
+                          convert: false,
+                        })}
+                      </Text>
+                      <Text style={[styles.monitorRowTime, { color: theme.colors.textMuted }]}>
+                        {new Date(transaction.date).toLocaleString()}
+                      </Text>
+                    </View>
+                  )}
+                  ItemSeparatorComponent={() => <View style={styles.transactionSeparator} />}
+                />
+              </View>
             ) : (
               <Text style={{ color: theme.colors.textSecondary }}>{reviewStrings.monitorEmpty}</Text>
             )}
@@ -436,6 +448,12 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>) =>
       paddingVertical: 10,
       minHeight: 46,
       justifyContent: 'center',
+    },
+    transactionListContainer: {
+      minHeight: 200,
+    },
+    transactionSeparator: {
+      height: 8,
     },
     monitorTransactionCard: {
       borderWidth: StyleSheet.hairlineWidth,

@@ -1,6 +1,7 @@
 // app/(tabs)/(finance)/(tabs)/accounts.tsx
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Alert,
   Animated,
   Platform,
   ScrollView,
@@ -11,7 +12,6 @@ import {
 } from 'react-native';
 import type { LucideIcon } from 'lucide-react-native';
 import {
-  Archive,
   Banknote,
   Bitcoin,
   Briefcase,
@@ -44,6 +44,7 @@ import type { Account as DomainAccount, AccountType, Transaction as DomainTransa
 import { useLocalization } from '@/localization/useLocalization';
 import { useShallow } from 'zustand/react/shallow';
 import { useCustomAccountTypesStore } from '@/stores/useCustomAccountTypesStore';
+import { useFinancePreferencesStore } from '@/stores/useFinancePreferencesStore';
 
 type AccountsStrings = ReturnType<typeof useLocalization>['strings']['financeScreens']['accounts'];
 
@@ -347,7 +348,6 @@ interface AccountCardProps {
   onPress: () => void;
   onLongPress: () => void;
   onEdit: () => void;
-  onArchive: () => void;
   onDelete: () => void;
   theme: ReturnType<typeof useAppTheme>;
   strings: AccountsStrings;
@@ -360,7 +360,6 @@ const AccountCard: React.FC<AccountCardProps> = ({
   onPress,
   onLongPress,
   onEdit,
-  onArchive,
   onDelete,
   theme,
   strings,
@@ -601,20 +600,6 @@ const AccountCard: React.FC<AccountCardProps> = ({
                 styles.actionButton,
                 { backgroundColor: "transparent" },
               ]}
-              onPress={onArchive}
-              activeOpacity={0.7}
-            >
-              <Archive size={18} color={theme.colors.iconTextSecondary} strokeWidth={2} />
-              <Text style={[styles.actionText, { color: theme.colors.iconTextSecondary }]}>
-                {strings.actions.archive}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.actionButton,
-                { backgroundColor: "transparent" },
-              ]}
               onPress={onDelete}
               activeOpacity={0.7}
             >
@@ -714,16 +699,19 @@ export default function AccountsTab() {
   const {
     accounts: domainAccounts,
     transactions: domainTransactions,
+    debts,
     deleteAccount,
-    archiveAccount,
+    createTransaction,
   } = useFinanceDomainStore(
     useShallow((state) => ({
       accounts: state.accounts,
       transactions: state.transactions,
+      debts: state.debts,
       deleteAccount: state.deleteAccount,
-      archiveAccount: state.archiveAccount,
+      createTransaction: state.createTransaction,
     })),
   );
+  const baseCurrency = useFinancePreferencesStore((state) => state.baseCurrency);
   const customTypes = useCustomAccountTypesStore((state) => state.customTypes);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [actionModeId, setActionModeId] = useState<string | null>(null);
@@ -770,26 +758,68 @@ export default function AccountsTab() {
     [accountItems, router],
   );
 
-  const handleArchive = useCallback(
-    (id: string) => {
-      archiveAccount(id);
-      if (expandedId === id) {
-        setExpandedId(null);
-      }
-      setActionModeId(null);
-    },
-    [archiveAccount, expandedId],
-  );
-
   const handleDelete = useCallback(
     (id: string) => {
-      deleteAccount(id);
-      if (expandedId === id) {
-        setExpandedId(null);
+      const account = domainAccounts.find((acc) => acc.id === id);
+      if (!account) {
+        return;
       }
-      setActionModeId(null);
+
+      // Check for linked debts
+      const linkedDebts = debts.filter((d) => d.fundingAccountId === id);
+      const hasLinkedGoal = account.linkedGoalId != null;
+
+      // Build warning messages
+      const warnings: string[] = [];
+      if (account.currentBalance !== 0) {
+        warnings.push(
+          accountStrings.deleteConfirm.messageWithBalance
+            .replace('{balance}', formatCurrency(account.currentBalance, account.currency))
+            .replace('{currency}', account.currency),
+        );
+      }
+      if (linkedDebts.length > 0) {
+        warnings.push(accountStrings.deleteConfirm.linkedDebts.replace('{count}', String(linkedDebts.length)));
+      }
+      if (hasLinkedGoal) {
+        warnings.push(accountStrings.deleteConfirm.linkedGoal);
+      }
+
+      const message = warnings.length > 0 ? warnings.join('\n\n') : accountStrings.deleteConfirm.message;
+
+      Alert.alert(accountStrings.deleteConfirm.title, message, [
+        { text: accountStrings.deleteConfirm.cancel, style: 'cancel' },
+        {
+          text: accountStrings.deleteConfirm.confirm,
+          style: 'destructive',
+          onPress: () => {
+            // Create closing transaction if account has balance
+            if (account.currentBalance !== 0) {
+              createTransaction({
+                userId: 'local-user',
+                type: account.currentBalance > 0 ? 'expense' : 'income',
+                accountId: account.id,
+                amount: Math.abs(account.currentBalance),
+                currency: account.currency,
+                baseCurrency: baseCurrency,
+                categoryId: 'Account Closed',
+                description: `Account closed: ${account.name}`,
+                date: new Date().toISOString(),
+                isBalanceAdjustment: true,
+                rateUsedToBase: 1,
+                convertedAmountToBase: Math.abs(account.currentBalance),
+              });
+            }
+            deleteAccount(id);
+            if (expandedId === id) {
+              setExpandedId(null);
+            }
+            setActionModeId(null);
+          },
+        },
+      ]);
     },
-    [deleteAccount, expandedId],
+    [deleteAccount, createTransaction, baseCurrency, expandedId, domainAccounts, debts, accountStrings.deleteConfirm],
   );
 
   const handleAddNew = useCallback(() => {
@@ -826,7 +856,6 @@ export default function AccountsTab() {
                 onPress={() => handleCardPress(account.id)}
                 onLongPress={() => handleLongPress(account.id)}
                 onEdit={() => handleEdit(account.id)}
-                onArchive={() => handleArchive(account.id)}
                 onDelete={() => handleDelete(account.id)}
                 theme={theme}
                 strings={accountStrings}

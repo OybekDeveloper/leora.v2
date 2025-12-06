@@ -1,15 +1,18 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { FlashList as FlashListBase } from '@shopify/flash-list';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-
 import { AdaptiveGlassView } from '@/components/ui/AdaptiveGlassView';
 import { useAppTheme } from '@/constants/theme';
 import { useLocalization } from '@/localization/useLocalization';
 import { useFinanceDomainStore } from '@/stores/useFinanceDomainStore';
+import type { Account } from '@/domain/finance/types';
 import { useFinancePreferencesStore, type FinanceCurrency } from '@/stores/useFinancePreferencesStore';
 import { useShallow } from 'zustand/react/shallow';
+import { formatNumberWithSpaces, parseSpacedNumber } from '@/utils/formatNumber';
 
+const FlashList = FlashListBase as any;
 type LocalParams = { budgetId?: string };
 type TxnType = 'income' | 'expense';
 
@@ -62,10 +65,17 @@ const BudgetAddValueModal = () => {
 
   const handleClose = useCallback(() => router.back(), [router]);
 
-  const amountValue = useMemo(() => {
-    const parsed = parseFloat(amountInput.replace(/[^0-9.,]/g, '').replace(/,/g, '.'));
-    return Number.isFinite(parsed) ? parsed : 0;
-  }, [amountInput]);
+  const amountValue = useMemo(() => parseSpacedNumber(amountInput), [amountInput]);
+
+  const handleAmountChange = useCallback((text: string) => {
+    // Faqat raqam va nuqta qabul qilish
+    const cleaned = text.replace(/[^\d.]/g, '');
+    // Bir nechta nuqtani oldini olish
+    const parts = cleaned.split('.');
+    const sanitized = parts.length > 2 ? parts[0] + '.' + parts.slice(1).join('') : cleaned;
+    const num = parseFloat(sanitized) || 0;
+    setAmountInput(num > 0 ? formatNumberWithSpaces(num) : sanitized);
+  }, []);
 
   const isValid = amountValue > 0 && Boolean(selectedAccountId) && Boolean(budget);
 
@@ -135,10 +145,10 @@ const BudgetAddValueModal = () => {
             <Text style={[styles.label, { color: theme.colors.textSecondary }]}>
               {transactionsStrings.details?.amount ?? 'Amount'}
             </Text>
-            <AdaptiveGlassView style={[styles.glassSurface, styles.inputContainer]}>
+            <AdaptiveGlassView style={[styles.glassSurface, styles.inputWrapper]}>
               <TextInput
                 value={amountInput}
-                onChangeText={setAmountInput}
+                onChangeText={handleAmountChange}
                 keyboardType="decimal-pad"
                 placeholder="0"
                 placeholderTextColor={theme.colors.textMuted}
@@ -147,33 +157,42 @@ const BudgetAddValueModal = () => {
             </AdaptiveGlassView>
           </View>
 
-          <View style={styles.section}>
-            <Text style={[styles.label, { color: theme.colors.textSecondary }]}>{financeStrings.debts.modal.accountLabel}</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.accountScroll}>
-              {accounts.map((account) => {
-                const active = account.id === selectedAccountId;
-                return (
-                  <Pressable
-                    key={account.id}
-                    onPress={() => setSelectedAccountId(account.id)}
-                    style={({ pressed }) => [pressed && styles.pressed]}
-                  >
-                    <AdaptiveGlassView
-                      style={[
-                        styles.glassSurface,
-                        styles.accountChip,
-                        { opacity: active ? 1 : 0.6, borderColor: active ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.18)' },
-                      ]}
+          <View style={styles.sectionFullWidth}>
+            <Text style={[styles.label, styles.labelWithPadding, { color: theme.colors.textSecondary }]}>{financeStrings.debts.modal.accountLabel}</Text>
+            <View style={styles.accountListContainer}>
+              <FlashList
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                data={accounts}
+                keyExtractor={(item: Account) => item.id}
+                estimatedItemSize={140}
+                renderItem={({ item: account }: { item: Account }) => {
+                  const active = account.id === selectedAccountId;
+                  return (
+                    <Pressable
+                      onPress={() => setSelectedAccountId(account.id)}
+                      style={({ pressed }) => [pressed && styles.pressed]}
                     >
-                      <Text style={[styles.accountChipLabel, { color: active ? theme.colors.textPrimary : theme.colors.textSecondary }]}>
-                        {account.name}
-                      </Text>
-                      <Text style={styles.accountChipSubtext}>{account.currency}</Text>
-                    </AdaptiveGlassView>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
+                      <AdaptiveGlassView
+                        style={[
+                          styles.glassSurface,
+                          styles.accountChip,
+                          { opacity: active ? 1 : 0.6, borderColor: active ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.18)' },
+                        ]}
+                      >
+                        <Text style={[styles.accountChipLabel, { color: active ? theme.colors.textPrimary : theme.colors.textSecondary }]}>
+                          {account.name}
+                        </Text>
+                        <Text style={styles.accountChipSubtext}>{account.currency}</Text>
+                      </AdaptiveGlassView>
+                    </Pressable>
+                  );
+                }}
+                ListHeaderComponent={<View style={styles.listEdgeSpacer} />}
+                ItemSeparatorComponent={() => <View style={styles.horizontalSeparator} />}
+                ListFooterComponent={<View style={styles.listEdgeSpacer} />}
+              />
+            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -227,6 +246,22 @@ const styles = StyleSheet.create({
   section: {
     gap: 10,
   },
+  sectionFullWidth: {
+    gap: 10,
+    marginHorizontal: -20,
+  },
+  labelWithPadding: {
+    paddingHorizontal: 20,
+  },
+  listEdgeSpacer: {
+    width: 20,
+  },
+  horizontalSeparator: {
+    width: 12,
+  },
+  accountListContainer: {
+    height: 64,
+  },
   glassSurface: {
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255,255,255,0.18)',
@@ -236,14 +271,15 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
   },
-  inputContainer: {
+  inputWrapper: {
     borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    overflow: 'hidden',
   },
   textInput: {
     fontSize: 16,
     fontWeight: '600',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
   },
   typeContainer: {
     borderRadius: 18,
@@ -262,15 +298,11 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
   },
-  accountScroll: {
-    paddingVertical: 6,
-    paddingHorizontal: 2,
-    gap: 12,
-  },
   accountChip: {
     borderRadius: 16,
     paddingHorizontal: 14,
-    paddingVertical: 10,
+    height: 56,
+    justifyContent: 'center',
     width: 140,
   },
   accountChipLabel: {

@@ -20,6 +20,7 @@ import { useFinanceCurrency } from '@/hooks/useFinanceCurrency';
 import type { FinanceCurrency } from '@/stores/useFinancePreferencesStore';
 import { normalizeFinanceCurrency } from '@/utils/financeCurrency';
 import type { Transaction as FinanceTransaction } from '@/domain/finance/types';
+import { formatCompactNumber, formatPercentage } from '@/utils/formatNumber';
 
 const percentageDelta = (current: number, previous: number) => {
   if (previous === 0) return current > 0 ? 100 : 0;
@@ -55,8 +56,15 @@ export default function AnalyticsTab() {
     globalCurrency,
   } = useFinanceCurrency();
 
-  const formatAmount = (value: number, options?: Intl.NumberFormatOptions) =>
-    formatFinanceCurrency(value, { fromCurrency: globalCurrency, convert: false, ...options });
+  // Format amount with compact notation for large values
+  const formatAmount = (value: number) => {
+    const absValue = Math.abs(value);
+    // Use compact format for values >= 1 million
+    if (absValue >= 1000000) {
+      return `${formatCompactNumber(value, 1, 1000000)} ${globalCurrency}`;
+    }
+    return formatFinanceCurrency(value, { fromCurrency: globalCurrency, convert: false });
+  };
 
   const analyticsData = useMemo(() => {
     const accountCurrencyMap = new Map(
@@ -295,8 +303,7 @@ export default function AnalyticsTab() {
                   { color: analyticsData.trend >= 0 ? theme.colors.success : theme.colors.danger },
                 ]}
               >
-                {analyticsData.trend >= 0 ? '+' : ''}
-                {analyticsData.trend}%
+                {formatPercentage(analyticsData.trend)}
               </Text>
             </View>
           </View>
@@ -336,7 +343,7 @@ export default function AnalyticsTab() {
                 : theme.colors.danger
               : theme.colors.textSecondary;
             const deltaLabel =
-              row.delta === null ? '—' : `${row.delta >= 0 ? '+' : ''}${row.delta}%`;
+              row.delta === null ? '—' : formatPercentage(row.delta);
 
             return (
               <View key={row.id} style={styles.compRow}>
@@ -551,35 +558,42 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 10,
-    gap: 10,
+    gap: 8,
   },
   compLabel: {
     width: 82,
     fontSize: 14,
     fontWeight: '500',
+    flexShrink: 0,
   },
   compMid: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 4,
+    flexShrink: 1,
+    overflow: 'hidden',
   },
   compValue: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
     letterSpacing: -0.2,
+    flexShrink: 1,
   },
   deltaPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: 999,
     borderWidth: 1,
+    flexShrink: 0,
+    minWidth: 70,
+    justifyContent: 'center',
   },
   deltaText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
   },
   divider: {
