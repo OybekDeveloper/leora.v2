@@ -41,7 +41,16 @@ import { toISODateKey } from '@/utils/calendar';
 
 const { width: screenWidth } = Dimensions.get('window');
 
-const CATEGORY_COLORS = ['#8B5CF6', '#EF4444', '#10B981', '#F59E0B', '#3B82F6', '#EAB308'];
+import { Colors } from '@/constants/theme';
+
+const CATEGORY_COLORS = [
+  Colors.chart.purple,
+  Colors.chart.red,
+  Colors.chart.green,
+  Colors.chart.orange,
+  Colors.chart.blue,
+  Colors.chart.yellow,
+];
 
 const formatRelativeTime = (date: Date) => {
   const now = new Date();
@@ -127,7 +136,7 @@ export default function FinanceReviewScreen() {
   const theme = useAppTheme();
   const { strings } = useLocalization();
   const reviewStrings = strings.financeScreens.review;
-  const styles = createStyles(theme);
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const { accounts, transactions, debts, budgets } = useFinanceDomainStore(
     useShallow((state) => ({
       accounts: state.accounts,
@@ -744,8 +753,8 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>) =>
     },
     glassSurface: {
       borderWidth: StyleSheet.hairlineWidth,
-      borderColor: theme.mode === 'dark' ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.08)',
-      backgroundColor: theme.mode === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)',
+      borderColor: theme.colors.glassBorder,
+      backgroundColor: theme.colors.overlaySoft,
     },
     pressed: {
       opacity: 0.85,

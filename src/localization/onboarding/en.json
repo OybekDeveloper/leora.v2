@@ -1,0 +1,25 @@
+{
+  "skip": "Skip",
+  "continue": "Continue",
+  "getStarted": "Get Started",
+  "pages": [
+    {
+      "id": "welcome",
+      "title": "Leora",
+      "subtitle": "Manage your life",
+      "description": "Control your financial goals, daily habits, and time in one place"
+    },
+    {
+      "id": "finance",
+      "title": "Finance",
+      "subtitle": "Track your money",
+      "description": "Record income and expenses, create budgets, manage debts, and achieve financial goals"
+    },
+    {
+      "id": "planner",
+      "title": "Planner",
+      "subtitle": "Achieve your goals",
+      "description": "Set goals, create tasks, build useful habits, and track your progress"
+    }
+  ]
+}

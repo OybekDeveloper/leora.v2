@@ -10,6 +10,8 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Eye, EyeOff } from 'lucide-react-native';
 
+import { useAppTheme, type Theme } from '@/constants/theme';
+
 type ValidationState = 'default' | 'focused' | 'error';
 
 type IconComponent = React.ComponentType<{ size?: number; color?: string }>;
@@ -22,6 +24,99 @@ interface InputProps extends TextInputProps {
   error?: string;
   onClearError?: () => void;
 }
+
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    container: {
+      width: '100%',
+      marginBottom: 10,
+    },
+    label: {
+      fontWeight: '600',
+      letterSpacing: 0.15,
+      marginBottom: 8,
+    },
+    inputWrapper: {
+      borderRadius: 14,
+      overflow: 'hidden',
+      shadowColor: theme.colors.shadowColor,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 1,
+      shadowRadius: 4,
+      elevation: 3,
+    },
+    gradientBackground: {
+      borderRadius: 14,
+      position: 'relative',
+    },
+    input: {
+      height: 56,
+      fontSize: 16,
+      fontWeight: '500',
+    },
+    inputWithIcon: {
+      paddingLeft: 54,
+    },
+    inputWithToggle: {
+      paddingRight: 48,
+    },
+    iconContainer: {
+      position: 'absolute',
+      left: 18,
+      top: 18,
+    },
+    eyeIcon: {
+      position: 'absolute',
+      right: 0,
+      top: 0,
+      width: 48,
+      height: '100%',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    errorWrapper: {
+      overflow: 'hidden',
+      marginTop: 4,
+    },
+    errorText: {
+      color: theme.colors.danger,
+      fontSize: 12,
+      fontWeight: '500',
+      letterSpacing: 0.1,
+    },
+  });
+
+// Theme-based color configurations
+const getThemeColors = (theme: Theme, isDark: boolean) => ({
+  placeholder: {
+    default: theme.colors.inputPlaceholder,
+    focused: theme.colors.inputBorderFocus,
+    error: isDark ? theme.colors.dangerBg : theme.colors.danger,
+  },
+  text: {
+    default: theme.colors.textPrimary,
+    error: isDark ? theme.colors.inputErrorBg : theme.colors.danger,
+  },
+  border: {
+    default: theme.colors.glassBorder,
+    focused: theme.colors.inputBorderFocus,
+    error: theme.colors.inputBorderError,
+  },
+  icon: {
+    default: theme.colors.inputPlaceholder,
+    focused: theme.colors.inputBorderFocus,
+    error: theme.colors.danger,
+  },
+  label: {
+    default: theme.colors.inputPlaceholder,
+    focused: theme.colors.textPrimary,
+    error: theme.colors.danger,
+  },
+  gradient: isDark
+    ? ([theme.colors.glassBg, 'rgba(0,0,0,0.12)'] as const)
+    : (['rgba(255,255,255,0.8)', theme.colors.surfaceElevated] as const),
+  eyeIcon: theme.colors.inputBorderFocus,
+});
 
 export const Input: React.FC<InputProps> = ({
   label,
@@ -37,6 +132,11 @@ export const Input: React.FC<InputProps> = ({
   value = '',
   ...props
 }) => {
+  const theme = useAppTheme();
+  const isDark = theme.mode === 'dark';
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const colors = useMemo(() => getThemeColors(theme, isDark), [theme, isDark]);
+
   const error = externalError;
 
   const [showPassword, setShowPassword] = useState(false);
@@ -92,19 +192,19 @@ export const Input: React.FC<InputProps> = ({
   const placeholderColor = useMemo(() => {
     switch (validationState) {
       case 'error':
-        return '#ffb3b3';
+        return colors.placeholder.error;
       case 'focused':
-        return '#dce1ff';
+        return colors.placeholder.focused;
       default:
-        return '#A6A6B9';
+        return colors.placeholder.default;
     }
-  }, [validationState]);
+  }, [validationState, colors]);
 
-  const textColor = validationState === 'error' ? '#FFE5E5' : '#FFFFFF';
+  const textColor = validationState === 'error' ? colors.text.error : colors.text.default;
 
   const borderColor = stateAnim.interpolate({
     inputRange: [0, 1, 2],
-    outputRange: ['rgba(255,255,255,0.08)', '#7C83FF', '#FF4D4F'],
+    outputRange: [colors.border.default, colors.border.focused, colors.border.error],
   });
 
   const borderWidth = stateAnim.interpolate({
@@ -115,24 +215,24 @@ export const Input: React.FC<InputProps> = ({
   const iconTint = useMemo(() => {
     switch (validationState) {
       case 'error':
-        return '#FF8A8C';
+        return colors.icon.error;
       case 'focused':
-        return '#D1D5FF';
+        return colors.icon.focused;
       default:
-        return '#A6A6B9';
+        return colors.icon.default;
     }
-  }, [validationState]);
+  }, [validationState, colors]);
 
   const labelTint = useMemo(() => {
     switch (validationState) {
       case 'error':
-        return '#FF7A7C';
+        return colors.label.error;
       case 'focused':
-        return '#F3F4FF';
+        return colors.label.focused;
       default:
-        return '#A6A6B9';
+        return colors.label.default;
     }
-  }, [validationState]);
+  }, [validationState, colors]);
 
   const IconComponent = icon;
 
@@ -142,7 +242,7 @@ export const Input: React.FC<InputProps> = ({
 
       <Animated.View style={[styles.inputWrapper, { borderColor, borderWidth }]}>
         <LinearGradient
-          colors={['rgba(49,49,58,0.2)', 'rgba(0,0,0,0.12)']}
+          colors={colors.gradient as unknown as [string, string]}
           start={{ x: 0, y: 0 }}
           end={{ x: 0, y: 1 }}
           style={styles.gradientBackground}
@@ -175,9 +275,9 @@ export const Input: React.FC<InputProps> = ({
               onPress={() => setShowPassword((prev) => !prev)}
             >
               {showPassword ? (
-                <EyeOff size={18} color="#dce1ff" />
+                <EyeOff size={18} color={colors.eyeIcon} />
               ) : (
-                <Eye size={18} color="#dce1ff" />
+                <Eye size={18} color={colors.eyeIcon} />
               )}
             </TouchableOpacity>
           )}
@@ -210,63 +310,3 @@ export const Input: React.FC<InputProps> = ({
     </Animated.View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    width: '100%',
-    marginBottom: 10,
-  },
-  label: {
-    fontWeight: '600',
-    letterSpacing: 0.15,
-    marginBottom: 8,
-  },
-  inputWrapper: {
-    borderRadius: 14,
-    overflow: 'hidden',
-    shadowColor: 'rgba(0,0,0,0.25)',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  gradientBackground: {
-    borderRadius: 14,
-    position: 'relative',
-  },
-  input: {
-    height: 56,
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  inputWithIcon: {
-    paddingLeft: 54,
-  },
-  inputWithToggle: {
-    paddingRight: 48,
-  },
-  iconContainer: {
-    position: 'absolute',
-    left: 18,
-    top: 18,
-  },
-  eyeIcon: {
-    position: 'absolute',
-    right: 0,
-    top: 0,
-    width: 48,
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  errorWrapper: {
-    overflow: 'hidden',
-    marginTop: 4,
-  },
-  errorText: {
-    color: '#FF8A8C',
-    fontSize: 12,
-    fontWeight: '500',
-    letterSpacing: 0.1,
-  },
-});

@@ -89,6 +89,44 @@ export const Colors = {
     heavy: 'rgba(0, 0, 0, 0.7)',
   },
 
+  // === Glass/Surface overlay ranglar ===
+  glass: {
+    dark: 'rgba(45, 45, 55, 0.4)',
+    light: 'rgba(255, 255, 255, 0.08)',
+    border: 'rgba(255, 255, 255, 0.1)',
+  },
+
+  // === Chart/Category ranglar ===
+  chart: {
+    purple: '#8B5CF6',
+    red: '#EF4444',
+    green: '#10B981',
+    orange: '#F59E0B',
+    blue: '#3B82F6',
+    yellow: '#EAB308',
+    cyan: '#06B6D4',
+    pink: '#EC4899',
+  },
+
+  // === Input state ranglar ===
+  input: {
+    background: '#25252B',
+    backgroundLight: '#F8FAFC',
+    border: '#34343D',
+    borderLight: '#E2E8F0',
+    borderFocus: '#7C83FF',
+    borderError: '#EF4444',
+    placeholder: '#A6A6B9',
+    placeholderLight: '#94A3B8',
+    errorBg: '#FFE5E5',
+    errorBgDark: 'rgba(239, 68, 68, 0.1)',
+  },
+
+  // === Gradient presets ===
+  brandGradient: ['#2F9EF1', '#7257CD'],
+  levelGradient: ['#8FA399', '#3d8f76', '#22ad98'],
+  voiceGradient: ['#0cd8ff', '#50b4ff', '#a078ff', '#dc6ec8', '#ff78b4'],
+
   // === Тени для elevation (iOS стиль) ===
   shadows: {
     small: {
@@ -294,6 +332,20 @@ export interface ThemeColors {
   icon: string;
   iconText: string;
   iconTextSecondary: string;
+  // Glass/Surface overlay ranglar
+  glassBg: string;
+  glassBorder: string;
+  // Input ranglar
+  inputBackground: string;
+  inputBorder: string;
+  inputBorderFocus: string;
+  inputBorderError: string;
+  inputPlaceholder: string;
+  inputErrorBg: string;
+  // Calendar ranglar
+  calendarDot1: string;
+  calendarDot2: string;
+  calendarDot3: string;
 }
 
 export interface Theme {
@@ -368,7 +420,21 @@ const lightColors: ThemeColors = {
   backgroundLock: "#fff",
   icon: "#404046",
   iconText: "#FFFFFF",
-  iconTextSecondary: "#000000"
+  iconTextSecondary: "#000000",
+  // Glass/Surface overlay ranglar (light mode)
+  glassBg: 'rgba(255, 255, 255, 0.6)',
+  glassBorder: 'rgba(0, 0, 0, 0.08)',
+  // Input ranglar (light mode)
+  inputBackground: '#F8FAFC',
+  inputBorder: '#E2E8F0',
+  inputBorderFocus: '#7C83FF',
+  inputBorderError: '#EF4444',
+  inputPlaceholder: '#94A3B8',
+  inputErrorBg: '#FFE5E5',
+  // Calendar ranglar
+  calendarDot1: '#7C83FD',
+  calendarDot2: '#F9A826',
+  calendarDot3: '#52D1DC',
 };
 
 const darkColors: ThemeColors = {
@@ -416,8 +482,21 @@ const darkColors: ThemeColors = {
   backgroundLock: "#000",
   icon: "#404046",
   iconText: "#A6A6B9",
-  iconTextSecondary: "#A6A6B9"
-
+  iconTextSecondary: "#A6A6B9",
+  // Glass/Surface overlay ranglar (dark mode)
+  glassBg: 'rgba(45, 45, 55, 0.4)',
+  glassBorder: 'rgba(255, 255, 255, 0.08)',
+  // Input ranglar (dark mode)
+  inputBackground: '#25252B',
+  inputBorder: '#34343D',
+  inputBorderFocus: '#7C83FF',
+  inputBorderError: '#EF4444',
+  inputPlaceholder: '#A6A6B9',
+  inputErrorBg: 'rgba(239, 68, 68, 0.1)',
+  // Calendar ranglar
+  calendarDot1: '#7C83FD',
+  calendarDot2: '#F9A826',
+  calendarDot3: '#52D1DC',
 };
 
 const sharedThemeFields: Omit<Theme, 'mode' | 'colors'> = {

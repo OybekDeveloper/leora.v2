@@ -12,14 +12,16 @@ import { router, useFocusEffect } from 'expo-router';
 import { Mail } from 'lucide-react-native';
 import { Input, Button, AuthScreenContainer, LanguageSelectorControl } from '@/components/screens/auth';
 import GlassCard from '@/components/shared/GlassCard';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useLocalization } from '@/localization/useLocalization';
 import { SupportedLanguage, useSettingsStore } from '@/stores/useSettingsStore';
+import { useAppTheme, type Theme } from '@/constants/theme';
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const ForgotPasswordScreen = () => {
+  const theme = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const { strings } = useLocalization();
   const forgotStrings = strings.auth.forgot;
   const validationStrings = strings.auth.validation;
@@ -272,16 +274,7 @@ const ForgotPasswordScreen = () => {
               <View style={styles.form}>
                 <View style={styles.otpContainer}>
                   {otp.map((digit, index) => (
-                    <LinearGradient
-                      key={index}
-                      colors={[
-                        'rgba(49,49,58,0.2)',
-                        'rgba(0,0,0,0.12)',
-                      ]}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 0, y: 1 }}
-                      style={styles.otpBox}
-                    >
+                    <View key={index} style={styles.otpBox}>
                       <TextInput
                         ref={otpRefs[index]}
                         style={styles.otpInput}
@@ -294,7 +287,7 @@ const ForgotPasswordScreen = () => {
                         maxLength={1}
                         selectTextOnFocus
                       />
-                    </LinearGradient>
+                    </View>
                   ))}
                 </View>
 
@@ -347,112 +340,109 @@ const ForgotPasswordScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  contentContainer: {
-    flexGrow: 1,
-    paddingBottom: 32,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-  },
-  header: {
-    marginBottom: 16,
-    paddingTop: 8,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#fff',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  description: {
-    fontSize: 16,
-    color: '#A6A6B9',
-    textAlign: 'center',
-    paddingHorizontal: 20,
-  },
-  form: {
-    width: '100%',
-  },
-  otpContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 12,
-    marginBottom: 24,
-  },
-  otpBox: {
-    width: 60,
-    height: 60,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: 'rgba(0,0,0,0.25)',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  otpInput: {
-    width: '100%',
-    height: '100%',
-    textAlign: 'center',
-    color: '#fff',
-    fontSize: 24,
-    fontWeight: '600',
-  },
-  timerContainer: {
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  timerText: {
-    color: '#A6A6B9',
-    fontSize: 14,
-    marginBottom: 8,
-  },
-  resendText: {
-    color: '#667eea',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  backButton: {
-    marginTop: 16,
-    alignItems: 'center',
-  },
-  backText: {
-    color: '#A6A6B9',
-    fontSize: 14,
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 'auto',
-    paddingTop: 24,
-  },
-  footerText: {
-    color: '#A6A6B9',
-    fontSize: 14,
-  },
-  signInLink: {
-    color: '#667eea',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  errorContainer: {
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.3)',
-  },
-  errorText: {
-    color: '#ef4444',
-    fontSize: 14,
-    textAlign: 'center',
-  },
-});
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    contentContainer: {
+      flexGrow: 1,
+      paddingBottom: 32,
+      paddingVertical: 12,
+      paddingHorizontal: 20,
+    },
+    header: {
+      marginBottom: 16,
+      paddingTop: 8,
+    },
+    title: {
+      fontSize: 28,
+      fontWeight: '700',
+      color: theme.colors.textPrimary,
+      marginBottom: 8,
+      textAlign: 'center',
+    },
+    description: {
+      fontSize: 16,
+      color: theme.colors.textSecondary,
+      textAlign: 'center',
+      paddingHorizontal: 20,
+    },
+    form: {
+      width: '100%',
+    },
+    otpContainer: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      gap: 12,
+      marginBottom: 24,
+    },
+    otpBox: {
+      width: 60,
+      height: 60,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: theme.colors.glassBorder,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.colors.glassBg,
+    },
+    otpInput: {
+      width: '100%',
+      height: '100%',
+      textAlign: 'center',
+      color: theme.colors.textPrimary,
+      fontSize: 24,
+      fontWeight: '600',
+    },
+    timerContainer: {
+      alignItems: 'center',
+      marginBottom: 24,
+    },
+    timerText: {
+      color: theme.colors.textSecondary,
+      fontSize: 14,
+      marginBottom: 8,
+    },
+    resendText: {
+      color: theme.colors.primary,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    backButton: {
+      marginTop: 16,
+      alignItems: 'center',
+    },
+    backText: {
+      color: theme.colors.textSecondary,
+      fontSize: 14,
+    },
+    footer: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginTop: 'auto',
+      paddingTop: 24,
+    },
+    footerText: {
+      color: theme.colors.textSecondary,
+      fontSize: 14,
+    },
+    signInLink: {
+      color: theme.colors.primary,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    errorContainer: {
+      backgroundColor: `${theme.colors.danger}15`,
+      borderRadius: 8,
+      padding: 12,
+      marginBottom: 16,
+      borderWidth: 1,
+      borderColor: `${theme.colors.danger}50`,
+    },
+    errorText: {
+      color: theme.colors.danger,
+      fontSize: 14,
+      textAlign: 'center',
+    },
+  });
 
 export default ForgotPasswordScreen;

@@ -10,7 +10,7 @@ import {
   UIManager,
   View,
 } from 'react-native';
-import { AlarmClock, Check, MoreHorizontal, Sparkles, X } from 'lucide-react-native';
+import { Check, Sparkles, X } from 'lucide-react-native';
 import { FireIcon } from '../../../../assets/icons';
 import { useRouter } from 'expo-router';
 
@@ -51,17 +51,13 @@ export default function PlannerHabitsTab() {
   const habitStrings = strings.plannerScreens.habits;
   const {
     domainHabits,
-    domainGoals,
     logHabitCompletion,
-    archiveHabit,
     resumeHabit,
     deleteHabitPermanently,
   } = usePlannerDomainStore(
     useShallow((state) => ({
       domainHabits: state.habits,
-      domainGoals: state.goals,
       logHabitCompletion: state.logHabitCompletion,
-      archiveHabit: state.archiveHabit,
       resumeHabit: state.resumeHabit,
       deleteHabitPermanently: state.deleteHabitPermanently,
     })),
@@ -92,13 +88,6 @@ export default function PlannerHabitsTab() {
     domainHabits.filter((habit) => habit.showStatus === 'archived' || habit.showStatus === 'deleted'),
     [domainHabits]
   );
-  const goalTitleMap = useMemo(() => {
-    const map: Record<string, string> = {};
-    domainGoals.forEach((goal) => {
-      map[goal.id] = goal.title;
-    });
-    return map;
-  }, [domainGoals]);
   const [habits, setHabits] = useState<HabitCardModel[]>(() =>
     buildHabits(activeDomainHabits, { selectedDate, locale }),
   );
@@ -124,12 +113,6 @@ export default function PlannerHabitsTab() {
 
   const topMonthLabel = useMemo(() => monthYearFormatter.format(selectedDate), [monthYearFormatter, selectedDate]);
 
-  const toggleExpand = useCallback((id: string) => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setHabits((prev) =>
-      prev.map((habit) => (habit.id === id ? { ...habit, expanded: !habit.expanded } : habit)),
-    );
-  }, []);
 
   // Selection mode handlers
   const handleEnterSelectionMode = useCallback(
@@ -194,22 +177,19 @@ export default function PlannerHabitsTab() {
                       isSelected={isSelected(habit.id)}
                       onToggleSelect={handleToggleSelection}
                       onLongPress={enterSelection}
-                      onPress={() => toggleExpand(habit.id)}
+                      onPress={() => router.push(`/(modals)/planner/habit-detail?id=${habit.id}`)}
                     >
                       <HabitCard
                         data={habit}
-                        onToggleExpand={() => toggleExpand(habit.id)}
+                        onPress={() => router.push(`/(modals)/planner/habit-detail?id=${habit.id}`)}
                         onLongPress={enterSelection}
                         strings={habitStrings}
-                        goalTitles={goalTitleMap}
                         onLog={(habitId, status, options) =>
                           logHabitCompletion(habitId, status, {
                             date: selectedDate,
                             clear: options?.clear,
                           })
                         }
-                        onEditHabit={() => router.push(`/(modals)/planner/habit?id=${habit.id}`)}
-                        onDeleteHabit={(habitId) => archiveHabit(habitId)}
                       />
                     </SelectableListItem>
                   );
@@ -242,13 +222,10 @@ export default function PlannerHabitsTab() {
                       >
                         <HabitCard
                           data={habit}
-                          onToggleExpand={() => {}}
+                          onPress={() => {}}
                           onLongPress={enterHistorySelection}
                           strings={habitStrings}
-                          goalTitles={goalTitleMap}
                           onLog={() => {}}
-                          onEditHabit={() => {}}
-                          onDeleteHabit={() => {}}
                           onRecover={() => resumeHabit(habit.id)}
                           onDeleteForever={() => deleteHabitPermanently(habit.id)}
                           isArchived
@@ -270,253 +247,146 @@ export default function PlannerHabitsTab() {
 }
 
 // -------------------------------------
-// Habit Card
+// Habit Card - Rasmga asoslangan sodda dizayn
 // -------------------------------------
 function HabitCard({
   data,
-  onToggleExpand,
+  onPress,
   onLongPress,
   strings,
-  goalTitles,
   onLog,
-  onEditHabit,
-  onDeleteHabit,
   onRecover,
   onDeleteForever,
   isArchived = false,
 }: {
   data: HabitCardModel;
-  onToggleExpand: () => void;
+  onPress: () => void;
   onLongPress?: () => void;
   strings: AppTranslations['plannerScreens']['habits'];
-  goalTitles: Record<string, string>;
   onLog: (habitId: string, completed: boolean, options?: { clear?: boolean }) => void;
-  onEditHabit: () => void;
-  onDeleteHabit: (habitId: string) => void;
   onRecover?: () => void;
   onDeleteForever?: () => void;
   isArchived?: boolean;
 }) {
   const theme = useAppTheme();
   const styles = useStyles();
+
   const completion = useMemo(
     () => pct(data.weeklyCompleted, data.weeklyTarget),
     [data.weeklyCompleted, data.weeklyTarget],
   );
-  const streakText = strings.stats.streak.replace('{days}', String(data.streak));
-  const recordText = strings.stats.record.replace('{days}', String(data.record));
-  const completionText = strings.stats.completion
-    .replace('{percent}', String(completion))
-    .replace('{completed}', String(data.weeklyCompleted))
-    .replace('{target}', String(data.weeklyTarget));
+
   const badgeText = `${data.badgeDays ?? data.streak} ${strings.badgeSuffix}`;
-  const goalLabels =
-    data.linkedGoalIds?.map((goalId) => goalTitles[goalId] ?? goalId) ?? [];
   const isCompletedToday = data.todayStatus === 'done';
   const disablePrimary = !data.canLogToday && !isCompletedToday;
+
   const handlePrimary = useCallback(() => {
-    if (disablePrimary) {
-      return;
-    }
+    if (disablePrimary) return;
     if (isCompletedToday) {
       onLog(data.id, false, { clear: true });
     } else {
       onLog(data.id, true);
     }
   }, [data.id, disablePrimary, isCompletedToday, onLog]);
+
   const handleFail = useCallback(() => onLog(data.id, false), [data.id, onLog]);
+
+  // CTA label va type aniqlash
+  const ctaLabel = useMemo(() => {
+    if (data.cta?.kind === 'timer') return strings.ctas.startTimer;
+    if (data.cta?.kind === 'dual') return null; // dual button ko'rsatiladi
+    return isCompletedToday ? strings.ctas.completed : strings.ctas.checkIn;
+  }, [data.cta?.kind, isCompletedToday, strings.ctas]);
+
+  const showDualButtons = data.cta?.kind === 'dual';
 
   return (
     <AdaptiveGlassView style={styles.card}>
-      <Pressable onPress={onToggleExpand} onLongPress={onLongPress} delayLongPress={400} style={styles.cardPress}>
+      <Pressable onPress={onPress} onLongPress={onLongPress} delayLongPress={400} style={styles.cardPress}>
+        {/* Header: Title + Streak Badge */}
         <View style={styles.headerRow}>
-          <View style={styles.headerLeft}>
-            <Text style={styles.cardTitle}>{data.title}</Text>
-            <MoreHorizontal size={16} color={theme.colors.textSecondary} />
-          </View>
-          <View style={styles.badgeRight}>
-            <FireIcon size={14} color={theme.colors.textSecondary} />
-            <Text style={styles.badgeText}>{badgeText}</Text>
+          <Text style={styles.cardTitle} numberOfLines={1}>{data.title}</Text>
+          <View style={styles.streakBadge}>
+            <FireIcon size={14} color="#F59E0B" />
+            <Text style={[styles.streakBadgeText, { color: '#F59E0B' }]}>{badgeText}</Text>
           </View>
         </View>
 
-        {goalLabels.length > 0 && (
-          <View style={styles.goalChipRow}>
-            {goalLabels.slice(0, 3).map((label) => (
-              <View key={label} style={styles.goalChip}>
-                <Text style={styles.goalChipText}>{label}</Text>
-              </View>
-            ))}
-            {goalLabels.length > 3 && (
-              <View style={[styles.goalChip, styles.goalChipOverflow]}>
-                <Text style={styles.goalChipText}>+{goalLabels.length - 3}</Text>
-              </View>
-            )}
-          </View>
-        )}
-
+        {/* Stats */}
         <View style={styles.statsCol}>
-          <Text style={styles.statLine}>{streakText}</Text>
-          <Text style={styles.statLine}>{recordText}</Text>
-          <Text style={styles.statLine}>{completionText}</Text>
+          <Text style={styles.statLine}>
+            <Text style={styles.statLabel}>Streak: </Text>
+            {data.streak} days straight
+          </Text>
+          <Text style={styles.statLine}>
+            <Text style={styles.statLabel}>Record: </Text>
+            {data.record} days
+          </Text>
+          <Text style={styles.statLine}>
+            <Text style={styles.statLabel}>Completion: </Text>
+            {completion}% ({data.weeklyCompleted}/{data.weeklyTarget} weekly)
+          </Text>
         </View>
 
+        {/* Days Row - 10 ta bubble */}
         <View style={styles.daysRow}>
           {data.daysRow.map((status, idx) => (
             <DayBubble key={idx} status={status} />
           ))}
         </View>
 
+        {/* AI Note */}
         {!!data.aiNote && (
           <View style={styles.aiRow}>
             <Sparkles size={14} color={theme.colors.textSecondary} />
             <Text style={styles.aiText} numberOfLines={1}>
-              {data.aiNote}
+              Ai: "{data.aiNote}"
             </Text>
           </View>
         )}
 
-        <View style={{ marginTop: 12 }}>
-          {data.cta?.kind === 'check' && (
-            <GlassButton
-              label={isCompletedToday ? strings.ctas.completed : strings.ctas.checkIn}
-              onPress={handlePrimary}
-              disabled={disablePrimary}
-            />
-          )}
-          {data.cta?.kind === 'timer' && (
-            <GlassButton
-              icon={<AlarmClock size={14} color={theme.colors.textSecondary} />}
-              label={strings.ctas.startTimer}
-              onPress={handlePrimary}
-              disabled={disablePrimary}
-            />
-          )}
-          {data.cta?.kind === 'chips' && (
-            <View style={styles.chipsRow}>
-              {(data.chips ?? []).map((chip) => (
-                <GlassChip key={chip} label={chip} onPress={handlePrimary} disabled={disablePrimary} />
-              ))}
-            </View>
-          )}
-          {data.cta?.kind === 'dual' && (
-            <View style={styles.dualRow}>
-              <GlassButton
-                label={strings.ctas.completed}
-                compact
-                onPress={() => onLog(data.id, true)}
-                disabled={!data.canLogToday}
-              />
-              <GlassButton
-                label={strings.ctas.failed}
-                compact
-                variant="danger"
-                onPress={handleFail}
-                disabled={!data.canLogToday}
-              />
-            </View>
-          )}
-          {isArchived ? (
-            <View style={styles.dualRow}>
-              <GlassButton label="Recover" compact onPress={onRecover} />
-              <GlassButton label="Delete Forever" compact variant="danger" onPress={onDeleteForever} />
-            </View>
-          ) : (
-            <View style={styles.dualRow}>
-              <GlassButton label={strings.ctas.edit} compact onPress={onEditHabit} />
-              <GlassButton label={strings.ctas.delete} compact variant="danger" onPress={() => onDeleteHabit(data.id)} />
-            </View>
-          )}
-        </View>
-        {/* 
-        {data.expanded && (
-          <View style={styles.expandArea}>
-            <View style={styles.calendarBlock}>
-              <Text style={styles.blockTitle}>
-                {strings.calendarTitle.replace('{month}', data.calendarMonthLabel)}
-              </Text>
-              <View style={styles.calendarGrid}>
-                {data.calendarWeeks.map((week, weekIdx) => (
-                  <View key={`week-${weekIdx}`} style={styles.calendarWeekRow}>
-                    {week.map((cell, cellIdx) => (
-                      <View
-                        key={`${cell.key}-${cellIdx}`}
-                        style={[
-                          styles.calendarCell,
-                          !cell.isCurrentMonth && styles.calendarCellMuted,
-                          cell.status === 'done' && styles.calendarCellDone,
-                          cell.status === 'miss' && styles.calendarCellMiss,
-                          cell.isToday && styles.calendarCellToday,
-                        ]}
-                      >
-                        <Text style={styles.calendarCellText}>{cell.label}</Text>
-                      </View>
-                    ))}
-                  </View>
-                ))}
-              </View>
-              <View style={styles.calendarLegendRow}>
-                <LegendButton
-                  label={strings.calendarLegend.done}
-                  dotStyle={[styles.legendDot, styles.legendDotDone]}
-                  description={legendDescriptions.done}
-                  onHint={setLegendHint}
-                />
-                <LegendButton
-                  label={strings.calendarLegend.miss}
-                  dotStyle={[styles.legendDot, styles.legendDotMiss]}
-                  description={legendDescriptions.miss}
-                  onHint={setLegendHint}
-                />
-                <LegendButton
-                  label={strings.calendarLegend.none}
-                  dotStyle={[styles.legendDot, styles.legendDotNone]}
-                  description={legendDescriptions.none}
-                  onHint={setLegendHint}
-                />
-              </View>
-              {legendHint && (
-                <AdaptiveGlassView style={styles.legendTooltip}>
-                  <Text style={styles.legendTooltipText}>{legendHint}</Text>
-                </AdaptiveGlassView>
-              )}
-            </View>
-            <View style={styles.sectionBlock}>
-              <Text style={styles.blockTitle}>{strings.expand.titles.statistics}</Text>
-              <Text style={styles.blockLine}>{strings.expand.lines.overallCompletion}</Text>
-              <Text style={styles.blockLine}>{strings.expand.lines.successPercentile}</Text>
-              <Text style={styles.blockLine}>{strings.expand.lines.averageStreak}</Text>
-              <Text style={styles.blockLine}>{strings.expand.lines.bestMonth}</Text>
-            </View>
-
-            <View style={styles.sectionBlock}>
-              <Text style={styles.blockTitle}>{strings.expand.titles.pattern}</Text>
-              <Text style={styles.blockLine}>{strings.expand.lines.bestTime}</Text>
-              <Text style={styles.blockLine}>{strings.expand.lines.worstTime}</Text>
-              <Text style={styles.blockLine}>{strings.expand.lines.afterWeekends}</Text>
-            </View>
-
-            <View style={styles.sectionBlock}>
-              <Text style={styles.blockTitle}>{strings.expand.titles.achievements}</Text>
-              <BlockBadge
-                icon={<Trophy size={14} color={theme.colors.textSecondary} />}
-                text={strings.expand.badges.firstWeek}
-              />
-              <BlockBadge
-                icon={<Award size={14} color={theme.colors.textSecondary} />}
-                text={strings.expand.badges.monthNoBreak}
-              />
-              <BlockBadge
-                icon={<Award size={14} color={theme.colors.textSecondary} />}
-                text={strings.expand.badges.hundredCompletions}
-              />
-              <BlockBadge
-                icon={<Trophy size={14} color={theme.colors.textSecondary} />}
-                text={strings.expand.badges.marathoner}
-              />
-            </View>
+        {/* CTA Button(s) */}
+        {isArchived ? (
+          <View style={styles.ctaRow}>
+            <Pressable
+              style={[styles.ctaButton, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}
+              onPress={onRecover}
+            >
+              <Text style={[styles.ctaButtonText, { color: theme.colors.textSecondary }]}>Recover</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.ctaButton, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}
+              onPress={onDeleteForever}
+            >
+              <Text style={[styles.ctaButtonText, { color: theme.colors.textSecondary }]}>Delete Forever</Text>
+            </Pressable>
           </View>
-        )} */}
+        ) : showDualButtons ? (
+          <View style={styles.ctaRow}>
+            <Pressable
+              style={[styles.ctaButton, { backgroundColor: theme.colors.card, borderColor: theme.colors.border, opacity: disablePrimary ? 0.4 : 1 }]}
+              onPress={() => onLog(data.id, true)}
+              disabled={disablePrimary}
+            >
+              <Text style={[styles.ctaButtonText, { color: theme.colors.textSecondary }]}>{strings.ctas.completed}</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.ctaButton, { backgroundColor: theme.colors.card, borderColor: theme.colors.border, opacity: disablePrimary ? 0.4 : 1 }]}
+              onPress={handleFail}
+              disabled={disablePrimary}
+            >
+              <Text style={[styles.ctaButtonText, { color: theme.colors.textSecondary }]}>{strings.ctas.failed}</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <Pressable
+            style={[styles.ctaButtonFull, { backgroundColor: theme.colors.card, borderColor: theme.colors.border, opacity: disablePrimary ? 0.4 : 1 }]}
+            onPress={handlePrimary}
+            disabled={disablePrimary}
+          >
+            <Text style={[styles.ctaButtonText, { color: theme.colors.textSecondary }]}>{ctaLabel}</Text>
+          </Pressable>
+        )}
       </Pressable>
     </AdaptiveGlassView>
   );
@@ -567,63 +437,6 @@ function DayBubble({ status }: { status: HabitDayStatus }) {
   return <View style={base} />;
 }
 
-function GlassButton({
-  label,
-  icon,
-  compact,
-  variant = 'default',
-  onPress,
-  disabled,
-}: {
-  label: string;
-  icon?: React.ReactNode;
-  compact?: boolean;
-  variant?: 'default' | 'danger';
-  onPress?: () => void;
-  disabled?: boolean;
-}) {
-  const theme = useAppTheme();
-  const styles = useStyles();
-  const danger = variant === 'danger';
-  const paddingStyle = { paddingVertical: compact ? 8 : 10 };
-  const borderColor = danger ? theme.colors.danger : theme.colors.border;
-  const textColor = danger ? theme.colors.danger : theme.colors.textSecondary;
-  return (
-    <Pressable
-      onPress={onPress}
-      disabled={!onPress || disabled}
-      style={({ pressed }) => [pressed && onPress && !disabled && { opacity: 0.85 }]}
-    >
-      <AdaptiveGlassView
-        style={[
-          styles.glassBtn,
-          paddingStyle,
-          { borderColor, opacity: disabled ? 0.4 : 1 },
-        ]}
-      >
-        <View style={styles.glassBtnRow}>
-          {icon}
-          <Text style={[styles.glassBtnText, { color: textColor }]}>{label}</Text>
-        </View>
-      </AdaptiveGlassView>
-    </Pressable>
-  );
-}
-
-function GlassChip({ label, onPress, disabled }: { label: string; onPress?: () => void; disabled?: boolean }) {
-  const styles = useStyles();
-  return (
-    <Pressable
-      onPress={onPress}
-      disabled={!onPress || disabled}
-      style={({ pressed }) => [pressed && onPress && !disabled && { opacity: 0.85 }]}
-    >
-      <AdaptiveGlassView style={[styles.chip, disabled && { opacity: 0.4 }]}>
-        <Text style={styles.chipText}>{label}</Text>
-      </AdaptiveGlassView>
-    </Pressable>
-  );
-}
 
 // -------------------------------------
 // Styles
@@ -794,23 +607,74 @@ const useStyles = createThemedStyles((theme) => ({
 
   daysRow: { flexDirection: 'row', gap: 6, marginTop: 6 },
 
+  // New CTA styles
+  ctaRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 10,
+  },
+  ctaButton: {
+    flex: 1,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+  },
+  ctaButtonFull: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    marginTop: 10,
+  },
+  ctaButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+
+  // Streak badge styles
+  streakBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  streakBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+
+  // Stat label
+  statLabel: {
+    fontWeight: '700',
+    color: theme.colors.textPrimary,
+  },
+
   aiRow: { marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 6 },
   aiText: { fontSize: 12, color: theme.colors.textSecondary },
 
-  chipsRow: { flexDirection: 'row', gap: 12, marginTop: 2 },
+  actionsContainer: { marginTop: 12, gap: 10 },
+  chipsRow: { flexDirection: 'row', gap: 12 },
   dualRow: { flexDirection: 'row', gap: 10 },
 
   glassBtn: {
+    flex: 1,
     borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 16,
+    borderRadius: 12,
     alignItems: 'center',
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.card,
+    justifyContent: 'center',
     paddingVertical: 10,
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
   },
-  glassBtnRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  glassBtnText: { fontSize: 13, fontWeight: '700', color: theme.colors.textPrimary },
+  glassBtnRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  glassBtnText: { fontSize: 13, fontWeight: '600' },
 
   chip: {
     paddingVertical: 8,

@@ -1,0 +1,25 @@
+{
+  "skip": "Atla",
+  "continue": "Devam et",
+  "getStarted": "Başla",
+  "pages": [
+    {
+      "id": "welcome",
+      "title": "Leora",
+      "subtitle": "Hayatını yönet",
+      "description": "Finansal hedeflerini, günlük alışkanlıklarını ve zamanını tek bir yerde kontrol et"
+    },
+    {
+      "id": "finance",
+      "title": "Finans",
+      "subtitle": "Paranı takip et",
+      "description": "Gelir ve giderleri kaydet, bütçeler oluştur, borçları yönet ve finansal hedeflere ulaş"
+    },
+    {
+      "id": "planner",
+      "title": "Planlayıcı",
+      "subtitle": "Hedeflerine ulaş",
+      "description": "Hedefler koy, görevler oluştur, faydalı alışkanlıklar edin ve ilerlemeni takip et"
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Dimensions,
   Pressable,
@@ -22,15 +22,35 @@ import Animated, {
 import {
   Target,
   Wallet,
-  Clock,
   ChevronRight,
   Sparkles,
+  Sun,
+  Moon,
 } from 'lucide-react-native';
 
 import { useOnboardingStore } from '@/stores/useOnboardingStore';
-import { useAppTheme } from '@/constants/theme';
+import { useAppTheme, type Theme } from '@/constants/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useSettingsStore, type SupportedLanguage } from '@/stores/useSettingsStore';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+// Lokalizatsiya fayllari
+import enOnboarding from '@/localization/onboarding/en.json';
+import uzOnboarding from '@/localization/onboarding/uz.json';
+import ruOnboarding from '@/localization/onboarding/ru.json';
+import arOnboarding from '@/localization/onboarding/ar.json';
+import trOnboarding from '@/localization/onboarding/tr.json';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+type OnboardingStrings = typeof enOnboarding;
+
+const ONBOARDING_STRINGS: Record<SupportedLanguage, OnboardingStrings> = {
+  en: enOnboarding,
+  uz: uzOnboarding,
+  ru: ruOnboarding,
+  ar: arOnboarding,
+  tr: trOnboarding,
+};
 
 interface OnboardingPage {
   id: string;
@@ -38,43 +58,39 @@ interface OnboardingPage {
   title: string;
   subtitle: string;
   description: string;
-  gradientColors: [string, string, string];
 }
 
-const ONBOARDING_PAGES: OnboardingPage[] = [
-  {
-    id: 'welcome',
-    icon: <Sparkles size={64} color="#FFD700" />,
-    title: 'Leora',
-    subtitle: "Hayotingizni boshqaring",
-    description: "Moliyaviy maqsadlaringiz, kundalik odatlaringiz va vaqtingizni bir joyda nazorat qiling",
-    gradientColors: ['#1a1a2e', '#16213e', '#0f3460'],
-  },
-  {
-    id: 'finance',
-    icon: <Wallet size={64} color="#4CAF50" />,
-    title: 'Moliya',
-    subtitle: "Pullaringizni kuzating",
-    description: "Daromad va xarajatlarni qayd qiling, budjetlar yarating, qarzlarni boshqaring va moliyaviy maqsadlarga erishing",
-    gradientColors: ['#0f3460', '#1a472a', '#16213e'],
-  },
-  {
-    id: 'planner',
-    icon: <Target size={64} color="#FF6B6B" />,
-    title: 'Rejalashtiruvchi',
-    subtitle: "Maqsadlaringizga erishing",
-    description: "Maqsadlar qo'ying, vazifalar yarating, foydali odatlar shakllantiring va o'z taraqqiyotingizni kuzating",
-    gradientColors: ['#16213e', '#2d132c', '#1a1a2e'],
-  },
+const PAGE_ICONS = [
+  (color: string) => <Sparkles size={64} color={color} />,
+  (color: string) => <Wallet size={64} color={color} />,
+  (color: string) => <Target size={64} color={color} />,
 ];
+
+const ICON_COLORS = ['#FFD700', '#4CAF50', '#FF6B6B'];
 
 export default function OnboardingScreen() {
   const router = useRouter();
-  const theme = useAppTheme();
+  const appTheme = useAppTheme();
+  const { theme, toggleTheme } = useTheme();
+  const isDark = theme === 'dark';
+  const language = useSettingsStore((state) => state.language) as SupportedLanguage;
+  const strings = ONBOARDING_STRINGS[language] || ONBOARDING_STRINGS.en;
+  const styles = useMemo(() => createStyles(appTheme, isDark), [appTheme, isDark]);
+
   const { completeOnboarding } = useOnboardingStore();
   const scrollViewRef = useRef<Animated.ScrollView>(null);
   const [currentPage, setCurrentPage] = useState(0);
   const scrollX = useSharedValue(0);
+
+  const pages: OnboardingPage[] = useMemo(() => {
+    return strings.pages.map((page, index) => ({
+      id: page.id,
+      title: page.title,
+      subtitle: page.subtitle,
+      description: page.description,
+      icon: PAGE_ICONS[index](ICON_COLORS[index]),
+    }));
+  }, [strings.pages]);
 
   const updateCurrentPage = useCallback((page: number) => {
     setCurrentPage(page);
@@ -89,7 +105,7 @@ export default function OnboardingScreen() {
   });
 
   const handleNext = useCallback(() => {
-    if (currentPage < ONBOARDING_PAGES.length - 1) {
+    if (currentPage < pages.length - 1) {
       scrollViewRef.current?.scrollTo({
         x: (currentPage + 1) * SCREEN_WIDTH,
         animated: true,
@@ -98,7 +114,7 @@ export default function OnboardingScreen() {
       completeOnboarding();
       router.replace('/(auth)/login');
     }
-  }, [completeOnboarding, currentPage, router]);
+  }, [completeOnboarding, currentPage, pages.length, router]);
 
   const handleSkip = useCallback(() => {
     completeOnboarding();
@@ -108,20 +124,33 @@ export default function OnboardingScreen() {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={ONBOARDING_PAGES[currentPage].gradientColors}
+        colors={isDark
+          ? ['#1a1a2e', '#16213e', '#0f3460']
+          : ['#f8fafc', '#e2e8f0', '#cbd5e1']
+        }
         style={StyleSheet.absoluteFill}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
       />
 
       <SafeAreaView style={styles.safeArea} edges={['top']}>
-        {/* Skip Button */}
+        {/* Header with Skip and Theme Toggle */}
         <View style={styles.header}>
+          <Pressable
+            onPress={toggleTheme}
+            style={({ pressed }) => [styles.themeToggle, pressed && styles.pressed]}
+          >
+            {isDark ? (
+              <Sun size={20} color={appTheme.colors.textPrimary} />
+            ) : (
+              <Moon size={20} color={appTheme.colors.textPrimary} />
+            )}
+          </Pressable>
           <Pressable
             onPress={handleSkip}
             style={({ pressed }) => [styles.skipButton, pressed && styles.pressed]}
           >
-            <Text style={styles.skipText}>O'tkazib yuborish</Text>
+            <Text style={styles.skipText}>{strings.skip}</Text>
           </Pressable>
         </View>
 
@@ -135,12 +164,14 @@ export default function OnboardingScreen() {
           scrollEventThrottle={16}
           bounces={false}
         >
-          {ONBOARDING_PAGES.map((page, index) => (
+          {pages.map((page, index) => (
             <PageItem
               key={page.id}
               page={page}
               index={index}
               scrollX={scrollX}
+              theme={appTheme}
+              isDark={isDark}
             />
           ))}
         </Animated.ScrollView>
@@ -149,11 +180,12 @@ export default function OnboardingScreen() {
         <SafeAreaView edges={['bottom']} style={styles.footer}>
           {/* Page Indicators */}
           <View style={styles.indicators}>
-            {ONBOARDING_PAGES.map((_, index) => (
+            {pages.map((_, index) => (
               <PageIndicator
                 key={index}
                 index={index}
                 scrollX={scrollX}
+                isDark={isDark}
               />
             ))}
           </View>
@@ -173,9 +205,9 @@ export default function OnboardingScreen() {
               style={styles.nextButtonGradient}
             >
               <Text style={styles.nextButtonText}>
-                {currentPage === ONBOARDING_PAGES.length - 1
-                  ? "Boshlash"
-                  : "Davom etish"}
+                {currentPage === pages.length - 1
+                  ? strings.getStarted
+                  : strings.continue}
               </Text>
               <ChevronRight size={20} color="#FFFFFF" />
             </LinearGradient>
@@ -190,9 +222,11 @@ interface PageItemProps {
   page: OnboardingPage;
   index: number;
   scrollX: Animated.SharedValue<number>;
+  theme: Theme;
+  isDark: boolean;
 }
 
-function PageItem({ page, index, scrollX }: PageItemProps) {
+function PageItem({ page, index, scrollX, theme, isDark }: PageItemProps) {
   const inputRange = [
     (index - 1) * SCREEN_WIDTH,
     index * SCREEN_WIDTH,
@@ -244,6 +278,8 @@ function PageItem({ page, index, scrollX }: PageItemProps) {
     };
   });
 
+  const styles = useMemo(() => createPageStyles(theme, isDark), [theme, isDark]);
+
   return (
     <View style={styles.page}>
       <Animated.View style={[styles.pageContent, animatedStyle]}>
@@ -270,9 +306,10 @@ function PageItem({ page, index, scrollX }: PageItemProps) {
 interface PageIndicatorProps {
   index: number;
   scrollX: Animated.SharedValue<number>;
+  isDark: boolean;
 }
 
-function PageIndicator({ index, scrollX }: PageIndicatorProps) {
+function PageIndicator({ index, scrollX, isDark }: PageIndicatorProps) {
   const inputRange = [
     (index - 1) * SCREEN_WIDTH,
     index * SCREEN_WIDTH,
@@ -300,123 +337,141 @@ function PageIndicator({ index, scrollX }: PageIndicatorProps) {
   });
 
   return (
-    <Animated.View style={[styles.indicator, animatedStyle]} />
+    <Animated.View
+      style={[
+        {
+          height: 8,
+          borderRadius: 4,
+          backgroundColor: isDark ? '#FFFFFF' : '#1e293b',
+        },
+        animatedStyle,
+      ]}
+    />
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#1a1a2e',
-  },
-  safeArea: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 16,
-  },
-  skipButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  skipText: {
-    color: 'rgba(255, 255, 255, 0.7)',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  pressed: {
-    opacity: 0.7,
-  },
-  page: {
-    width: SCREEN_WIDTH,
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 32,
-  },
-  pageContent: {
-    alignItems: 'center',
-    width: '100%',
-  },
-  iconContainer: {
-    marginBottom: 40,
-  },
-  iconGlow: {
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#fff',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.2,
-    shadowRadius: 30,
-  },
-  title: {
-    fontSize: 42,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    textAlign: 'center',
-    marginBottom: 12,
-    letterSpacing: -1,
-  },
-  subtitle: {
-    fontSize: 22,
-    fontWeight: '600',
-    color: 'rgba(255, 255, 255, 0.9)',
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  description: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: 'rgba(255, 255, 255, 0.65)',
-    textAlign: 'center',
-    lineHeight: 26,
-    paddingHorizontal: 8,
-  },
-  footer: {
-    paddingHorizontal: 24,
-    paddingBottom: 24,
-    gap: 24,
-  },
-  indicators: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 8,
-  },
-  indicator: {
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#FFFFFF',
-  },
-  nextButton: {
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  nextButtonPressed: {
-    opacity: 0.9,
-    transform: [{ scale: 0.98 }],
-  },
-  nextButtonGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 18,
-    paddingHorizontal: 32,
-    gap: 8,
-  },
-  nextButtonText: {
-    color: '#FFFFFF',
-    fontSize: 17,
-    fontWeight: '700',
-  },
-});
+const createStyles = (theme: Theme, isDark: boolean) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: isDark ? '#1a1a2e' : '#f8fafc',
+    },
+    safeArea: {
+      flex: 1,
+    },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: 20,
+      paddingTop: 8,
+      paddingBottom: 16,
+    },
+    themeToggle: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    skipButton: {
+      paddingVertical: 8,
+      paddingHorizontal: 16,
+      borderRadius: 20,
+      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)',
+    },
+    skipText: {
+      color: isDark ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.6)',
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    pressed: {
+      opacity: 0.7,
+    },
+    footer: {
+      paddingHorizontal: 24,
+      paddingBottom: 24,
+      gap: 24,
+    },
+    indicators: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      gap: 8,
+    },
+    nextButton: {
+      borderRadius: 16,
+      overflow: 'hidden',
+    },
+    nextButtonPressed: {
+      opacity: 0.9,
+      transform: [{ scale: 0.98 }],
+    },
+    nextButtonGradient: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 18,
+      paddingHorizontal: 32,
+      gap: 8,
+    },
+    nextButtonText: {
+      color: '#FFFFFF',
+      fontSize: 17,
+      fontWeight: '700',
+    },
+  });
+
+const createPageStyles = (theme: Theme, isDark: boolean) =>
+  StyleSheet.create({
+    page: {
+      width: SCREEN_WIDTH,
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 32,
+    },
+    pageContent: {
+      alignItems: 'center',
+      width: '100%',
+    },
+    iconContainer: {
+      marginBottom: 40,
+    },
+    iconGlow: {
+      width: 140,
+      height: 140,
+      borderRadius: 70,
+      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      shadowColor: isDark ? '#fff' : '#000',
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: isDark ? 0.2 : 0.1,
+      shadowRadius: 30,
+    },
+    title: {
+      fontSize: 42,
+      fontWeight: '800',
+      color: isDark ? '#FFFFFF' : '#1e293b',
+      textAlign: 'center',
+      marginBottom: 12,
+      letterSpacing: -1,
+    },
+    subtitle: {
+      fontSize: 22,
+      fontWeight: '600',
+      color: isDark ? 'rgba(255, 255, 255, 0.9)' : 'rgba(30, 41, 59, 0.85)',
+      textAlign: 'center',
+      marginBottom: 20,
+    },
+    description: {
+      fontSize: 16,
+      fontWeight: '500',
+      color: isDark ? 'rgba(255, 255, 255, 0.65)' : 'rgba(30, 41, 59, 0.6)',
+      textAlign: 'center',
+      lineHeight: 26,
+      paddingHorizontal: 8,
+    },
+  });

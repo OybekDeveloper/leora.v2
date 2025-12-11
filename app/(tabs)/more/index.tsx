@@ -40,7 +40,7 @@ import {
 
 import UniversalFAB from '@/components/UniversalFAB';
 import { ListItem, SectionHeader } from '@/features/more/components';
-import { createThemedStyles, useAppTheme } from '@/constants/theme';
+import { Colors, createThemedStyles, useAppTheme } from '@/constants/theme';
 import { AdaptiveGlassView } from '@/components/ui/AdaptiveGlassView';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { usePlannerDomainStore } from '@/stores/usePlannerDomainStore';
@@ -128,7 +128,7 @@ const useStyles = createThemedStyles((theme) => ({
     paddingHorizontal: theme.spacing.sm,
     paddingVertical: 6,
     borderRadius: 28,
-    backgroundColor: theme.mode === 'dark' ? 'rgba(18, 19, 27, 0.7)' : 'rgba(229, 231, 235, 0.7)',
+    backgroundColor: theme.colors.glassBg,
   },
   levelRingOuter: {
     width: 44,
@@ -307,21 +307,18 @@ const LevelProgress: React.FC<LevelProgressProps> = ({ level, nextLevel, current
     width: widthValue.value,
   }));
 
-  const ringBorderColor = theme.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(17,24,39,0.08)';
-  const leftRingBg = theme.mode === 'dark' ? 'rgba(21,22,30,0.6)' : 'rgba(226,232,240,0.62)';
-  const rightRingBg = theme.mode === 'dark' ? 'rgba(21,22,30,0.6)' : 'rgba(226,232,240,0.6)';
-  const innerRingColor = theme.mode === 'dark' ? 'rgba(255,255,255,0.12)' : 'rgba(15,23,42,0.08)';
-  const innerRingDimColor = theme.mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(15,23,42,0.05)';
-  const levelNumberColor = theme.mode === 'dark' ? '#F8FAFC' : '#111827';
-  const levelNumberDimColor = theme.mode === 'dark' ? 'rgba(248,250,252,0.65)' : 'rgba(55,65,81,0.65)';
+  const ringBorderColor = theme.colors.glassBorder;
+  const leftRingBg = theme.colors.glassBg;
+  const rightRingBg = theme.colors.glassBg;
+  const innerRingColor = theme.colors.overlayStrong;
+  const innerRingDimColor = theme.colors.overlaySoft;
+  const levelNumberColor = theme.colors.textPrimary;
+  const levelNumberDimColor = theme.colors.textMuted;
   const trackBaseColor = theme.mode === 'dark' ? 'rgba(203, 213, 225, 0.35)' : 'rgba(203, 213, 225, 0.6)';
-  const gradientStops =
-    theme.mode === 'dark'
-      ? ['#8FA399', '#3d8f76ff', '#22ad98ff'] // dark mode: biroz to‘q-yashil + sovuq kulrang
-      : ['#30ab94ff', '#45b8c0ff', '#42ba54ff']; // light mod
+  const gradientStops = Colors.levelGradient;
 
-  const labelColor = theme.mode === 'dark' ? '#1E1F2A' : theme.colors.textPrimary;
-  const xpMaxColor = theme.mode === 'dark' ? 'rgba(30,31,42,0.45)' : 'rgba(71,85,105,0.55)';
+  const labelColor = theme.mode === 'dark' ? theme.colors.background : theme.colors.textPrimary;
+  const xpMaxColor = theme.colors.textMuted;
 
   return (
     <AdaptiveGlassView style={{
@@ -375,7 +372,7 @@ const LevelProgress: React.FC<LevelProgressProps> = ({ level, nextLevel, current
             {label} {level}
           </Text>
           <View style={styles.progressXpGroup}>
-            <Star size={16} color="#FACC15" fill="#FACC15" />
+            <Star size={16} color={Colors.chart.yellow} fill={Colors.chart.yellow} />
             <Text style={[styles.progressXpCurrent, { color: labelColor }]}>{currentXp}</Text>
             <Text style={[styles.progressXpMax, { color: xpMaxColor }]}>/{targetXp}</Text>
           </View>
@@ -673,6 +670,7 @@ export default function MoreHomeScreen() {
             ))}
           </View>
 
+{/* Integration section - hozircha comment qilingan
           <SectionHeader title={strings.more.sections.integration} style={styles.integrationHeader} />
           <View style={styles.listCardContent}>
             {integrationItems.map((item, index) => (
@@ -686,6 +684,7 @@ export default function MoreHomeScreen() {
               />
             ))}
           </View>
+*/}
         </Animated.View>
 
         <Animated.View entering={FadeInDown.springify().delay(200)} style={styles.sectionGroup}>

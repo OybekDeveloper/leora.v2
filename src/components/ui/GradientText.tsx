@@ -3,6 +3,8 @@ import { Text, StyleSheet, TextStyle, ColorValue, ViewStyle, StyleProp } from 'r
 import MaskedView from '@react-native-masked-view/masked-view';
 import { LinearGradient } from 'expo-linear-gradient';
 
+import { Colors } from '@/constants/theme';
+
 type GradientTuple = readonly [ColorValue, ColorValue, ...ColorValue[]];
 
 type Props = {
@@ -14,7 +16,7 @@ type Props = {
   containerStyle?: StyleProp<ViewStyle>;
 };
 
-const DEFAULT_COLORS = ['#2F9EF1', '#7257CD'] as const; // <-- tuple!
+const DEFAULT_COLORS = Colors.brandGradient as unknown as GradientTuple;
 
 export default function GradientText({
   children,

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const MIN_PASSWORD_LENGTH = 8;
+export const MIN_PASSWORD_LENGTH = 6;
 export type PasswordRequirementKey = 'minLength' | 'uppercase' | 'lowercase' | 'number' | 'special';
 
 const PASSWORD_REQUIREMENT_CHECKS: Record<PasswordRequirementKey, (value: string) => boolean> = {

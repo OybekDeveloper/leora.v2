@@ -15,8 +15,11 @@ import { useAuthStore } from '@/stores/useAuthStore';
 import { useLockStore } from '@/stores/useLockStore';
 import { useLocalization } from '@/localization/useLocalization';
 import { SupportedLanguage, useSettingsStore } from '@/stores/useSettingsStore';
+import { useAppTheme, type Theme } from '@/constants/theme';
 
 const LoginScreen = () => {
+  const theme = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const { strings } = useLocalization();
   const loginStrings = strings.auth.login;
   const validationStrings = strings.auth.validation;
@@ -192,7 +195,7 @@ const LoginScreen = () => {
                   <View
                     style={[styles.checkbox, rememberMeLocal && styles.checkboxChecked]}
                   >
-                    {rememberMeLocal && <CheckIcon color="#FFFFFF" size={14} />}
+                    {rememberMeLocal && <CheckIcon color={theme.colors.onPrimary} size={14} />}
                   </View>
                   <Text style={styles.rememberMeText}>{loginStrings.rememberMe}</Text>
                 </TouchableOpacity>
@@ -242,129 +245,129 @@ const LoginScreen = () => {
 
 export default LoginScreen;
 
-const styles = StyleSheet.create({
-  container: {
-    width: "100%",
-    backgroundColor: "transparent",
-  },
-  card: {
-    width: "100%",
-    paddingBottom: 32,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-  },
-  header: {
-    marginBottom: 16,
-    paddingTop: 8,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#fff",
-    textAlign: "center",
-    marginBottom: 8,
-  },
-  description: {
-    fontSize: 14,
-    color: "#A6A6B9",
-    textAlign: "center",
-  },
-  form: {
-    width: "100%",
-    marginTop: 16,
-  },
-  options: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  rememberMeContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 4,
-    borderWidth: 2,
-    borderColor: "rgba(108, 114, 120, 1)", // shaffof checkbox border
-    marginRight: 8,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.1)", // shaffof fon
-  },
-  checkboxChecked: {
-    borderColor: "rgba(108, 114, 120, 1)", // yarim shaffof ko‘k border
-    backgroundColor: "rgba(108, 114, 120, 1)", // shisha ko‘k fon
-  },
-  checkboxInner: {
-    width: 12,
-    height: 12,
-    borderRadius: 2,
-    backgroundColor: "transparent",
-  },
-  rememberMeText: {
-    color: "#A6A6B9",
-    fontSize: 14,
-  },
-  forgotPassword: {
-    color: "#667eea",
-    fontSize: 14,
-    fontWeight: "500",
-  },
-  footer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    marginTop: 20,
-  },
-  footerText: {
-    color: "#A6A6B9",
-    fontSize: 14,
-  },
-  signUpLink: {
-    color: "#667eea",
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  errorContainer: {
-    backgroundColor: "rgba(239, 68, 68, 0.1)",
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "rgba(239, 68, 68, 0.3)",
-  },
-  errorText: {
-    color: "#ef4444",
-    fontSize: 14,
-    textAlign: "center",
-  },
-  // 🔹 Shaffof input va button style
-  input: {
-    width: "100%",
-    height: 50,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: "rgba(255,255,255,0.25)", // shisha border
-    paddingHorizontal: 12,
-    color: "#fff",
-    marginBottom: 16,
-    backgroundColor: "rgba(255,255,255,0.08)", // yarim shaffof fon
-  },
-  button: {
-    backgroundColor: "rgba(102,126,234,0.25)", // yarim shaffof ko‘k
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: "rgba(102,126,234,0.4)", // ko‘k shaffof border
-    paddingVertical: 14,
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  buttonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-});
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    container: {
+      width: '100%',
+      backgroundColor: 'transparent',
+    },
+    card: {
+      width: '100%',
+      paddingBottom: 32,
+      paddingVertical: 12,
+      paddingHorizontal: 20,
+    },
+    header: {
+      marginBottom: 16,
+      paddingTop: 8,
+    },
+    title: {
+      fontSize: 24,
+      fontWeight: '700',
+      color: theme.colors.textPrimary,
+      textAlign: 'center',
+      marginBottom: 8,
+    },
+    description: {
+      fontSize: 14,
+      color: theme.colors.textSecondary,
+      textAlign: 'center',
+    },
+    form: {
+      width: '100%',
+      marginTop: 16,
+    },
+    options: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 20,
+    },
+    rememberMeContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    checkbox: {
+      width: 20,
+      height: 20,
+      borderRadius: 4,
+      borderWidth: 2,
+      borderColor: theme.colors.border,
+      marginRight: 8,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.colors.glassBg,
+    },
+    checkboxChecked: {
+      borderColor: theme.colors.primary,
+      backgroundColor: theme.colors.primary,
+    },
+    checkboxInner: {
+      width: 12,
+      height: 12,
+      borderRadius: 2,
+      backgroundColor: 'transparent',
+    },
+    rememberMeText: {
+      color: theme.colors.textSecondary,
+      fontSize: 14,
+    },
+    forgotPassword: {
+      color: theme.colors.primary,
+      fontSize: 14,
+      fontWeight: '500',
+    },
+    footer: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginTop: 20,
+    },
+    footerText: {
+      color: theme.colors.textSecondary,
+      fontSize: 14,
+    },
+    signUpLink: {
+      color: theme.colors.primary,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    errorContainer: {
+      backgroundColor: `${theme.colors.danger}15`,
+      borderRadius: 8,
+      padding: 12,
+      marginBottom: 16,
+      borderWidth: 1,
+      borderColor: `${theme.colors.danger}50`,
+    },
+    errorText: {
+      color: theme.colors.danger,
+      fontSize: 14,
+      textAlign: 'center',
+    },
+    input: {
+      width: '100%',
+      height: 50,
+      borderRadius: 8,
+      borderWidth: 2,
+      borderColor: theme.colors.glassBorder,
+      paddingHorizontal: 12,
+      color: theme.colors.textPrimary,
+      marginBottom: 16,
+      backgroundColor: theme.colors.glassBg,
+    },
+    button: {
+      backgroundColor: `${theme.colors.primary}40`,
+      borderRadius: 8,
+      borderWidth: 2,
+      borderColor: `${theme.colors.primary}66`,
+      paddingVertical: 14,
+      alignItems: 'center',
+      marginBottom: 16,
+    },
+    buttonText: {
+      color: theme.colors.textPrimary,
+      fontSize: 16,
+      fontWeight: '600',
+    },
+  });

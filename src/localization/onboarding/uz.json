@@ -1,0 +1,25 @@
+{
+  "skip": "O'tkazib yuborish",
+  "continue": "Davom etish",
+  "getStarted": "Boshlash",
+  "pages": [
+    {
+      "id": "welcome",
+      "title": "Leora",
+      "subtitle": "Hayotingizni boshqaring",
+      "description": "Moliyaviy maqsadlaringiz, kundalik odatlaringiz va vaqtingizni bir joyda nazorat qiling"
+    },
+    {
+      "id": "finance",
+      "title": "Moliya",
+      "subtitle": "Pullaringizni kuzating",
+      "description": "Daromad va xarajatlarni qayd qiling, budjetlar yarating, qarzlarni boshqaring va moliyaviy maqsadlarga erishing"
+    },
+    {
+      "id": "planner",
+      "title": "Rejalashtiruvchi",
+      "subtitle": "Maqsadlaringizga erishing",
+      "description": "Maqsadlar qo'ying, vazifalar yarating, foydali odatlar shakllantiring va o'z taraqqiyotingizni kuzating"
+    }
+  ]
+}

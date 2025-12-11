@@ -29,7 +29,7 @@ import {
   getCategoriesForType,
 } from '@/constants/financeCategories';
 import { useLocalizedCategories } from '@/hooks/useLocalizedCategories';
-import { useAppTheme } from '@/constants/theme';
+import { useAppTheme, type Theme } from '@/constants/theme';
 import { useFinanceDomainStore } from '@/stores/useFinanceDomainStore';
 import { useFinancePreferencesStore } from '@/stores/useFinancePreferencesStore';
 import { normalizeFinanceCurrency } from '@/utils/financeCurrency';
@@ -52,6 +52,7 @@ export default function QuickExpenseModal() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const theme = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const { strings } = useLocalization();
   const financeStrings = (strings as any).financeScreens ?? {};
   const transactionsStrings = financeStrings.transactions ?? {};
@@ -505,16 +506,16 @@ export default function QuickExpenseModal() {
     <>
       <SafeAreaView
         edges={['bottom',"top"]}
-        style={[styles.safeArea, { backgroundColor: theme.colors.background }]}
+        style={styles.safeArea}
       >
-        <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
-          <Text style={[styles.headerTitle, { color: theme.colors.textSecondary }]}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>
             {activeTab === 'income'
               ? quickStrings.incomeHeader ?? `+ ${filterStrings.typeOptions?.income ?? 'Income'}`
               : quickStrings.outcomeHeader ?? `- ${filterStrings.typeOptions?.expense ?? 'Outcome'}`}
           </Text>
           <Pressable onPress={handleClose} hitSlop={12}>
-            <Text style={[styles.closeText, { color: theme.colors.textSecondary }]}>
+            <Text style={styles.closeText}>
               {commonStrings.close ?? 'Close'}
             </Text>
           </Pressable>
@@ -566,7 +567,7 @@ export default function QuickExpenseModal() {
             </View>
 
             <View style={styles.section}>
-              <Text style={[styles.sectionLabel, { color: theme.colors.textSecondary }]}>
+              <Text style={styles.sectionLabel}>
                 {detailStrings.name ?? 'Name'}
               </Text>
               <AdaptiveGlassView style={[styles.glassSurface, styles.inputWrapper]}>
@@ -574,14 +575,14 @@ export default function QuickExpenseModal() {
                   value={transactionName}
                   onChangeText={setTransactionName}
                   placeholder={quickStrings.namePlaceholder ?? 'Transaction name (optional)'}
-                  placeholderTextColor="#7E8B9A"
+                  placeholderTextColor={theme.colors.textMuted}
                   style={styles.textInput}
                 />
               </AdaptiveGlassView>
             </View>
 
             <View style={styles.section}>
-              <Text style={[styles.sectionLabel, { color: theme.colors.textSecondary }]}>
+              <Text style={styles.sectionLabel}>
                 {detailStrings.amount ?? 'Amount'}
               </Text>
               <AdaptiveGlassView style={[styles.glassSurface, styles.inputWrapper]}>
@@ -589,7 +590,7 @@ export default function QuickExpenseModal() {
                   value={amount}
                   onChangeText={handleAmountChange}
                   placeholder={quickStrings.amountPlaceholder ?? 'Input amount'}
-                  placeholderTextColor="#7E8B9A"
+                  placeholderTextColor={theme.colors.textMuted}
                   keyboardType="numeric"
                   style={styles.textInput}
                 />
@@ -598,7 +599,7 @@ export default function QuickExpenseModal() {
 
             <View style={styles.sectionFullWidth}>
               <View style={styles.categoryHeader}>
-                <Text style={[styles.sectionLabel, styles.labelWithPadding, { color: theme.colors.textSecondary }]}>
+                <Text style={[styles.sectionLabel, styles.labelWithPadding]}>
                   {detailStrings.category ?? 'Category'}
                 </Text>
                 <Pressable
@@ -606,7 +607,7 @@ export default function QuickExpenseModal() {
                   hitSlop={10}
                   style={styles.labelWithPadding}
                 >
-                  <Ionicons name="add" size={18} color="#7E8B9A" />
+                  <Ionicons name="add" size={18} color={theme.colors.textMuted} />
                 </Pressable>
               </View>
 
@@ -631,11 +632,11 @@ export default function QuickExpenseModal() {
                             { opacity: isActive ? 1 : 0.6 },
                           ]}
                         >
-                          {renderCategoryIcon(cat, 28, isActive ? '#FFFFFF' : '#9E9E9E')}
+                          {renderCategoryIcon(cat, 28, isActive ? theme.colors.textPrimary : theme.colors.textMuted)}
                           <Text
                             style={[
                               styles.categoryCardText,
-                              { color: isActive ? '#FFFFFF' : '#9E9E9E' },
+                              { color: isActive ? theme.colors.textPrimary : theme.colors.textMuted },
                             ]}
                             numberOfLines={2}
                           >
@@ -655,7 +656,7 @@ export default function QuickExpenseModal() {
             {/* Budget Picker - shows when budgets exist for this transaction type */}
             {allBudgets.length > 0 && (
               <View style={styles.section}>
-                <Text style={[styles.sectionLabel, { color: theme.colors.textSecondary }]}>
+                <Text style={styles.sectionLabel}>
                   {quickStrings.budget ?? 'Budget'} ({quickStrings.optional ?? 'optional'})
                 </Text>
                 <Pressable
@@ -663,13 +664,13 @@ export default function QuickExpenseModal() {
                   style={({ pressed }) => [pressed && styles.pressed]}
                 >
                   <AdaptiveGlassView style={[styles.glassSurface, styles.budgetPickerButton]}>
-                    <Text style={[styles.budgetPickerText, { color: selectedBudget ? '#FFFFFF' : '#7E8B9A' }]}>
+                    <Text style={[styles.budgetPickerText, { color: selectedBudget ? theme.colors.textPrimary : theme.colors.textMuted }]}>
                       {selectedBudget?.name ?? (quickStrings.selectBudget ?? 'Select budget...')}
                     </Text>
                     <Ionicons
                       name={showBudgetPicker ? 'chevron-up' : 'chevron-down'}
                       size={18}
-                      color="#7E8B9A"
+                      color={theme.colors.textMuted}
                     />
                   </AdaptiveGlassView>
                 </Pressable>
@@ -684,7 +685,7 @@ export default function QuickExpenseModal() {
                       style={({ pressed }) => [styles.budgetOption, pressed && styles.pressed]}
                     >
                       <AdaptiveGlassView style={[styles.glassSurface, styles.budgetOptionInner]}>
-                        <Text style={[styles.budgetOptionText, { color: '#7E8B9A' }]}>
+                        <Text style={[styles.budgetOptionText, { color: theme.colors.textMuted }]}>
                           {quickStrings.noBudget ?? 'No budget'}
                         </Text>
                       </AdaptiveGlassView>
@@ -693,7 +694,7 @@ export default function QuickExpenseModal() {
                     {/* Category-specific budgets */}
                     {categoryBudgets.length > 0 && (
                       <>
-                        <Text style={[styles.budgetSectionLabel, { color: theme.colors.textMuted }]}>
+                        <Text style={styles.budgetSectionLabel}>
                           {quickStrings.categoryBudgets ?? 'Category budgets'}
                         </Text>
                         {categoryBudgets.map((budget) => (
@@ -716,7 +717,7 @@ export default function QuickExpenseModal() {
                                 <Text
                                   style={[
                                     styles.budgetOptionText,
-                                    { color: selectedBudgetId === budget.id ? '#FFFFFF' : '#CCCCCC' },
+                                    { color: selectedBudgetId === budget.id ? theme.colors.textPrimary : theme.colors.textSecondary },
                                   ]}
                                   numberOfLines={1}
                                 >
@@ -727,7 +728,7 @@ export default function QuickExpenseModal() {
                                 </Text>
                               </View>
                               {selectedBudgetId === budget.id && (
-                                <Ionicons name="checkmark" size={18} color="#FFFFFF" />
+                                <Ionicons name="checkmark" size={18} color={theme.colors.textPrimary} />
                               )}
                             </AdaptiveGlassView>
                           </Pressable>
@@ -738,7 +739,7 @@ export default function QuickExpenseModal() {
                     {/* Other budgets */}
                     {otherBudgets.length > 0 && (
                       <>
-                        <Text style={[styles.budgetSectionLabel, { color: theme.colors.textMuted }]}>
+                        <Text style={styles.budgetSectionLabel}>
                           {quickStrings.allBudgets ?? 'All budgets'}
                         </Text>
                         {otherBudgets.map((budget) => (
@@ -761,7 +762,7 @@ export default function QuickExpenseModal() {
                                 <Text
                                   style={[
                                     styles.budgetOptionText,
-                                    { color: selectedBudgetId === budget.id ? '#FFFFFF' : '#CCCCCC' },
+                                    { color: selectedBudgetId === budget.id ? theme.colors.textPrimary : theme.colors.textSecondary },
                                   ]}
                                   numberOfLines={1}
                                 >
@@ -772,7 +773,7 @@ export default function QuickExpenseModal() {
                                 </Text>
                               </View>
                               {selectedBudgetId === budget.id && (
-                                <Ionicons name="checkmark" size={18} color="#FFFFFF" />
+                                <Ionicons name="checkmark" size={18} color={theme.colors.textPrimary} />
                               )}
                             </AdaptiveGlassView>
                           </Pressable>
@@ -785,7 +786,7 @@ export default function QuickExpenseModal() {
             )}
 
             <View style={styles.section}>
-              <Text style={[styles.sectionLabel, { color: theme.colors.textSecondary }]}>
+              <Text style={styles.sectionLabel}>
                 {detailStrings.date ?? 'Date'}
               </Text>
               <View style={styles.dateTimeRow}>
@@ -794,7 +795,7 @@ export default function QuickExpenseModal() {
                   style={({ pressed }) => [styles.dateTimeButton, pressed && styles.pressed]}
                 >
                   <AdaptiveGlassView style={[styles.glassSurface, styles.dateTimeChip]}>
-                    <Ionicons name="calendar-outline" size={18} color="#7E8B9A" />
+                    <Ionicons name="calendar-outline" size={18} color={theme.colors.textMuted} />
                     <Text style={styles.dateTimeText}>{dateLabel}</Text>
                   </AdaptiveGlassView>
                 </Pressable>
@@ -803,7 +804,7 @@ export default function QuickExpenseModal() {
                   style={({ pressed }) => [styles.dateTimeButton, pressed && styles.pressed]}
                 >
                   <AdaptiveGlassView style={[styles.glassSurface, styles.dateTimeChip]}>
-                    <Ionicons name="time-outline" size={18} color="#7E8B9A" />
+                    <Ionicons name="time-outline" size={18} color={theme.colors.textMuted} />
                     <Text style={styles.dateTimeText}>{timeLabel}</Text>
                   </AdaptiveGlassView>
                 </Pressable>
@@ -821,30 +822,30 @@ export default function QuickExpenseModal() {
 
             {(linkedGoal || linkedBudget || linkedDebt) && (
               <View style={[styles.section, { zIndex: 1 }]}>
-                <Text style={[styles.sectionLabel, { color: theme.colors.textSecondary }]}>
+                <Text style={styles.sectionLabel}>
                   {detailStrings.linkedData ?? 'Linked data'}
                 </Text>
-                <AdaptiveGlassView style={[styles.glassSurface, styles.linkedCard,{ backgroundColor: theme.colors.card }]}>
+                <AdaptiveGlassView style={[styles.glassSurface, styles.linkedCard]}>
                   {linkedGoal && (
                     <View style={styles.linkedRow}>
-                      <Text style={[styles.linkedLabel, { color: theme.colors.textSecondary }]}>{detailStrings.linkedGoal ?? 'Goal'}</Text>
-                      <Text style={[styles.linkedValue, { color: theme.colors.textPrimary }]} numberOfLines={1}>
+                      <Text style={styles.linkedLabel}>{detailStrings.linkedGoal ?? 'Goal'}</Text>
+                      <Text style={styles.linkedValue} numberOfLines={1}>
                         {linkedGoal.title}
                       </Text>
                     </View>
                   )}
                   {linkedBudget && (
                     <View style={styles.linkedRow}>
-                      <Text style={[styles.linkedLabel, { color: theme.colors.textSecondary }]}>{detailStrings.linkedBudget ?? 'Budget'}</Text>
-                      <Text style={[styles.linkedValue, { color: theme.colors.textPrimary }]} numberOfLines={1}>
+                      <Text style={styles.linkedLabel}>{detailStrings.linkedBudget ?? 'Budget'}</Text>
+                      <Text style={styles.linkedValue} numberOfLines={1}>
                         {linkedBudget.name ?? ''} · {(linkedBudget.currentBalance ?? linkedBudget.remainingAmount ?? linkedBudget.limitAmount ?? 0).toFixed(2)} {linkedBudget.currency ?? ''}
                       </Text>
                     </View>
                   )}
                   {linkedDebt && (
                     <View style={styles.linkedRow}>
-                      <Text style={[styles.linkedLabel, { color: theme.colors.textSecondary }]}>{detailStrings.relatedDebt ?? 'Debt'}</Text>
-                      <Text style={[styles.linkedValue, { color: theme.colors.textPrimary }]} numberOfLines={1}>
+                      <Text style={styles.linkedLabel}>{detailStrings.relatedDebt ?? 'Debt'}</Text>
+                      <Text style={styles.linkedValue} numberOfLines={1}>
                         {linkedDebt.counterpartyName ?? linkedDebt.counterpartyId ?? ''} · {(linkedDebt.principalAmount ?? 0).toFixed(2)} {linkedDebt.principalCurrency ?? ''}
                       </Text>
                     </View>
@@ -854,7 +855,7 @@ export default function QuickExpenseModal() {
             )}
 
             <View style={[styles.section, { zIndex: 1 }]}>
-              <Text style={[styles.sectionLabel, { color: theme.colors.textSecondary }]}>
+              <Text style={styles.sectionLabel}>
                 {detailStrings.note ?? 'Note'}
               </Text>
               <AdaptiveGlassView style={[styles.glassSurface, styles.noteWrapper]}>
@@ -866,7 +867,7 @@ export default function QuickExpenseModal() {
                     quickStrings.notePlaceholder ??
                     'Add optional description or context…'
                   }
-                  placeholderTextColor="#7E8B9A"
+                  placeholderTextColor={theme.colors.textMuted}
                   multiline
                   style={styles.noteInput}
                 />
@@ -895,7 +896,7 @@ export default function QuickExpenseModal() {
                   <Text
                     style={[
                       styles.primaryButtonText,
-                      { color: isSaveDisabled ? '#7E8B9A' : '#FFFFFF' },
+                      { color: isSaveDisabled ? theme.colors.textMuted : theme.colors.textPrimary },
                     ]}
                   >
                     {buttonLabel}
@@ -911,7 +912,7 @@ export default function QuickExpenseModal() {
         <Modal transparent visible onRequestClose={closePicker} animationType="fade">
           <View style={styles.pickerModal}>
             <Pressable style={styles.pickerBackdrop} onPress={closePicker} />
-            <AdaptiveGlassView style={[styles.glassSurface, styles.pickerCard,{ backgroundColor: theme.colors.card }]}>
+            <AdaptiveGlassView style={[styles.glassSurface, styles.pickerCard]}>
               <DateTimePicker
                 value={pickerValue}
                 mode={pickerMode}
@@ -937,13 +938,13 @@ export default function QuickExpenseModal() {
           <Pressable style={styles.modalBackdrop} onPress={handleDismissCategoryModal} />
           <AdaptiveGlassView style={[styles.glassSurface, styles.modalCard]}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: theme.colors.textPrimary }]}>
+              <Text style={styles.modalTitle}>
                 {categoryModalState?.mode === 'edit'
                   ? quickStrings.categoryEditTitle ?? financeStrings.budgets?.addCategory ?? 'Edit category'
                   : quickStrings.categoryAddTitle ?? financeStrings.budgets?.addCategory ?? 'Add category'}
               </Text>
               <Pressable onPress={handleDismissCategoryModal} hitSlop={10}>
-                <Ionicons name="close" size={22} color="#7E8B9A" />
+                <Ionicons name="close" size={22} color={theme.colors.textMuted} />
               </Pressable>
             </View>
 
@@ -954,7 +955,7 @@ export default function QuickExpenseModal() {
                 placeholder={
                   quickStrings.categoryPlaceholder ?? financeStrings.budgets?.addCategory ?? 'Category name'
                 }
-                placeholderTextColor="#7E8B9A"
+                placeholderTextColor={theme.colors.textMuted}
                 style={styles.textInput}
               />
             </AdaptiveGlassView>
@@ -981,7 +982,7 @@ export default function QuickExpenseModal() {
                   <Text
                     style={[
                       styles.primaryButtonText,
-                      { color: categoryDraft.trim() ? '#FFFFFF' : '#7E8B9A' },
+                      { color: categoryDraft.trim() ? theme.colors.textPrimary : theme.colors.textMuted },
                     ]}
                   >
                     {commonStrings.save ?? 'Save'}
@@ -996,311 +997,321 @@ export default function QuickExpenseModal() {
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    letterSpacing: -0.3,
-  },
-  closeText: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    gap: 18,
-  },
-  section: {
-    gap: 12,
-  },
-  sectionFullWidth: {
-    gap: 12,
-    marginHorizontal: -20,
-  },
-  labelWithPadding: {
-    paddingHorizontal: 20,
-  },
-  categoryListContainer: {
-    height: 126,
-  },
-  listEdgeSpacer: {
-    width: 20,
-  },
-  horizontalSeparator: {
-    width: 12,
-  },
-  sectionLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    letterSpacing: 0.5,
-    color: '#7E8B9A',
-  },
-  glassSurface: {
-  },
-  typeTabs: {
-    flexDirection: 'row',
-    marginHorizontal: 0,
-    marginBottom: 6,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    padding: 4,
-  },
-  typeTab: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: 'center',
-    borderRadius: 10,
-  },
-  typeTabActive: {
-    backgroundColor: 'rgba(255,255,255,0.12)',
-  },
-  typeTabLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#7E8B9A',
-  },
-  typeTabLabelActive: {
-    color: '#FFFFFF',
-  },
-  inputWrapper: {
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  textInput: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
-  categoryHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  categoryCard: {
-    borderRadius: 20,
-  },
-  categoryCardInner: {
-    width: 110,
-    height: 110,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 12,
-    gap: 10,
-  },
-  categoryCardText: {
-    fontSize: 12,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  budgetPickerButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
-  budgetPickerText: {
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  budgetDropdown: {
-    marginTop: 8,
-    gap: 6,
-  },
-  budgetOption: {
-    borderRadius: 12,
-  },
-  budgetOptionInner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  budgetOptionSelected: {
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
-  },
-  budgetOptionContent: {
-    flex: 1,
-    gap: 2,
-  },
-  budgetOptionText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  budgetOptionSubtext: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#7E8B9A',
-  },
-  budgetSectionLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-    marginTop: 8,
-    marginBottom: 4,
-    paddingHorizontal: 4,
-  },
-  dateTimeRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  dateTimeButton: {
-    flex: 1,
-  },
-  dateTimeChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
-  dateTimeText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  noteWrapper: {
-    borderRadius: 16,
-    overflow: 'hidden',
-    minHeight: 120,
-  },
-  noteInput: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: '#FFFFFF',
-    minHeight: 100,
-    textAlignVertical: 'top',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
-  linkedCard: {
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    gap: 8,
-  },
-  linkedRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  linkedLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  linkedValue: {
-    fontSize: 13,
-    fontWeight: '700',
-    flex: 1,
-    textAlign: 'right',
-  },
-  actionButtons: {
-    flexDirection: 'row',
-    gap: 12,
-    paddingTop: 12,
-  },
-  secondaryButton: {
-    flex: 1,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  secondaryButtonText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  primaryButton: {
-    flex: 1,
-    borderRadius: 16,
-  },
-  primaryButtonInner: {
-    borderRadius: 16,
-    paddingVertical: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  primaryButtonText: {
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  pressed: {
-    opacity: 0.85,
-  },
-  pickerModal: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    justifyContent: 'flex-end',
-    padding: 20,
-  },
-  pickerBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  pickerCard: {
-    borderRadius: 28,
-    paddingBottom: 16,
-    overflow: 'hidden',
-  },
-  pickerDoneButton: {
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.2)',
-  },
-  pickerDoneText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'center',
-    padding: 20,
-  },
-  modalBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  modalCard: {
-    borderRadius: 24,
-    padding: 20,
-    gap: 16,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  modalActions: {
-    flexDirection: 'row',
-    gap: 12,
-    paddingTop: 8,
-  },
-});
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      paddingVertical: 16,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: theme.colors.border,
+    },
+    headerTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      letterSpacing: -0.3,
+      color: theme.colors.textSecondary,
+    },
+    closeText: {
+      fontSize: 14,
+      fontWeight: '500',
+      color: theme.colors.textSecondary,
+    },
+    scrollContent: {
+      paddingHorizontal: 20,
+      paddingTop: 12,
+      gap: 18,
+    },
+    section: {
+      gap: 12,
+    },
+    sectionFullWidth: {
+      gap: 12,
+      marginHorizontal: -20,
+    },
+    labelWithPadding: {
+      paddingHorizontal: 20,
+    },
+    categoryListContainer: {
+      height: 126,
+    },
+    listEdgeSpacer: {
+      width: 20,
+    },
+    horizontalSeparator: {
+      width: 12,
+    },
+    sectionLabel: {
+      fontSize: 13,
+      fontWeight: '600',
+      letterSpacing: 0.5,
+      color: theme.colors.textMuted,
+    },
+    glassSurface: {},
+    typeTabs: {
+      flexDirection: 'row',
+      marginHorizontal: 0,
+      marginBottom: 6,
+      borderRadius: 12,
+      backgroundColor: theme.colors.glassBg,
+      padding: 4,
+    },
+    typeTab: {
+      flex: 1,
+      paddingVertical: 10,
+      alignItems: 'center',
+      borderRadius: 10,
+    },
+    typeTabActive: {
+      backgroundColor: theme.colors.overlayStrong,
+    },
+    typeTabLabel: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: theme.colors.textMuted,
+    },
+    typeTabLabelActive: {
+      color: theme.colors.textPrimary,
+    },
+    inputWrapper: {
+      borderRadius: 16,
+      overflow: 'hidden',
+    },
+    textInput: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: theme.colors.textPrimary,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+    },
+    categoryHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    categoryCard: {
+      borderRadius: 20,
+    },
+    categoryCardInner: {
+      width: 110,
+      height: 110,
+      borderRadius: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 12,
+      gap: 10,
+    },
+    categoryCardText: {
+      fontSize: 12,
+      fontWeight: '600',
+      textAlign: 'center',
+    },
+    budgetPickerButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      borderRadius: 16,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+    },
+    budgetPickerText: {
+      fontSize: 15,
+      fontWeight: '600',
+    },
+    budgetDropdown: {
+      marginTop: 8,
+      gap: 6,
+    },
+    budgetOption: {
+      borderRadius: 12,
+    },
+    budgetOptionInner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+    },
+    budgetOptionSelected: {
+      borderWidth: 1,
+      borderColor: theme.colors.glassBorder,
+    },
+    budgetOptionContent: {
+      flex: 1,
+      gap: 2,
+    },
+    budgetOptionText: {
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    budgetOptionSubtext: {
+      fontSize: 12,
+      fontWeight: '500',
+      color: theme.colors.textMuted,
+    },
+    budgetSectionLabel: {
+      fontSize: 11,
+      fontWeight: '600',
+      letterSpacing: 0.5,
+      textTransform: 'uppercase',
+      marginTop: 8,
+      marginBottom: 4,
+      paddingHorizontal: 4,
+      color: theme.colors.textMuted,
+    },
+    dateTimeRow: {
+      flexDirection: 'row',
+      gap: 12,
+    },
+    dateTimeButton: {
+      flex: 1,
+    },
+    dateTimeChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      borderRadius: 16,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+    },
+    dateTimeText: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: theme.colors.textPrimary,
+    },
+    noteWrapper: {
+      borderRadius: 16,
+      overflow: 'hidden',
+      minHeight: 120,
+    },
+    noteInput: {
+      fontSize: 15,
+      fontWeight: '500',
+      color: theme.colors.textPrimary,
+      minHeight: 100,
+      textAlignVertical: 'top',
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+    },
+    linkedCard: {
+      borderRadius: 14,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      gap: 8,
+    },
+    linkedRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      gap: 12,
+    },
+    linkedLabel: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: theme.colors.textSecondary,
+    },
+    linkedValue: {
+      fontSize: 13,
+      fontWeight: '700',
+      flex: 1,
+      textAlign: 'right',
+      color: theme.colors.textPrimary,
+    },
+    actionButtons: {
+      flexDirection: 'row',
+      gap: 12,
+      paddingTop: 12,
+    },
+    secondaryButton: {
+      flex: 1,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: theme.colors.glassBorder,
+      paddingVertical: 14,
+      alignItems: 'center',
+    },
+    secondaryButtonText: {
+      color: theme.colors.textPrimary,
+      fontSize: 15,
+      fontWeight: '600',
+    },
+    primaryButton: {
+      flex: 1,
+      borderRadius: 16,
+    },
+    primaryButtonInner: {
+      borderRadius: 16,
+      paddingVertical: 14,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    primaryButtonText: {
+      fontSize: 15,
+      fontWeight: '700',
+    },
+    pressed: {
+      opacity: 0.85,
+    },
+    pickerModal: {
+      flex: 1,
+      backgroundColor: theme.colors.backdrop,
+      justifyContent: 'flex-end',
+      padding: 20,
+    },
+    pickerBackdrop: {
+      ...StyleSheet.absoluteFillObject,
+    },
+    pickerCard: {
+      borderRadius: 28,
+      paddingBottom: 16,
+      overflow: 'hidden',
+      backgroundColor: theme.colors.card,
+    },
+    pickerDoneButton: {
+      alignItems: 'center',
+      paddingVertical: 12,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.glassBorder,
+    },
+    pickerDoneText: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: theme.colors.textPrimary,
+    },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: theme.colors.backdrop,
+      justifyContent: 'center',
+      padding: 20,
+    },
+    modalBackdrop: {
+      ...StyleSheet.absoluteFillObject,
+    },
+    modalCard: {
+      borderRadius: 24,
+      padding: 20,
+      gap: 16,
+      backgroundColor: theme.colors.card,
+    },
+    modalHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    modalTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: theme.colors.textPrimary,
+    },
+    modalActions: {
+      flexDirection: 'row',
+      gap: 12,
+      paddingTop: 8,
+    },
+  });

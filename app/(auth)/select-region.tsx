@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Check } from 'lucide-react-native';
 
-import { useAppTheme } from '@/constants/theme';
+import { useAppTheme, type Theme } from '@/constants/theme';
 import { useLocalization } from '@/localization/useLocalization';
 import {
   FINANCE_REGION_PRESETS,
@@ -13,7 +13,7 @@ import {
 } from '@/stores/useFinancePreferencesStore';
 import { useShallow } from 'zustand/react/shallow';
 
-const FinanceRegionModal = () => {
+export default function SelectRegionScreen() {
   const theme = useAppTheme();
   const router = useRouter();
   const { strings } = useLocalization();
@@ -31,14 +31,14 @@ const FinanceRegionModal = () => {
 
   const handleSelectRegion = (regionId: FinanceRegion) => {
     setRegion(regionId, { syncDisplayCurrency: false });
-    router.dismiss();
+    router.back();
   };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <View style={styles.header}>
         <Text style={styles.title}>{profileStrings.finance.regionSheetTitle}</Text>
-        <Pressable onPress={() => router.dismiss()} hitSlop={12}>
+        <Pressable onPress={() => router.back()} hitSlop={12}>
           <Text style={styles.closeText}>{closeLabel}</Text>
         </Pressable>
       </View>
@@ -75,11 +75,9 @@ const FinanceRegionModal = () => {
       </ScrollView>
     </SafeAreaView>
   );
-};
+}
 
-export default FinanceRegionModal;
-
-const createStyles = (theme: ReturnType<typeof useAppTheme>) =>
+const createStyles = (theme: Theme) =>
   StyleSheet.create({
     safeArea: {
       flex: 1,

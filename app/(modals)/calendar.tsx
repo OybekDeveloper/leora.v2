@@ -4,6 +4,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
+import { useAppTheme, type Theme } from '@/constants/theme';
 import { useLocalization } from '@/localization/useLocalization';
 import {
   addMonths,
@@ -21,8 +22,159 @@ import { getHabitTemplates } from '@/features/planner/habits/data';
 const formatTime = (locale: string, date: Date) =>
   new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' }).format(date);
 
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    header: {
+      height: 60,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: theme.colors.border,
+    },
+    headerIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.colors.glassBorder,
+    },
+    headerTitle: {
+      color: theme.colors.textPrimary,
+      fontSize: 20,
+      fontWeight: '700',
+    },
+    monthRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      paddingTop: 16,
+      paddingBottom: 8,
+    },
+    monthButton: {
+      width: 36,
+      height: 36,
+      borderRadius: 12,
+      backgroundColor: theme.colors.glassBorder,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    monthLabel: {
+      color: theme.colors.textPrimary,
+      fontSize: 16,
+      fontWeight: '700',
+      textTransform: 'capitalize',
+    },
+    calendarContainer: {
+      paddingHorizontal: 12,
+      paddingBottom: 12,
+      gap: 6,
+    },
+    weekRow: {
+      flexDirection: 'row',
+      gap: 8,
+    },
+    dayCell: {
+      flex: 1,
+      aspectRatio: 1,
+      borderRadius: 12,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.glassBorder,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+    },
+    daySelected: {
+      borderColor: theme.colors.textPrimary,
+    },
+    dayMuted: {
+      opacity: 0.5,
+    },
+    dayNumber: {
+      color: theme.colors.textPrimary,
+      fontWeight: '700',
+    },
+    dotRow: {
+      flexDirection: 'row',
+      gap: 4,
+    },
+    dot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+    },
+    dotTask: { backgroundColor: theme.colors.calendarDot1 },
+    dotHabit: { backgroundColor: theme.colors.calendarDot2 },
+    dotGoal: { backgroundColor: theme.colors.calendarDot3 },
+    summaryCard: {
+      marginHorizontal: 16,
+      marginTop: 8,
+      borderRadius: 16,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.glassBorder,
+      padding: 16,
+      backgroundColor: theme.colors.overlaySoft,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 12,
+    },
+    summaryLabel: { color: theme.colors.textPrimary, fontSize: 14, fontWeight: '600', flex: 1 },
+    quickAddBtn: {
+      borderRadius: 12,
+      backgroundColor: theme.colors.glassBorder,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    quickAddText: { color: theme.colors.textPrimary, fontWeight: '700' },
+    list: {
+      flex: 1,
+      padding: 16,
+    },
+    sectionTitle: {
+      color: theme.colors.textPrimary,
+      fontSize: 14,
+      fontWeight: '700',
+      marginBottom: 8,
+    },
+    emptyText: { color: theme.colors.textMuted, fontSize: 13 },
+    taskRow: {
+      borderRadius: 14,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.glassBorder,
+      padding: 14,
+      backgroundColor: theme.colors.overlaySoft,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 8,
+    },
+    taskTitle: { color: theme.colors.textPrimary, fontSize: 15, fontWeight: '700' },
+    taskMeta: { color: theme.colors.textSecondary, fontSize: 12, marginTop: 2 },
+    moveButton: {
+      borderRadius: 12,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.overlayStrong,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+    },
+    moveButtonText: { color: theme.colors.textPrimary, fontSize: 12, fontWeight: '700' },
+  });
+
 export default function PlannerCalendarModal() {
   const router = useRouter();
+  const theme = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const { strings, locale } = useLocalization();
   const calendarStrings = strings.plannerScreens.tasks.calendar;
   const { tasks: domainTasks, createTask, scheduleTask } = usePlannerDomainStore((state) => ({
@@ -150,7 +302,7 @@ export default function PlannerCalendarModal() {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.headerIcon}>
-          <Ionicons name="close" size={24} color="#FFFFFF" />
+          <Ionicons name="close" size={24} color={theme.colors.textPrimary} />
         </Pressable>
         <Text style={styles.headerTitle}>{calendarStrings.title}</Text>
         <View style={styles.headerIcon} />
@@ -158,11 +310,11 @@ export default function PlannerCalendarModal() {
 
       <View style={styles.monthRow}>
         <Pressable onPress={() => handleMonthChange('prev')} style={styles.monthButton}>
-          <Ionicons name="chevron-back" size={18} color="#FFFFFF" />
+          <Ionicons name="chevron-back" size={18} color={theme.colors.textPrimary} />
         </Pressable>
         <Text style={styles.monthLabel}>{monthLabel}</Text>
         <Pressable onPress={() => handleMonthChange('next')} style={styles.monthButton}>
-          <Ionicons name="chevron-forward" size={18} color="#FFFFFF" />
+          <Ionicons name="chevron-forward" size={18} color={theme.colors.textPrimary} />
         </Pressable>
       </View>
 
@@ -199,7 +351,7 @@ export default function PlannerCalendarModal() {
       <View style={styles.summaryCard}>
         <Text style={styles.summaryLabel}>{statsLabel}</Text>
         <Pressable onPress={handleQuickAdd} style={styles.quickAddBtn}>
-          <Ionicons name="add" size={18} color="#FFFFFF" />
+          <Ionicons name="add" size={18} color={theme.colors.textPrimary} />
           <Text style={styles.quickAddText}>{calendarStrings.addQuickTask}</Text>
         </Pressable>
       </View>
@@ -247,151 +399,3 @@ export default function PlannerCalendarModal() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#25252B',
-  },
-  header: {
-    height: 60,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#1F1F22',
-  },
-  headerIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.08)',
-  },
-  headerTitle: {
-    color: '#FFFFFF',
-    fontSize: 20,
-    fontWeight: '700',
-  },
-  monthRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 8,
-  },
-  monthButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  monthLabel: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
-    textTransform: 'capitalize',
-  },
-  calendarContainer: {
-    paddingHorizontal: 12,
-    paddingBottom: 12,
-    gap: 6,
-  },
-  weekRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  dayCell: {
-    flex: 1,
-    aspectRatio: 1,
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.08)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-  },
-  daySelected: {
-    borderColor: '#FFFFFF',
-  },
-  dayMuted: {
-    opacity: 0.5,
-  },
-  dayNumber: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  dotRow: {
-    flexDirection: 'row',
-    gap: 4,
-  },
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  dotTask: { backgroundColor: '#7C83FD' },
-  dotHabit: { backgroundColor: '#F9A826' },
-  dotGoal: { backgroundColor: '#52D1DC' },
-  summaryCard: {
-    marginHorizontal: 16,
-    marginTop: 8,
-    borderRadius: 16,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.08)',
-    padding: 16,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  summaryLabel: { color: '#FFFFFF', fontSize: 14, fontWeight: '600', flex: 1 },
-  quickAddBtn: {
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  quickAddText: { color: '#FFFFFF', fontWeight: '700' },
-  list: {
-    flex: 1,
-    padding: 16,
-  },
-  sectionTitle: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700',
-    marginBottom: 8,
-  },
-  emptyText: { color: '#7E8B9A', fontSize: 13 },
-  taskRow: {
-    borderRadius: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.08)',
-    padding: 14,
-    backgroundColor: 'rgba(255,255,255,0.02)',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  taskTitle: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
-  taskMeta: { color: '#A0A4B8', fontSize: 12, marginTop: 2 },
-  moveButton: {
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  moveButtonText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
-});

@@ -276,7 +276,8 @@ function RootNavigator({
     if (!isAuthenticated) {
       hasNavigatedAfterAuth.current = false; // Reset flag when logged out
       if (!inAuthGroup) {
-        router.replace('/(auth)/login');
+        // Login qilmagan bo'lsa onboarding ga yuborish
+        router.replace('/(auth)/onboarding');
       }
       return;
     }
@@ -479,6 +480,14 @@ function RootNavigator({
         {/* Planner modals */}
         <Stack.Screen
           name="(modals)/planner/habit"
+          options={{
+            presentation: 'modal',
+            headerShown: false,
+            animation: "slide_from_bottom",
+          }}
+        />
+        <Stack.Screen
+          name="(modals)/planner/habit-detail"
           options={{
             presentation: 'modal',
             headerShown: false,

@@ -167,7 +167,10 @@ export default function DebtDetailModal() {
   const progressData = useMemo(() => {
     if (!debt) return { percent: 0, paid: 0, original: 0, remaining: 0 };
     const original = debt.principalOriginalAmount ?? debt.principalAmount;
-    const paid = payments.reduce((sum, p) => sum + p.convertedAmountToDebt, 0);
+    const rawPaid = payments.reduce((sum, p) => sum + p.convertedAmountToDebt, 0);
+    // Multi-currency to'lovlarda yaxlitlash xatolarini oldini olish:
+    // To'langan summa asl summadan oshmasligi kerak
+    const paid = Math.min(rawPaid, original);
     const remaining = debt.principalAmount;
     const percent = original > 0 ? (paid / original) * 100 : 0;
     return { percent, paid, original, remaining };

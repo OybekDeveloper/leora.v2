@@ -4,7 +4,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router';
 import { Check } from 'lucide-react-native';
 
-import { useAppTheme } from '@/constants/theme';
+import { useAppTheme, type Theme } from '@/constants/theme';
 import { AVAILABLE_FINANCE_CURRENCIES, type FinanceCurrency, useFinancePreferencesStore } from '@/stores/useFinancePreferencesStore';
 import { useLocalization } from '@/localization/useLocalization';
 import { useShallow } from 'zustand/react/shallow';
@@ -21,7 +21,7 @@ const CURRENCY_LABELS: Record<FinanceCurrency, string> = {
   RUB: 'Rossiya rubli',
 };
 
-const FinanceCurrencyModal = () => {
+export default function SelectCurrencyScreen() {
   const theme = useAppTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -42,14 +42,14 @@ const FinanceCurrencyModal = () => {
 
   const handleSave = () => {
     setGlobalCurrency(selectedCurrency);
-    router.dismiss();
+    router.back();
   };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.title}>{currencyStrings.title}</Text>
-        <Pressable onPress={() => router.dismiss()} hitSlop={12}>
+        <Pressable onPress={() => router.back()} hitSlop={12}>
           <Text style={styles.closeText}>{closeLabel}</Text>
         </Pressable>
       </View>
@@ -86,11 +86,9 @@ const FinanceCurrencyModal = () => {
       </Pressable>
     </SafeAreaView>
   );
-};
+}
 
-export default FinanceCurrencyModal;
-
-const createStyles = (theme: ReturnType<typeof useAppTheme>) =>
+const createStyles = (theme: Theme) =>
   StyleSheet.create({
     safeArea: {
       flex: 1,

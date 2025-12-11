@@ -332,6 +332,18 @@ const DebtCard = ({
             </View>
           </View>
           <View style={styles.amountBlock}>
+            {/* Qarz summasi - doim ko'rsatiladi */}
+            <Text
+              style={[
+                styles.amount,
+                { color: isPaid ? theme.colors.textPrimary : (isLent ? theme.colors.danger : theme.colors.success) },
+              ]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.8}
+            >
+              {isPaid ? formatAmount(debt.amount, currency) : signedAmount}
+            </Text>
             {isPaid ? (
               // To'langan qarz uchun Settled badge
               <View
@@ -352,17 +364,6 @@ const DebtCard = ({
               </View>
             ) : (
               <>
-                <Text
-                  style={[
-                    styles.amount,
-                    { color: isLent ? theme.colors.danger : theme.colors.success },
-                  ]}
-                  numberOfLines={1}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.8}
-                >
-                  {signedAmount}
-                </Text>
                 {debt.remainingAmount !== debt.amount ? (
                   <Text style={styles.secondary}>
                     {formatAmount(debt.remainingAmount, currency)} / {formatAmount(debt.amount, currency)}

@@ -1815,7 +1815,24 @@ export const useFinanceDomainStore = create<FinanceDomainState>((set, get) => ({
           convertBetweenCurrencies(roundedPaymentAmount, paymentCurrency, baseCurrency),
           baseCurrency,
         );
-        const convertedAmountToDebt = payload.convertedAmountToDebt ?? convertedAmountToDebtExplicit;
+
+        // Oldingi to'lovlar yig'indisini hisoblash
+        const existingPayments = get().debtPayments.filter((p) => p.debtId === debt.id);
+        const totalAlreadyPaid = existingPayments.reduce((sum, p) => sum + p.convertedAmountToDebt, 0);
+        const originalAmount = (debt as any).principalOriginalAmount ?? debt.principalAmount + totalAlreadyPaid;
+        const remainingToPay = Math.max(0, originalAmount - totalAlreadyPaid);
+
+        // Konvertatsiya qilingan summani qolgan summadan oshmasligini ta'minlash
+        // Bu multi-currency to'lovlarda yaxlitlash xatolarini oldini oladi
+        let convertedAmountToDebt = payload.convertedAmountToDebt ?? convertedAmountToDebtExplicit;
+        if (convertedAmountToDebt > remainingToPay && remainingToPay > 0) {
+          // Summani qolgan miqdorga cap qilish (tolerance 0.01 bilan)
+          const tolerance = 0.01;
+          if (convertedAmountToDebt - remainingToPay < tolerance * originalAmount) {
+            convertedAmountToDebt = roundAmountForCurrency(remainingToPay, debt.principalCurrency);
+          }
+        }
+
         const convertedAmountToBase = payload.convertedAmountToBase ?? convertedAmountToBaseExplicit;
         const rateUsedToDebt =
           payload.rateUsedToDebt ??

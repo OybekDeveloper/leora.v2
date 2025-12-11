@@ -8,6 +8,7 @@ import {
   evaluatePasswordRequirements,
 } from '@/utils/validation';
 import type { AppTranslations } from '@/localization/strings';
+import { useAppTheme, type Theme } from '@/constants/theme';
 
 type PasswordStrengthLevel = 'weak' | 'medium' | 'strong';
 
@@ -28,6 +29,8 @@ export const PasswordStrengthMeter: React.FC<PasswordStrengthMeterProps> = ({
   visible,
   guideStrings,
 }) => {
+  const theme = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const animation = useRef(new Animated.Value(0)).current;
   const [isRendering, setIsRendering] = useState(false);
 
@@ -150,69 +153,70 @@ export const PasswordStrengthMeter: React.FC<PasswordStrengthMeterProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    width: '100%',
-    marginTop: 8,
-    marginBottom: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    backgroundColor: 'rgba(22,22,32,0.4)',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  label: {
-    color: '#E5E7EB',
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  value: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  helper: {
-    color: '#9CA3AF',
-    fontSize: 12,
-    marginTop: 4,
-  },
-  progress: {
-    height: 8,
-    borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    overflow: 'hidden',
-    marginTop: 12,
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 999,
-  },
-  requirementsLabel: {
-    color: '#E5E7EB',
-    fontSize: 13,
-    fontWeight: '600',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  requirements: {
-    gap: 8,
-  },
-  requirementRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  requirementText: {
-    color: '#9CA3AF',
-    fontSize: 13,
-    flex: 1,
-  },
-  requirementTextMet: {
-    color: '#D1FAE5',
-  },
-});
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    container: {
+      width: '100%',
+      marginTop: 8,
+      marginBottom: 12,
+      paddingVertical: 12,
+      paddingHorizontal: 14,
+      borderRadius: 18,
+      borderWidth: 1,
+      borderColor: theme.colors.glassBorder,
+      backgroundColor: theme.colors.glassBg,
+    },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    label: {
+      color: theme.colors.textPrimary,
+      fontWeight: '600',
+      fontSize: 14,
+    },
+    value: {
+      fontSize: 14,
+      fontWeight: '700',
+    },
+    helper: {
+      color: theme.colors.textSecondary,
+      fontSize: 12,
+      marginTop: 4,
+    },
+    progress: {
+      height: 8,
+      borderRadius: 999,
+      backgroundColor: theme.colors.glassBorder,
+      overflow: 'hidden',
+      marginTop: 12,
+    },
+    progressFill: {
+      height: '100%',
+      borderRadius: 999,
+    },
+    requirementsLabel: {
+      color: theme.colors.textPrimary,
+      fontSize: 13,
+      fontWeight: '600',
+      marginTop: 16,
+      marginBottom: 8,
+    },
+    requirements: {
+      gap: 8,
+    },
+    requirementRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    requirementText: {
+      color: theme.colors.textSecondary,
+      fontSize: 13,
+      flex: 1,
+    },
+    requirementTextMet: {
+      color: theme.colors.success,
+    },
+  });
