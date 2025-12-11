@@ -671,7 +671,7 @@ const InsightsIndexScreen: React.FC = () => {
           router.push('/(tabs)/(finance)/(tabs)/budgets');
           break;
         case 'open_exchange':
-          router.push('/(modals)/finance-currency');
+          router.push('/(modals)/finance/finance-currency');
           break;
         case 'quick_add':
           router.push({

@@ -22,7 +22,6 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { AdaptiveGlassView } from '@/components/ui/AdaptiveGlassView';
 import AccountPicker from '@/components/shared/AccountPicker';
-import CounterpartyPicker from '@/components/shared/CounterpartyPicker';
 import { formatNumberWithSpaces, parseSpacedNumber } from '@/utils/formatNumber';
 import {
   FINANCE_CATEGORIES,
@@ -37,7 +36,6 @@ import { normalizeFinanceCurrency } from '@/utils/financeCurrency';
 import { useLocalization } from '@/localization/useLocalization';
 import { useShallow } from 'zustand/react/shallow';
 import { usePlannerDomainStore } from '@/stores/usePlannerDomainStore';
-import type { Counterparty } from '@/domain/finance/types';
 
 const FlashList = FlashListBase as any;
 
@@ -118,8 +116,6 @@ export default function QuickExpenseModal() {
   const [categoryModalState, setCategoryModalState] = useState<CategoryModalState | null>(null);
   const [categoryDraft, setCategoryDraft] = useState('');
   const [pickerMode, setPickerMode] = useState<'date' | 'time' | null>(null);
-  const [debtPerson, setDebtPerson] = useState('');
-  const [selectedCounterpartyId, setSelectedCounterpartyId] = useState<string | null>(null);
   const [selectedBudgetId, setSelectedBudgetId] = useState<string | null>(null);
   const [showBudgetPicker, setShowBudgetPicker] = useState(false);
 
@@ -160,8 +156,6 @@ export default function QuickExpenseModal() {
       setSelectedAccount(accountId ?? accounts[0]?.id ?? null);
       setTransactionDate(new Date());
       setNote('');
-      setDebtPerson('');
-      setSelectedCounterpartyId(null);
       setSelectedBudgetId(null);
       setShowBudgetPicker(false);
       setPickerMode(null);
@@ -183,29 +177,9 @@ export default function QuickExpenseModal() {
     setAmount(editingTransaction.amount.toString());
     setSelectedCategory(editingTransaction.categoryId ?? null);
     setTransactionDate(new Date(editingTransaction.date));
-    setSelectedCounterpartyId(editingTransaction.counterpartyId ?? null);
     setSelectedBudgetId(editingTransaction.budgetId ?? editingTransaction.relatedBudgetId ?? null);
-
-    const noteText = editingTransaction.description ?? '';
-    const debtRegex =
-      tabValue === 'income'
-        ? /^(.+?) owes me\.?\s?(.*)$/i
-        : /^I owe to (.+?)\.?\s?(.*)$/i;
-    const match = noteText.match(debtRegex);
-
-    if (match) {
-      setDebtPerson(match[1].trim());
-      setNote(match[2]?.trim() ?? '');
-    } else {
-      setNote(noteText);
-    }
+    setNote(editingTransaction.description ?? '');
   }, [editingTransaction, initialTab, resetForm]);
-
-  const isDebtCategory = useMemo(() => {
-    if (!selectedCategory) return false;
-    const lower = selectedCategory.toLowerCase();
-    return lower === 'debt' || lower === 'debts' || lower.includes('долг');
-  }, [selectedCategory]);
 
   // Filter budgets that match the selected category and transaction type
   const categoryBudgets = useMemo(() => {
@@ -245,27 +219,6 @@ export default function QuickExpenseModal() {
       setSelectedCategory(null);
     }
   }, [availableCategories, selectedCategory]);
-
-  useEffect(() => {
-    if (!isDebtCategory && debtPerson) {
-      setDebtPerson('');
-      setSelectedCounterpartyId(null);
-    }
-  }, [isDebtCategory, debtPerson]);
-
-  const handleCounterpartySelect = useCallback((counterparty: Counterparty | null) => {
-    if (counterparty) {
-      setDebtPerson(counterparty.displayName);
-      setSelectedCounterpartyId(counterparty.id);
-      // Auto-fill transaction name from counterparty if empty
-      if (!transactionName.trim()) {
-        setTransactionName(counterparty.displayName);
-      }
-    } else {
-      setDebtPerson('');
-      setSelectedCounterpartyId(null);
-    }
-  }, [transactionName]);
 
   const selectedAccountData = useMemo(
     () => accounts.find((account) => account.id === selectedAccount) ?? accounts[0] ?? null,
@@ -446,11 +399,7 @@ export default function QuickExpenseModal() {
       return;
     }
 
-    let finalNote = note.trim();
-    if (isDebtCategory && debtPerson.trim()) {
-      const debtInfo = activeTab === 'income' ? `${debtPerson} owes me` : `I owe to ${debtPerson}`;
-      finalNote = finalNote ? `${debtInfo}. ${finalNote}` : debtInfo;
-    }
+    const finalNote = note.trim();
 
     const domainType: 'income' | 'expense' = activeTab === 'income' ? 'income' : 'expense';
     // Safe lookups - validate IDs exist in stores before accessing
@@ -523,11 +472,9 @@ export default function QuickExpenseModal() {
     convertAmount,
     createTransaction,
     debts,
-    debtPerson,
     editingTransaction,
     goals,
     handleClose,
-    isDebtCategory,
     isSaveDisabled,
     linkedBudget,
     linkedDebt,
@@ -539,7 +486,6 @@ export default function QuickExpenseModal() {
     selectedAccountData,
     selectedBudget,
     selectedCategory,
-    selectedCounterpartyId,
     transactionDate,
     transactionName,
     updateTransaction,
@@ -904,26 +850,6 @@ export default function QuickExpenseModal() {
                     </View>
                   )}
                 </AdaptiveGlassView>
-              </View>
-            )}
-
-            {isDebtCategory && (
-              <View style={[styles.section, { zIndex: 8888 }]}>
-                <CounterpartyPicker
-                  value={debtPerson}
-                  onSelect={handleCounterpartySelect}
-                  selectedCounterpartyId={selectedCounterpartyId}
-                  placeholder={
-                    activeTab === 'income'
-                      ? quickStrings.debtOwedToYouPlaceholder ?? 'Person name who owes you'
-                      : quickStrings.debtYouOwePlaceholder ?? 'Person name you owe to'
-                  }
-                  label={
-                    activeTab === 'income'
-                      ? quickStrings.debtOwedToYouLabel ?? 'Who owes you?'
-                      : quickStrings.debtYouOweLabel ?? 'Who do you owe?'
-                  }
-                />
               </View>
             )}
 

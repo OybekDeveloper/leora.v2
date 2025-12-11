@@ -45,6 +45,7 @@ import { useLocalization } from '@/localization/useLocalization';
 import { useShallow } from 'zustand/react/shallow';
 import { useCustomAccountTypesStore } from '@/stores/useCustomAccountTypesStore';
 import { useFinancePreferencesStore } from '@/stores/useFinancePreferencesStore';
+import { formatCompactNumber } from '@/utils/formatNumber';
 
 type AccountsStrings = ReturnType<typeof useLocalization>['strings']['financeScreens']['accounts'];
 
@@ -52,15 +53,9 @@ type AccountsStrings = ReturnType<typeof useLocalization>['strings']['financeScr
 // Helper Functions
 // ===========================
 
-const formatCurrency = (amount: number, currency: string = 'UZS'): string => {
-  if (currency === 'UZS') {
-    return new Intl.NumberFormat('en-US').format(amount);
-  }
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency,
-    minimumFractionDigits: 0,
-  }).format(amount);
+const formatCurrency = (amount: number, _currency: string = 'UZS'): string => {
+  // Use compact format for large numbers (1M, 1B, etc.)
+  return formatCompactNumber(amount, 2, 1000000);
 };
 
 const ACCOUNT_COLOR_MAP: Record<AccountKind, string> = {

@@ -203,6 +203,12 @@ export const DebtSchema: ObjectSchema = {
     showStatus: { type: 'string', default: 'active' },
     payments: { type: 'list', objectType: 'DebtPayment' },
     idempotencyKey: 'string?',
+    // Settlement info - saved when debt is fully paid
+    settledAt: 'date?',                           // When fully settled
+    finalRateUsed: 'double?',                     // Exchange rate used for final payment
+    finalProfitLoss: 'double?',                   // Profit (+) or Loss (-) in repayment currency
+    finalProfitLossCurrency: 'string?',           // Currency of profit/loss
+    totalPaidInRepaymentCurrency: 'double?',      // Total amount paid in repayment currency
     createdAt: { type: 'date', default: now },
     updatedAt: { type: 'date', default: now },
     syncStatus: { type: 'string', default: 'local' },

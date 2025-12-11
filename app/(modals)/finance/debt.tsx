@@ -31,7 +31,10 @@ import {
 import { useShallow } from 'zustand/react/shallow';
 import { usePlannerDomainStore } from '@/stores/usePlannerDomainStore';
 import { FxService } from '@/services/fx/FxService';
+import { normalizeFinanceCurrency } from '@/utils/financeCurrency';
 import type { Counterparty, Account } from '@/domain/finance/types';
+import { Check, Edit2 } from 'lucide-react-native';
+import { formatExchangeRate } from '@/utils/formatExchangeRate';
 
 const FlashList = FlashListBase as any;
 
@@ -107,9 +110,49 @@ export default function DebtModal() {
   // Multi-currency repayment
   const [useDifferentRepaymentCurrency, setUseDifferentRepaymentCurrency] = useState(false);
   const [repaymentCurrency, setRepaymentCurrency] = useState<FinanceCurrency>('USD');
-  const [customRepaymentRate, setCustomRepaymentRate] = useState('');
-  const [isFixedRepaymentAmount, setIsFixedRepaymentAmount] = useState(false);
+  const [customRates, setCustomRates] = useState<Record<string, number>>({});
+  const [isRateEditMode, setIsRateEditMode] = useState(false);
+  // const [isFixedRepaymentAmount, setIsFixedRepaymentAmount] = useState(false); // REMOVED - always use dynamic rate
+  const [rateError, setRateError] = useState<string | null>(null);
+  const [originalRate, setOriginalRate] = useState<number | null>(null);
+  const [tempRateInput, setTempRateInput] = useState('');
 
+
+  // Utility: valyuta juftligi uchun key yaratish
+  const getRatePairKey = useCallback((curr1: FinanceCurrency, curr2: FinanceCurrency) => {
+    return [curr1, curr2].sort().join('-');
+  }, []);
+
+  // Utility: juftlik uchun rate olish (avval local, keyin FxService)
+  const getPairRate = useCallback((curr1: FinanceCurrency, curr2: FinanceCurrency): number | undefined => {
+    // 1. Avval local customRates dan tekshirish (shu sessiyada o'zgartirilgan bo'lsa)
+    const key = getRatePairKey(curr1, curr2);
+    if (customRates[key] !== undefined) {
+      return customRates[key];
+    }
+    // 2. FxService dan global kursni olish
+    const fxRate = FxService.getInstance().getRate(
+      normalizeFinanceCurrency(curr1),
+      normalizeFinanceCurrency(curr2)
+    );
+    // FxService fallback qaytaradi (1 yoki DEFAULT_EXCHANGE_RATES), shuning uchun undefined qaytarmaymiz
+    return fxRate;
+  }, [customRates, getRatePairKey]);
+
+  // Utility: juftlik uchun custom rate saqlash
+  const setPairRate = useCallback((curr1: FinanceCurrency, curr2: FinanceCurrency, rate: number) => {
+    const key = getRatePairKey(curr1, curr2);
+    setCustomRates(prev => ({ ...prev, [key]: rate }));
+
+    // FxService ga ham saqlash - global kurs yangilanadi
+    const normalizedFrom = normalizeFinanceCurrency(curr1);
+    const normalizedTo = normalizeFinanceCurrency(curr2);
+    FxService.getInstance().overrideRate({
+      fromCurrency: normalizedFrom,
+      toCurrency: normalizedTo,
+      rate,
+    });
+  }, [getRatePairKey]);
 
   const handleCounterpartySelect = useCallback((counterparty: Counterparty | null) => {
     if (counterparty) {
@@ -141,11 +184,15 @@ export default function DebtModal() {
     // Multi-currency repayment
     if (editingDebt.repaymentCurrency) {
       setUseDifferentRepaymentCurrency(true);
-      setRepaymentCurrency(ensureCurrency(editingDebt.repaymentCurrency));
+      const repCurr = ensureCurrency(editingDebt.repaymentCurrency);
+      setRepaymentCurrency(repCurr);
       if (editingDebt.repaymentRateOnStart) {
-        setCustomRepaymentRate(String(editingDebt.repaymentRateOnStart));
+        // Custom rate ni juftlik uchun saqlash
+        const principalCurr = ensureCurrency(editingDebt.principalCurrency);
+        const key = getRatePairKey(principalCurr, repCurr);
+        setCustomRates({ [key]: editingDebt.repaymentRateOnStart });
       }
-      setIsFixedRepaymentAmount(Boolean(editingDebt.isFixedRepaymentAmount));
+      // setIsFixedRepaymentAmount(Boolean(editingDebt.isFixedRepaymentAmount)); // REMOVED - always dynamic
     } else {
       setUseDifferentRepaymentCurrency(false);
     }
@@ -246,6 +293,89 @@ export default function DebtModal() {
     [applyDate, pickerState],
   );
 
+  // Avtomatik kursni hisoblash (currency → repaymentCurrency)
+  const autoRate = useMemo(() => {
+    if (!useDifferentRepaymentCurrency || !repaymentCurrency || repaymentCurrency === currency) {
+      return 1;
+    }
+    return FxService.getInstance().getRate(currency, repaymentCurrency) ?? 1;
+  }, [useDifferentRepaymentCurrency, currency, repaymentCurrency]);
+
+  // Input uchun normalized rate va qaysi valyuta "1" ekanligini aniqlash
+  // Har doim katta valyutani "1" qilamiz
+  const { inputRate, isInverted, baseCurrencyForInput, quoteCurrencyForInput } = useMemo(() => {
+    const rate = autoRate;
+
+    // Agar rate < 1 bo'lsa, demak repaymentCurrency > currency
+    // Input da: 1 repaymentCurrency = (1/rate) currency
+    if (rate < 1 && rate > 0) {
+      return {
+        inputRate: 1 / rate,
+        isInverted: true,
+        baseCurrencyForInput: repaymentCurrency,  // Katta valyuta
+        quoteCurrencyForInput: currency,           // Kichik valyuta
+      };
+    }
+
+    // Aks holda rate >= 1, demak currency > repaymentCurrency (yoki teng)
+    // Input da: 1 currency = rate repaymentCurrency
+    return {
+      inputRate: rate,
+      isInverted: false,
+      baseCurrencyForInput: currency,              // Katta valyuta
+      quoteCurrencyForInput: repaymentCurrency,    // Kichik valyuta
+    };
+  }, [autoRate, currency, repaymentCurrency]);
+
+  // Display format for exchange rate input
+  const displayRate = useMemo(() => {
+    // Joriy juftlik uchun custom rate olish
+    const pairRate = getPairRate(currency, repaymentCurrency);
+
+    if (!isRateEditMode) {
+      // Read-only mode: show normalized rate (like input mode)
+      let rateToShow = inputRate; // Default: auto rate
+
+      // Agar bu juftlik uchun custom rate bor bo'lsa, uni ko'rsatamiz
+      if (pairRate) {
+        // pairRate currency->repaymentCurrency formatda
+        // Agar isInverted, demak input repaymentCurrency->currency formatda
+        rateToShow = isInverted ? (1 / pairRate) : pairRate;
+      }
+
+      const isInteger = Number.isInteger(rateToShow);
+      return isInteger ? rateToShow.toString() : rateToShow.toFixed(2);
+    }
+    // Edit mode: show what user is typing (including empty)
+    return tempRateInput;
+  }, [getPairRate, currency, repaymentCurrency, inputRate, isInverted, isRateEditMode, tempRateInput]);
+
+  // Valyuta o'zgarganda tempRateInput ni yangilash (edit mode bo'lmasa)
+  useEffect(() => {
+    if (isRateEditMode) return; // Edit mode da input ni saqlaymiz
+
+    const pairRate = getPairRate(currency, repaymentCurrency);
+    let rateToShow = inputRate;
+
+    if (pairRate) {
+      rateToShow = isInverted ? (1 / pairRate) : pairRate;
+    }
+
+    const isInteger = Number.isInteger(rateToShow);
+    setTempRateInput(isInteger ? rateToShow.toString() : rateToShow.toFixed(2));
+  }, [currency, repaymentCurrency, isRateEditMode, getPairRate, inputRate, isInverted]);
+
+  // Faqat accountda mavjud valyutalarni filterlash
+  const availableRepaymentCurrencies = useMemo(() => {
+    // Accountlarda mavjud unique valyutalar
+    const accountCurrencies = [...new Set(accounts.map((a) => a.currency))];
+
+    // Faqat accountda mavjud va debt currency dan farqli valyutalar
+    return AVAILABLE_FINANCE_CURRENCIES.filter(
+      (c) => c !== currency && accountCurrencies.includes(c)
+    );
+  }, [accounts, currency]);
+
   const handleClose = useCallback(() => {
     router.back();
   }, [router]);
@@ -262,16 +392,11 @@ export default function DebtModal() {
       rateOnStart = FxService.getInstance().getRate(currency, baseCurrency) ?? 1;
     }
 
-    // Calculate repayment rate
+    // Calculate repayment rate (currency → repaymentCurrency)
     let repaymentRateOnStart: number | undefined;
     if (useDifferentRepaymentCurrency) {
-      const customRate = parseFloat(customRepaymentRate.replace(/,/g, '.'));
-      if (Number.isFinite(customRate) && customRate > 0) {
-        repaymentRateOnStart = customRate;
-      } else {
-        // Get current FX rate
-        repaymentRateOnStart = FxService.getInstance().getRate(currency, repaymentCurrency) ?? 1;
-      }
+      // getPairRate endi FxService dan ham oladi (local customRates bo'lmasa)
+      repaymentRateOnStart = getPairRate(currency, repaymentCurrency) ?? 1;
     }
 
     // Account mapping based on direction (single account system)
@@ -314,7 +439,7 @@ export default function DebtModal() {
         ? amountNumber * repaymentRateOnStart
         : undefined,
       repaymentRateOnStart: useDifferentRepaymentCurrency ? repaymentRateOnStart : undefined,
-      isFixedRepaymentAmount: useDifferentRepaymentCurrency ? isFixedRepaymentAmount : undefined,
+      isFixedRepaymentAmount: false, // Always false - use dynamic rate (kursga qarab o'zgaradi)
     } satisfies Parameters<typeof createDebt>[0];
 
     // Debug: Log the payload to verify amount is being passed correctly
@@ -344,12 +469,12 @@ export default function DebtModal() {
     baseCurrency,
     createDebt,
     currency,
-    customRepaymentRate,
+    getPairRate,
     debtType,
     editingDebt,
     expectedReturnDate,
     handleClose,
-    isFixedRepaymentAmount,
+    // isFixedRepaymentAmount, // REMOVED - always false
     isSaveDisabled,
     linkedGoalId,
     note,
@@ -524,7 +649,7 @@ export default function DebtModal() {
                     <FlashList
                       horizontal
                       showsHorizontalScrollIndicator={false}
-                      data={AVAILABLE_FINANCE_CURRENCIES.filter((c) => c !== currency)}
+                      data={availableRepaymentCurrencies}
                       keyExtractor={(item: FinanceCurrency) => item}
                       estimatedItemSize={60}
                       renderItem={({ item: code }: { item: FinanceCurrency }) => {
@@ -551,21 +676,126 @@ export default function DebtModal() {
 
                 <View style={styles.section}>
                   <Text style={[styles.label, { color: theme.colors.textSecondary }]}>
-                    {debtStrings.exchangeRate ?? 'Exchange Rate'} ({currency} → {repaymentCurrency})
+                    {debtStrings.exchangeRate ?? 'Exchange Rate'}
                   </Text>
-                  <AdaptiveGlassView style={[styles.glassSurface, styles.inputWrapper]}>
-                    <TextInput
-                      value={customRepaymentRate}
-                      onChangeText={setCustomRepaymentRate}
-                      keyboardType="numeric"
-                      placeholder={debtStrings.autoRate ?? 'Auto (current rate)'}
-                      placeholderTextColor={theme.colors.textMuted}
-                      style={[styles.textInput, { color: theme.colors.textPrimary }]}
-                    />
+                  <AdaptiveGlassView style={[
+                    styles.glassSurface,
+                    styles.inputWrapper,
+                    rateError && { borderColor: theme.colors.danger, borderWidth: 1 },
+                  ]}>
+                    <View style={styles.rateInputContainer}>
+                      <TextInput
+                        value={displayRate}
+                        onChangeText={(text) => {
+                          setTempRateInput(text);
+                          // Clear error on change
+                          if (rateError) setRateError(null);
+                        }}
+                        keyboardType="numeric"
+                        placeholder={formatExchangeRate(autoRate, currency, repaymentCurrency)}
+                        placeholderTextColor={theme.colors.textMuted}
+                        editable={isRateEditMode}
+                        style={[
+                          styles.textInput,
+                          { color: rateError ? theme.colors.danger : theme.colors.textPrimary },
+                          !isRateEditMode && styles.rateInputDisabled,
+                        ]}
+                      />
+                      <Pressable
+                        onPress={() => {
+                          if (isRateEditMode) {
+                            // Check tugmasi - Validation va confirmation
+                            const enteredRate = tempRateInput.trim();
+
+                            // Validation: Bo'sh yoki 0
+                            if (!enteredRate || enteredRate === '0' || parseFloat(enteredRate) === 0) {
+                              setRateError('Exchange rate cannot be 0 or empty');
+                              return;
+                            }
+
+                            const parsedRate = parseFloat(enteredRate.replace(/,/g, '.'));
+                            if (!Number.isFinite(parsedRate) || parsedRate <= 0) {
+                              setRateError('Please enter a valid exchange rate');
+                              return;
+                            }
+
+                            // Input formatdagi rate ni currency->repaymentCurrency formatga o'tkazish
+                            // Agar isInverted=true, demak user 1 repaymentCurrency = X currency kiritdi
+                            // Bizga kerak: 1 currency = ? repaymentCurrency
+                            const actualRate = isInverted ? (1 / parsedRate) : parsedRate;
+
+                            // Agar rate o'zgardi, alert ko'rsatamiz
+                            if (originalRate !== null && Math.abs(actualRate - originalRate) > 0.0001) {
+                              Alert.alert(
+                                'Exchange Rate Changed',
+                                `This will update the exchange rate between ${currency} and ${repaymentCurrency} globally. It will affect:\n\n• This debt's conversion\n• Currency conversion calculator\n• Other debts using ${currency}↔${repaymentCurrency}\n\nContinue?`,
+                                [
+                                  {
+                                    text: 'Cancel',
+                                    style: 'cancel',
+                                    onPress: () => {
+                                      // Eski qiymatga qaytarish
+                                      const oldDisplayRate = isInverted ? (1 / originalRate) : originalRate;
+                                      const isInteger = Number.isInteger(oldDisplayRate);
+                                      setTempRateInput(isInteger ? oldDisplayRate.toString() : oldDisplayRate.toFixed(2));
+                                      setIsRateEditMode(false);
+                                      setRateError(null);
+                                    },
+                                  },
+                                  {
+                                    text: 'Continue',
+                                    onPress: () => {
+                                      // Juftlik uchun custom rate saqlash
+                                      setPairRate(currency, repaymentCurrency, actualRate);
+                                      setIsRateEditMode(false);
+                                      setRateError(null);
+                                      setOriginalRate(actualRate);
+                                    },
+                                  },
+                                ],
+                              );
+                            } else {
+                              // Rate o'zgarmagan yoki birinchi marta kiritilmoqda
+                              setPairRate(currency, repaymentCurrency, actualRate);
+                              setIsRateEditMode(false);
+                              setRateError(null);
+                              setOriginalRate(actualRate);
+                            }
+                          } else {
+                            // Edit tugmasi - Edit mode ga kirish
+                            setIsRateEditMode(true);
+                            setRateError(null);
+                            // Original rate ni saqlaymiz (currency->repaymentCurrency formatda)
+                            const pairRate = getPairRate(currency, repaymentCurrency);
+                            const currentRate = pairRate ?? autoRate;
+                            setOriginalRate(currentRate);
+                          }
+                        }}
+                        style={styles.rateEditIcon}
+                      >
+                        {isRateEditMode ? (
+                          <Check size={18} color={theme.colors.success} />
+                        ) : (
+                          <Edit2 size={18} color={theme.colors.textSecondary} />
+                        )}
+                      </Pressable>
+                    </View>
                   </AdaptiveGlassView>
+                  {!rateError ? (
+                    <Text style={[styles.rateHint, { color: theme.colors.textMuted }]}>
+                      {isRateEditMode
+                        ? (debtStrings.customRateHint ?? `Enter: 1 ${baseCurrencyForInput} = ? ${quoteCurrencyForInput}`)
+                        : (debtStrings.autoRateHint ?? `Auto: 1 ${baseCurrencyForInput} = ${displayRate} ${quoteCurrencyForInput}`)}
+                    </Text>
+                  ) : (
+                    <Text style={[styles.rateHint, { color: theme.colors.danger }]}>
+                      {rateError}
+                    </Text>
+                  )}
                 </View>
 
-                <View style={styles.section}>
+                {/* COMMENTED OUT: Fixed repayment amount switch - always use dynamic rate */}
+                {/* <View style={styles.section}>
                   <AdaptiveGlassView style={[styles.glassSurface, styles.reminderRow]}>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.reminderLabel}>
@@ -581,7 +811,7 @@ export default function DebtModal() {
                     </View>
                     <Switch value={isFixedRepaymentAmount} onValueChange={setIsFixedRepaymentAmount} />
                   </AdaptiveGlassView>
-                </View>
+                </View> */}
               </>
             )}
 
@@ -763,14 +993,33 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   textInput: {
+    flex: 1,
     fontSize: 16,
     fontWeight: '600',
     paddingHorizontal: 14,
     paddingVertical: 12,
+    paddingRight: 50, // Icon uchun joy
   },
   rateHint: {
     fontSize: 12,
     marginTop: 4,
+  },
+  rateInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  rateEditIcon: {
+    position: 'absolute',
+    right: 8,
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  rateInputDisabled: {
+    opacity: 0.6,
   },
   currencyPill: {
     paddingHorizontal: 14,

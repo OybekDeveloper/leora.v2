@@ -145,15 +145,20 @@ const BudgetAddValueModal = () => {
             <Text style={[styles.label, { color: theme.colors.textSecondary }]}>
               {transactionsStrings.details?.amount ?? 'Amount'}
             </Text>
-            <AdaptiveGlassView style={[styles.glassSurface, styles.inputWrapper]}>
-              <TextInput
-                value={amountInput}
-                onChangeText={handleAmountChange}
-                keyboardType="decimal-pad"
-                placeholder="0"
-                placeholderTextColor={theme.colors.textMuted}
-                style={[styles.textInput, { color: theme.colors.textPrimary }]}
-              />
+            <AdaptiveGlassView style={[styles.glassSurface, styles.inputWrapper, { backgroundColor: theme.colors.card }]}>
+              <View style={styles.amountInputContainer}>
+                <TextInput
+                  value={amountInput}
+                  onChangeText={handleAmountChange}
+                  keyboardType="decimal-pad"
+                  placeholder="0"
+                  placeholderTextColor={theme.colors.textMuted}
+                  style={[styles.textInput, { color: theme.colors.textPrimary }]}
+                />
+                <Text style={[styles.currencySuffix, { color: theme.colors.textSecondary }]}>
+                  {budget?.currency ?? baseCurrency}
+                </Text>
+              </View>
             </AdaptiveGlassView>
           </View>
 
@@ -177,13 +182,17 @@ const BudgetAddValueModal = () => {
                         style={[
                           styles.glassSurface,
                           styles.accountChip,
-                          { opacity: active ? 1 : 0.6, borderColor: active ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.18)' },
+                          {
+                            opacity: active ? 1 : 0.6,
+                            borderColor: active ? theme.colors.primary : theme.colors.border,
+                            backgroundColor: theme.colors.card,
+                          },
                         ]}
                       >
                         <Text style={[styles.accountChipLabel, { color: active ? theme.colors.textPrimary : theme.colors.textSecondary }]}>
                           {account.name}
                         </Text>
-                        <Text style={styles.accountChipSubtext}>{account.currency}</Text>
+                        <Text style={[styles.accountChipSubtext, { color: theme.colors.textMuted }]}>{account.currency}</Text>
                       </AdaptiveGlassView>
                     </Pressable>
                   );
@@ -204,11 +213,13 @@ const BudgetAddValueModal = () => {
         <Pressable
           disabled={!isValid}
           onPress={handleSubmit}
-          style={({ pressed }) => [styles.primaryButton, pressed && isValid && styles.pressed, { opacity: isValid ? 1 : 0.5 }]}
+          style={({ pressed }) => [
+            styles.primaryButton,
+            pressed && isValid && styles.pressed,
+            { opacity: isValid ? 1 : 0.5, backgroundColor: theme.colors.primary },
+          ]}
         >
-          <AdaptiveGlassView style={[styles.glassSurface, styles.primaryButtonInner]}>
-            <Text style={styles.primaryButtonText}>{commonStrings.apply ?? 'Add'}</Text>
-          </AdaptiveGlassView>
+          <Text style={styles.primaryButtonText}>{commonStrings.apply ?? 'Add'}</Text>
         </Pressable>
       </View>
     </SafeAreaView>
@@ -275,11 +286,22 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: 'hidden',
   },
+  amountInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
   textInput: {
-    fontSize: 16,
+    fontSize: 24,
+    fontWeight: '700',
+    flex: 1,
+    textAlign: 'center',
+  },
+  currencySuffix: {
+    fontSize: 18,
     fontWeight: '600',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    marginLeft: 8,
   },
   typeContainer: {
     borderRadius: 18,
@@ -311,7 +333,6 @@ const styles = StyleSheet.create({
   },
   accountChipSubtext: {
     fontSize: 12,
-    color: '#9E9E9E',
     marginTop: 2,
   },
   actionButtons: {
@@ -334,12 +355,9 @@ const styles = StyleSheet.create({
   primaryButton: {
     flex: 1,
     borderRadius: 16,
-  },
-  primaryButtonInner: {
     paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 16,
   },
   primaryButtonText: {
     fontSize: 15,

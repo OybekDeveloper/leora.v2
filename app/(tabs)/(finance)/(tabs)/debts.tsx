@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import {
   Calendar,
+  CheckCircle2,
   TrendingDown,
   TrendingUp,
   UserRound,
@@ -28,6 +29,8 @@ import type { Debt as DomainDebt } from '@/domain/finance/types';
 import { mapDomainDebtToLegacy } from '@/utils/finance/debtMappers';
 import { FxService } from '@/services/fx/FxService';
 import { formatCompactNumber } from '@/utils/formatNumber';
+import { useFinanceDateStore } from '@/stores/useFinanceDateStore';
+import { toISODateKey, startOfDay } from '@/utils/calendar';
 
 type DebtSectionData = {
   title: string;
@@ -270,6 +273,18 @@ const createStyles = (theme: Theme) =>
       fontSize: 11,
       fontWeight: '600',
     },
+    paidBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 12,
+    },
+    paidBadgeText: {
+      fontSize: 12,
+      fontWeight: '600',
+    },
   });
 
 const DebtCard = ({
@@ -289,6 +304,11 @@ const DebtCard = ({
   const styles = useMemo(() => createStyles(theme), [theme]);
   const isLent = debt.type === 'lent';
   const currency = normalizeFinanceCurrency(debt.currency);
+
+  // To'langan tekshiruvi: faqat principalAmount 0 bo'lganda yoki status 'paid' bo'lganda
+  // MUHIM: domainDebt.principalAmount ishlatish (bu real debt amount)
+  const isPaid = (domainDebt && domainDebt.principalAmount <= 0.01) || debt.status === 'paid';
+
   // Pul oqimi nuqtai nazaridan: lent = pul chiqdi (-), borrowed = pul kirdi (+)
   const signedAmount = `${isLent ? '−' : '+'}${formatAmount(debt.remainingAmount, currency)}`;
 
@@ -312,22 +332,44 @@ const DebtCard = ({
             </View>
           </View>
           <View style={styles.amountBlock}>
-            <Text
-              style={[
-                styles.amount,
-                { color: isLent ? theme.colors.danger : theme.colors.success },
-              ]}
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.8}
-            >
-              {signedAmount}
-            </Text>
-            {debt.remainingAmount !== debt.amount ? (
-              <Text style={styles.secondary}>
-                {formatAmount(debt.remainingAmount, currency)} / {formatAmount(debt.amount, currency)}
-              </Text>
-            ) : null}
+            {isPaid ? (
+              // To'langan qarz uchun Settled badge
+              <View
+                style={[
+                  styles.paidBadge,
+                  { backgroundColor: `${theme.colors.success}15` },
+                ]}
+              >
+                <CheckCircle2 size={14} color={theme.colors.success} />
+                <Text
+                  style={[
+                    styles.paidBadgeText,
+                    { color: theme.colors.success },
+                  ]}
+                >
+                  {strings.settled ?? 'Settled'}
+                </Text>
+              </View>
+            ) : (
+              <>
+                <Text
+                  style={[
+                    styles.amount,
+                    { color: isLent ? theme.colors.danger : theme.colors.success },
+                  ]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.8}
+                >
+                  {signedAmount}
+                </Text>
+                {debt.remainingAmount !== debt.amount ? (
+                  <Text style={styles.secondary}>
+                    {formatAmount(debt.remainingAmount, currency)} / {formatAmount(debt.amount, currency)}
+                  </Text>
+                ) : null}
+              </>
+            )}
             {/* Valyuta P/L badge */}
             {currencyPL && (
               <View
@@ -433,7 +475,22 @@ const DebtsScreen: React.FC = () => {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const router = useRouter();
 
-  const domainDebts = useFinanceDomainStore((state) => state.debts);
+  const allDomainDebts = useFinanceDomainStore((state) => state.debts);
+  const selectedDate = useFinanceDateStore((state) => state.selectedDate);
+
+  // Sanaga qarab filter qilish: startDate <= selectedDate <= dueDate
+  const domainDebts = useMemo(() => {
+    if (!selectedDate) return allDomainDebts;
+    const selectedKey = toISODateKey(selectedDate);
+    return allDomainDebts.filter((debt) => {
+      const startKey = toISODateKey(new Date(debt.startDate));
+      const dueKey = debt.dueDate ? toISODateKey(new Date(debt.dueDate)) : null;
+      // Agar dueDate yo'q bo'lsa, faqat startDate dan keyin bo'lsa ko'rsatamiz
+      if (!dueKey) return selectedKey >= startKey;
+      return selectedKey >= startKey && selectedKey <= dueKey;
+    });
+  }, [allDomainDebts, selectedDate]);
+
   const debts = useMemo<LegacyDebt[]>(() => domainDebts.map(mapDomainDebtToLegacy), [domainDebts]);
   const {
     formatCurrency,

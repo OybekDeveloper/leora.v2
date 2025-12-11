@@ -51,11 +51,8 @@ const FinanceTabHeader = () => {
   return (
     <TabHeaderFrame>
       <FinanceHeader
-        onCurrencyPress={() => router.push('/(modals)/finance-currency')}
-        onDiagramPress={() => router.push('/(modals)/finance-stats')}
-        onTransferPress={() => router.push('/(modals)/finance-export')}
-        onSearchPress={() => router.push('/(modals)/finance-search')}
-        onSettingsPress={() => router.push('/(modals)/menage-widget')}
+        onCurrencyPress={() => router.push('/(modals)/finance/finance-commodities')}
+        onSearchPress={() => router.push('/(modals)/finance/finance-search')}
       />
     </TabHeaderFrame>
   );

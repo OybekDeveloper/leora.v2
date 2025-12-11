@@ -1,11 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Modal,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -24,30 +23,14 @@ import { useRealm } from '@/utils/RealmContext';
 import { storage } from '@/utils/storage';
 import * as Updates from 'expo-updates';
 import { useLocalization } from '@/localization/useLocalization';
-import type { AppTranslations } from '@/localization/strings';
 import type { User } from '@/types/auth.types';
-import CustomBottomSheet, { BottomSheetHandle } from '@/components/modals/BottomSheet';
 import {
-  AVAILABLE_FINANCE_CURRENCIES,
-  FINANCE_REGION_PRESETS,
-  type FinanceCurrency,
-  type FinanceRegion,
   getFinanceRegionPreset,
   useFinancePreferencesStore,
 } from '@/stores/useFinancePreferencesStore';
 import { useShallow } from 'zustand/react/shallow';
-import { BottomSheetTextInput } from '@gorhom/bottom-sheet';
-import { type FxProviderId, getProviderForRegion } from '@/services/fx/providers';
 
 type VisibilityOption = NonNullable<User['visibility']> | 'public' | 'friends' | 'private';
-type EditProfileFormState = {
-  fullName: string;
-  email: string;
-  username: string;
-  phoneNumber: string;
-  bio: string;
-  visibility: VisibilityOption;
-};
 
 type PreferenceKey = 'showLevel' | 'showAchievements' | 'showStatistics';
 
@@ -68,18 +51,6 @@ const LEVEL_REWARDS = [
   { label: 'Level 30', value: '1 Month Premium for Free' },
 ];
 
-const CURRENCY_LABELS: Record<FinanceCurrency, string> = {
-  UZS: 'Uzbekistani Som',
-  USD: 'US Dollar',
-  EUR: 'Euro',
-  GBP: 'British Pound',
-  TRY: 'Turkish Lira',
-  SAR: 'Saudi Riyal',
-  AED: 'UAE Dirham',
-  USDT: 'Tether (USDT)',
-  RUB: 'Russian Ruble',
-};
-
 const ProfileScreen = () => {
   const router = useRouter();
   const theme = useAppTheme();
@@ -94,70 +65,24 @@ const ProfileScreen = () => {
   const resetPlannerData = usePlannerDomainStore((state) => state.reset);
   const resetFinanceData = useFinanceDomainStore((state) => state.reset);
   const realm = useRealm();
-  const editSheetRef = useRef<BottomSheetHandle>(null);
-  const regionSheetRef = useRef<BottomSheetHandle>(null);
-  const currencySheetRef = useRef<BottomSheetHandle>(null);
 
-  const [formState, setFormState] = useState<EditProfileFormState>({
-    fullName: user?.fullName ?? '',
-    email: user?.email ?? '',
-    username: user?.username ?? '',
-    phoneNumber: user?.phoneNumber ?? '',
-    bio: user?.bio ?? '',
+  const [formState, setFormState] = useState<{ visibility: VisibilityOption }>({
     visibility: (user?.visibility ?? 'friends') as VisibilityOption,
   });
   const [confirmAction, setConfirmAction] = useState<'delete' | 'logout' | 'reset' | null>(null);
-  const [currencyQuery, setCurrencyQuery] = useState('');
-  const [currencySheetMode, setCurrencySheetMode] = useState<'display' | 'override'>('display');
-  const [syncingRates, setSyncingRates] = useState(false);
-  const [overrideInput, setOverrideInput] = useState('');
-  const [overrideError, setOverrideError] = useState<string | null>(null);
-  const [overrideSuccess, setOverrideSuccess] = useState<string | null>(null);
-  const [fxSyncStatus, setFxSyncStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
-  const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
 
   const {
     region: financeRegion,
-    baseCurrency,
     globalCurrency,
-    setRegion: applyFinanceRegion,
-    setGlobalCurrency,
-    syncExchangeRates,
-    overrideExchangeRate,
   } = useFinancePreferencesStore(
     useShallow((state) => ({
       region: state.region,
-      baseCurrency: state.baseCurrency,
       globalCurrency: state.globalCurrency,
-      setRegion: state.setRegion,
-      setGlobalCurrency: state.setGlobalCurrency,
-      syncExchangeRates: state.syncExchangeRates,
-      overrideExchangeRate: state.overrideExchangeRate,
     })),
   );
 
-  const defaultProvider = getProviderForRegion(financeRegion);
-  const [selectedProvider, setSelectedProvider] = useState<FxProviderId>(defaultProvider);
-
-  const [overrideCurrency, setOverrideCurrency] = useState<FinanceCurrency>(() => {
-    if (globalCurrency !== baseCurrency) {
-      return globalCurrency;
-    }
-    const fallback = AVAILABLE_FINANCE_CURRENCIES.find((code) => code !== baseCurrency) ?? baseCurrency;
-    return fallback;
-  });
-
-  const closeEditSheet = useCallback(() => {
-    editSheetRef.current?.dismiss();
-  }, []);
-
   useEffect(() => {
     setFormState({
-      fullName: user?.fullName ?? '',
-      email: user?.email ?? '',
-      username: user?.username ?? '',
-      phoneNumber: user?.phoneNumber ?? '',
-      bio: user?.bio ?? '',
       visibility: (user?.visibility ?? 'friends') as VisibilityOption,
     });
   }, [user]);
@@ -198,53 +123,6 @@ const ProfileScreen = () => {
     () => getFinanceRegionPreset(financeRegion),
     [financeRegion],
   );
-  const currencyOptions = useMemo(
-    () =>
-      AVAILABLE_FINANCE_CURRENCIES.map((code) => ({
-        code,
-        label: CURRENCY_LABELS[code],
-      })),
-    [],
-  );
-  const filteredCurrencies = useMemo(() => {
-    if (!currencyQuery.trim()) {
-      return currencyOptions;
-    }
-    const needle = currencyQuery.trim().toLowerCase();
-    return currencyOptions.filter(
-      (option) =>
-        option.code.toLowerCase().includes(needle) ||
-        option.label.toLowerCase().includes(needle),
-    );
-  }, [currencyOptions, currencyQuery]);
-  const currencyDisplayLabel = useMemo(
-    () => `${globalCurrency} · ${CURRENCY_LABELS[globalCurrency] ?? globalCurrency}`,
-    [globalCurrency],
-  );
-  const currencySheetTitle =
-    currencySheetMode === 'override'
-      ? profileStrings.finance.fxOverrideSheetTitle
-      : profileStrings.finance.currencySheetTitle;
-  const currencySheetActiveCode = currencySheetMode === 'override' ? overrideCurrency : globalCurrency;
-  const providerOptions = useMemo(
-    () => [
-      { id: defaultProvider, label: profileStrings.finance.fxProviders.central_bank ?? 'Central Bank' },
-      { id: 'market_api' as FxProviderId, label: profileStrings.finance.fxProviders.market ?? 'Market API' },
-    ],
-    [profileStrings.finance.fxProviders, defaultProvider],
-  );
-  const lastSyncLabel = useMemo(() => {
-    if (!lastSyncedAt) {
-      return null;
-    }
-    return new Intl.DateTimeFormat(locale, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    }).format(lastSyncedAt);
-  }, [lastSyncedAt, locale]);
 
   const statCards = useMemo(
     () => [
@@ -267,97 +145,22 @@ const ProfileScreen = () => {
     },
     [preferences, updateUser],
   );
-  const handleSelectRegionPreference = useCallback(
-    (regionId: FinanceRegion) => {
-      applyFinanceRegion(regionId);
-      regionSheetRef.current?.dismiss();
-    },
-    [applyFinanceRegion],
-  );
-  const handleSelectCurrencyPreference = useCallback(
-    (currency: FinanceCurrency) => {
-      if (currencySheetMode === 'override') {
-        setOverrideCurrency(currency);
-        setCurrencyQuery('');
-        currencySheetRef.current?.dismiss();
-        return;
-      }
-      setGlobalCurrency(currency);
-      setCurrencyQuery('');
-      currencySheetRef.current?.dismiss();
-    },
-    [currencySheetMode, setGlobalCurrency],
-  );
-  const openRegionSheet = useCallback(() => {
-    regionSheetRef.current?.present();
-  }, []);
-  const openCurrencySheet = useCallback((mode: 'display' | 'override' = 'display') => {
-    setCurrencySheetMode(mode);
-    currencySheetRef.current?.present();
-  }, []);
 
-  const handleSaveProfile = useCallback(() => {
-    updateUser({
-      fullName: formState.fullName.trim(),
-      email: formState.email.trim(),
-      username: formState.username.trim(),
-      phoneNumber: formState.phoneNumber?.trim() || undefined,
-      bio: formState.bio.trim(),
-      visibility: formState.visibility as User['visibility'],
-    });
-    editSheetRef.current?.dismiss();
-  }, [formState, updateUser]);
+  const openRegionModal = useCallback(() => {
+    router.push('/(modals)/finance/finance-region');
+  }, [router]);
 
-  useEffect(() => {
-    if (overrideCurrency === baseCurrency) {
-      const fallback = AVAILABLE_FINANCE_CURRENCIES.find((code) => code !== baseCurrency) ?? baseCurrency;
-      setOverrideCurrency(fallback);
-    }
-  }, [baseCurrency, overrideCurrency]);
+  const openCurrencyModal = useCallback(() => {
+    router.push('/(modals)/finance/finance-currency');
+  }, [router]);
 
-  useEffect(() => {
-    setOverrideError(null);
-    setOverrideSuccess(null);
-  }, [overrideCurrency, overrideInput]);
+  const openEditProfileModal = useCallback(() => {
+    router.push('/(modals)/profile-edit');
+  }, [router]);
 
-  const handleSyncRates = useCallback(async () => {
-    setFxSyncStatus(null);
-    try {
-      setSyncingRates(true);
-      await syncExchangeRates(selectedProvider);
-      setLastSyncedAt(new Date());
-      const providerLabel = providerOptions.find((item) => item.id === selectedProvider)?.label ?? '';
-      setFxSyncStatus({
-        type: 'success',
-        message: profileStrings.finance.fxSyncSuccess.replace('{provider}', providerLabel),
-      });
-    } catch (error) {
-      setFxSyncStatus({ type: 'error', message: profileStrings.finance.fxSyncError });
-    } finally {
-      setSyncingRates(false);
-    }
-  }, [profileStrings.finance.fxSyncError, profileStrings.finance.fxSyncSuccess, providerOptions, selectedProvider, syncExchangeRates]);
-
-  const handleApplyOverride = useCallback(() => {
-    const sanitizedInput = overrideInput.replace(/\s+/g, '').replace(',', '.');
-    const normalizedValue = Number(sanitizedInput);
-    if (overrideCurrency === baseCurrency) {
-      setOverrideError(profileStrings.finance.fxOverrideBaseError);
-      return;
-    }
-    if (!Number.isFinite(normalizedValue) || normalizedValue <= 0) {
-      setOverrideError(profileStrings.finance.fxOverrideError);
-      return;
-    }
-    overrideExchangeRate(overrideCurrency, normalizedValue);
-    setOverrideInput('');
-    setOverrideSuccess(
-      profileStrings.finance.fxOverrideSuccess.replace(
-        '{currency}',
-        `${overrideCurrency} · ${CURRENCY_LABELS[overrideCurrency] ?? overrideCurrency}`,
-      ),
-    );
-  }, [baseCurrency, overrideCurrency, overrideExchangeRate, overrideInput, profileStrings.finance.fxOverrideBaseError, profileStrings.finance.fxOverrideError, profileStrings.finance.fxOverrideSuccess]);
+  const openFxOverrideModal = useCallback(() => {
+    router.push('/(modals)/finance/fx-override');
+  }, [router]);
 
   const pickProfileImage = useCallback(async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -482,22 +285,22 @@ const ProfileScreen = () => {
           <InfoRow
             label={profileStrings.fields.fullName}
             value={user.fullName ?? '—'}
-            onPress={() => editSheetRef.current?.present()}
+            onPress={openEditProfileModal}
           />
           <InfoRow
             label={profileStrings.fields.email}
             value={user.email ?? '—'}
-            onPress={() => editSheetRef.current?.present()}
+            onPress={openEditProfileModal}
           />
           <InfoRow
             label={profileStrings.fields.phone}
             value={user.phoneNumber ?? '—'}
-            onPress={() => editSheetRef.current?.present()}
+            onPress={openEditProfileModal}
           />
           <InfoRow
             label={profileStrings.fields.username}
             value={user.username ?? '—'}
-            onPress={() => editSheetRef.current?.present()}
+            onPress={openEditProfileModal}
           />
           <InfoRow
             label={profileStrings.fields.joined}
@@ -517,125 +320,39 @@ const ProfileScreen = () => {
           <SectionHeader label={profileStrings.sections.finance} />
           <InfoRow
             label={profileStrings.finance.regionLabel}
-            value={`${financeRegionPreset.label} · ${financeRegionPreset.currency}`}
-            onPress={openRegionSheet}
-            trailingIcon="chevron-down"
+            value={financeRegionPreset.label}
+            onPress={openRegionModal}
+            trailingIcon="chevron-right"
           />
           <InfoRow
-            label={profileStrings.finance.currencyLabel}
-            value={currencyDisplayLabel}
-            onPress={() => openCurrencySheet('display')}
-            trailingIcon="chevron-down"
+            label={(profileStrings.finance as any).baseCurrencyLabel ?? profileStrings.finance.currencyLabel ?? "Asosiy valyuta"}
+            value={globalCurrency}
+            onPress={openCurrencyModal}
+            trailingIcon="chevron-right"
           />
-          <AdaptiveGlassView style={styles.fxCard}>
-            <Text style={[styles.fxTitle, { color: theme.colors.textPrimary }]}>{profileStrings.finance.fxTitle}</Text>
-            <Text style={[styles.fxSubtitle, { color: theme.colors.textSecondary }]}>
-              {profileStrings.finance.fxDescription}
-            </Text>
-            <Text style={[styles.fxMetaLabel, { color: theme.colors.textSecondary }]}>
-              {profileStrings.finance.fxProviderLabel}
-            </Text>
-            <View style={styles.fxProviderRow}>
-              {providerOptions.map((option) => {
-                const isActive = option.id === selectedProvider;
-                return (
-                  <Pressable
-                    key={option.id}
-                    onPress={() => setSelectedProvider(option.id)}
-                    style={({ pressed }) => [
-                      styles.fxProviderChip,
-                      {
-                        borderColor: isActive ? theme.colors.primary : theme.colors.border,
-                        backgroundColor: isActive ? `${theme.colors.primary}22` : theme.colors.card,
-                      },
-                      pressed && styles.pressed,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.fxProviderChipLabel,
-                        { color: isActive ? theme.colors.primary : theme.colors.textPrimary },
-                      ]}
-                    >
-                      {option.label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-            <Pressable
-              style={[styles.primaryButton, syncingRates && styles.primaryButtonDisabled]}
-              disabled={syncingRates}
-              onPress={handleSyncRates}
-            >
-              <Text style={styles.primaryButtonLabel}>
-                {syncingRates ? profileStrings.finance.fxSyncing : profileStrings.finance.fxSyncButton}
-              </Text>
-            </Pressable>
-            {fxSyncStatus ? (
-              <Text
-                style={[
-                  styles.fxStatusText,
-                  { color: fxSyncStatus.type === 'error' ? theme.colors.danger : theme.colors.success },
-                ]}
-              >
-                {fxSyncStatus.message}
-              </Text>
-            ) : null}
-            {lastSyncLabel ? (
-              <Text style={[styles.fxStatusText, { color: theme.colors.textSecondary }]}>
-                {profileStrings.finance.fxLastSync.replace('{value}', lastSyncLabel)}
-              </Text>
-            ) : null}
-          </AdaptiveGlassView>
-          <AdaptiveGlassView style={styles.fxCard}>
-            <Text style={[styles.fxTitle, { color: theme.colors.textPrimary }]}>{profileStrings.finance.fxManualTitle}</Text>
-            <Text style={[styles.fxSubtitle, { color: theme.colors.textSecondary }]}>
-              {profileStrings.finance.fxManualHint.replace('{base}', baseCurrency)}
-            </Text>
-            <View style={styles.fxOverrideRow}>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.fxCurrencyButton,
-                  {
-                    borderColor: theme.colors.border,
-                    backgroundColor: theme.colors.card,
-                  },
-                  pressed && styles.pressed,
-                ]}
-                onPress={() => openCurrencySheet('override')}
-              >
-                <Text style={[styles.fxCurrencyLabel, { color: theme.colors.textSecondary }]}>
-                  {profileStrings.finance.fxManualCurrencyLabel}
+          <Pressable
+            style={({ pressed }) => [
+              styles.fxManualButton,
+              { borderColor: theme.colors.border, backgroundColor: theme.colors.card },
+              pressed && styles.pressed,
+            ]}
+            onPress={openFxOverrideModal}
+          >
+            <View style={styles.fxManualButtonContent}>
+              <View style={[styles.fxManualIcon, { backgroundColor: `${theme.colors.primary}15` }]}>
+                <Feather name="edit-2" size={18} color={theme.colors.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.fxManualButtonTitle, { color: theme.colors.textPrimary }]}>
+                  {profileStrings.finance.fxManualTitle}
                 </Text>
-                <Text style={[styles.fxCurrencyValue, { color: theme.colors.textPrimary }]}>{overrideCurrency}</Text>
-              </Pressable>
-              <TextInput
-                value={overrideInput}
-                onChangeText={setOverrideInput}
-                keyboardType="decimal-pad"
-                placeholder={profileStrings.finance.fxOverridePlaceholder}
-                placeholderTextColor={theme.colors.textSecondary}
-                style={[
-                  styles.fxRateInput,
-                  {
-                    color: theme.colors.textPrimary,
-                    borderColor: theme.colors.border,
-                    backgroundColor: theme.colors.card,
-                  },
-                ]}
-              />
+                <Text style={[styles.fxManualButtonHint, { color: theme.colors.textSecondary }]}>
+                  {profileStrings.finance.fxManualHint.replace('{base}', globalCurrency)}
+                </Text>
+              </View>
+              <Feather name="chevron-right" size={18} color={theme.colors.textSecondary} />
             </View>
-            <Pressable style={styles.secondaryButton} onPress={handleApplyOverride}>
-              <Text style={styles.secondaryButtonLabel}>{profileStrings.finance.fxOverrideButton}</Text>
-            </Pressable>
-            {overrideError ? (
-              <Text style={[styles.fxStatusText, { color: theme.colors.danger }]}>{overrideError}</Text>
-            ) : null}
-            {overrideSuccess ? (
-              <Text style={[styles.fxStatusText, { color: theme.colors.success }]}>{overrideSuccess}</Text>
-            ) : null}
-          </AdaptiveGlassView>
+          </Pressable>
         </View>
 
         <View style={styles.section}>
@@ -734,14 +451,6 @@ const ProfileScreen = () => {
         </View>
       </ScrollView>
 
-      <EditProfileSheet
-        ref={editSheetRef}
-        formState={formState}
-        onChange={setFormState}
-        onSave={handleSaveProfile}
-        onClose={closeEditSheet}
-        strings={profileStrings}
-      />
       <ConfirmDialog
         visible={confirmAction !== null}
         title={
@@ -781,126 +490,6 @@ const ProfileScreen = () => {
               : handleLogout
         }
       />
-      <CustomBottomSheet
-        ref={regionSheetRef}
-        snapPoints={['60%']}
-        enableDynamicSizing
-        scrollable
-      >
-        <View style={styles.sheetContent}>
-          <Text style={[styles.sheetTitle, { color: theme.colors.textPrimary }]}>
-            {profileStrings.finance.regionSheetTitle}
-          </Text>
-          <ScrollView showsVerticalScrollIndicator={false}>
-            {FINANCE_REGION_PRESETS.map((preset) => {
-              const isActive = preset.id === financeRegion;
-              return (
-                <Pressable
-                  key={preset.id}
-                  onPress={() => handleSelectRegionPreference(preset.id as FinanceRegion)}
-                  style={({ pressed }) => [styles.preferencePressable, pressed && styles.pressed]}
-                >
-                  <AdaptiveGlassView
-                    style={[
-                      styles.preferenceCard,
-                      {
-                        borderColor: isActive ? theme.colors.primary : theme.colors.border,
-                        backgroundColor: theme.colors.card,
-                      },
-                    ]}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.preferenceCardTitle, { color: theme.colors.textPrimary }]}>
-                        {preset.label}
-                      </Text>
-                      <Text style={[styles.preferenceCardSubtitle, { color: theme.colors.textSecondary }]}>
-                        {preset.description}
-                      </Text>
-                    </View>
-                    <View
-                      style={[
-                        styles.preferenceBadge,
-                        {
-                          borderColor: isActive ? theme.colors.primary : theme.colors.border,
-                          backgroundColor: isActive ? `${theme.colors.primary}22` : 'transparent',
-                        },
-                      ]}
-                    >
-                      <Text style={[styles.preferenceBadgeText, { color: theme.colors.textPrimary }]}>
-                        {preset.currency}
-                      </Text>
-                    </View>
-                  </AdaptiveGlassView>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-        </View>
-      </CustomBottomSheet>
-      <CustomBottomSheet
-        ref={currencySheetRef}
-        snapPoints={['65%']}
-        enableDynamicSizing
-        scrollable
-        onDismiss={() => setCurrencyQuery('')}
-      >
-        <View style={styles.sheetContent}>
-          <Text style={[styles.sheetTitle, { color: theme.colors.textPrimary }]}>
-            {currencySheetTitle}
-          </Text>
-          <AdaptiveGlassView
-            style={[
-              styles.currencySearchContainer,
-              { borderColor: theme.colors.border, backgroundColor: theme.colors.card },
-            ]}
-          >
-            <BottomSheetTextInput
-              value={currencyQuery}
-              onChangeText={setCurrencyQuery}
-              placeholder={profileStrings.finance.currencySearchPlaceholder}
-              placeholderTextColor={theme.colors.textMuted}
-              style={[styles.input, styles.currencySearchInput, { color: theme.colors.textPrimary }]}
-            />
-          </AdaptiveGlassView>
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.currencyList}
-          >
-            {filteredCurrencies.map((option) => {
-              const isActive = option.code === currencySheetActiveCode;
-              return (
-                <Pressable
-                  key={option.code}
-                  onPress={() => handleSelectCurrencyPreference(option.code)}
-                  style={({ pressed }) => [styles.currencyRowPressable, pressed && styles.pressed]}
-                >
-                  <AdaptiveGlassView
-                    style={[
-                      styles.currencyRow,
-                      {
-                        borderColor: isActive ? theme.colors.primary : theme.colors.border,
-                        backgroundColor: theme.colors.card,
-                      },
-                    ]}
-                  >
-                    <View>
-                      <Text style={[styles.currencyCode, { color: theme.colors.textPrimary }]}>
-                        {option.code}
-                      </Text>
-                      <Text style={[styles.currencyLabel, { color: theme.colors.textSecondary }]}>
-                        {option.label}
-                      </Text>
-                    </View>
-                    {isActive && (
-                      <Feather name="check" size={16} color={theme.colors.primary} />
-                    )}
-                  </AdaptiveGlassView>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-        </View>
-      </CustomBottomSheet>
     </SafeAreaView>
   );
 };
@@ -1004,82 +593,6 @@ const KeyValueRow = ({ label, value }: { label: string; value: string }) => {
     </View>
   );
 };
-
-const EditProfileSheet = React.forwardRef<BottomSheetHandle, {
-  formState: EditProfileFormState;
-  onChange: React.Dispatch<React.SetStateAction<EditProfileFormState>>;
-  onSave: () => void;
-  onClose: () => void;
-  strings: AppTranslations['profile'];
-}>(({ formState, onChange, onSave, onClose, strings }, ref) => {
-  const styles = useStyles();
-  const theme = useAppTheme();
-
-  const handleChange = (key: keyof EditProfileFormState, value: string) => {
-    onChange((prev) => ({ ...prev, [key]: value }));
-  };
-
-  return (
-    <CustomBottomSheet ref={ref} snapPoints={['70%']} enableDynamicSizing scrollable>
-      <View style={styles.sheetContent}>
-        <Text style={[styles.sheetTitle, { color: theme.colors.textPrimary }]}>{strings.buttons.edit}</Text>
-        <TextInput
-          value={formState.fullName}
-          onChangeText={(text) => handleChange('fullName', text)}
-          placeholder={strings.fields.fullName}
-          style={[styles.input, { borderColor: theme.colors.border, color: theme.colors.textPrimary }]}
-          placeholderTextColor={theme.colors.textMuted}
-        />
-        <TextInput
-          value={formState.email}
-          onChangeText={(text) => handleChange('email', text)}
-          placeholder={strings.fields.email}
-          style={[styles.input, { borderColor: theme.colors.border, color: theme.colors.textPrimary }]}
-          placeholderTextColor={theme.colors.textMuted}
-          autoCapitalize="none"
-          keyboardType="email-address"
-        />
-        <TextInput
-          value={formState.username}
-          onChangeText={(text) => handleChange('username', text)}
-          placeholder={strings.fields.username}
-          style={[styles.input, { borderColor: theme.colors.border, color: theme.colors.textPrimary }]}
-          placeholderTextColor={theme.colors.textMuted}
-        />
-        <TextInput
-          value={formState.phoneNumber}
-          onChangeText={(text) => handleChange('phoneNumber', text)}
-          placeholder={strings.fields.phone}
-          style={[styles.input, { borderColor: theme.colors.border, color: theme.colors.textPrimary }]}
-          placeholderTextColor={theme.colors.textMuted}
-          keyboardType="phone-pad"
-        />
-        <TextInput
-          value={formState.bio}
-          onChangeText={(text) => handleChange('bio', text)}
-          placeholder={strings.fields.bio}
-          style={[
-            styles.input,
-            styles.multilineInput,
-            { borderColor: theme.colors.border, color: theme.colors.textPrimary },
-          ]}
-          placeholderTextColor={theme.colors.textMuted}
-          multiline
-        />
-        <View style={styles.sheetActions}>
-          <Pressable style={[styles.secondaryButton, styles.flexButton]} onPress={onClose}>
-            <Text style={styles.secondaryButtonLabel}>{strings.buttons.cancel}</Text>
-          </Pressable>
-          <Pressable style={[styles.primaryButton, styles.flexButton]} onPress={onSave}>
-            <Text style={styles.primaryButtonLabel}>{strings.buttons.save}</Text>
-          </Pressable>
-        </View>
-      </View>
-    </CustomBottomSheet>
-  );
-});
-
-EditProfileSheet.displayName = 'EditProfileSheet';
 
 const ConfirmDialog = ({
   visible,
@@ -1375,161 +888,31 @@ const useStyles = createThemedStyles((theme) => ({
     fontWeight: '600',
     color: theme.colors.textPrimary,
   },
-  fxCard: {
-    borderRadius: 22,
-    padding: theme.spacing.lg,
-    marginTop: theme.spacing.md,
-    gap: theme.spacing.sm,
-  },
-  fxTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  fxSubtitle: {
-    fontSize: 13,
-    lineHeight: 20,
-  },
-  fxMetaLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  fxProviderRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: theme.spacing.sm,
-  },
-  fxProviderChip: {
-    borderRadius: 16,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: 8,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  fxProviderChipLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  fxStatusText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  fxOverrideRow: {
-    flexDirection: 'row',
-    gap: theme.spacing.sm,
-    alignItems: 'center',
-  },
-  fxCurrencyButton: {
-    flexDirection: 'column',
-    borderRadius: 16,
-    borderWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-    flex: 0.5,
-    minWidth: 130,
-  },
-  fxCurrencyLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-  },
-  fxCurrencyValue: {
-    fontSize: 18,
-    fontWeight: '700',
-    marginTop: 4,
-  },
-  fxRateInput: {
-    flex: 1,
-    borderRadius: 16,
-    borderWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: 12,
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  preferencePressable: {
-    marginBottom: theme.spacing.md,
-  },
-  preferenceCard: {
+  fxManualButton: {
     borderRadius: 18,
     borderWidth: StyleSheet.hairlineWidth,
+    marginTop: theme.spacing.md,
     padding: theme.spacing.md,
+  },
+  fxManualButtonContent: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: theme.spacing.md,
   },
-  preferenceCardTitle: {
-    fontSize: 16,
+  fxManualIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fxManualButtonTitle: {
+    fontSize: 15,
     fontWeight: '600',
   },
-  preferenceCardSubtitle: {
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  preferenceBadge: {
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: 6,
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  preferenceBadgeText: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  sheetContent: {
-    gap: 12,
-    paddingBottom: 24,
-  },
-  sheetTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  sheetActions: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 8,
-  },
-  currencySearchContainer: {
-    borderRadius: 16,
-    borderWidth: StyleSheet.hairlineWidth,
-    marginBottom: 12,
-  },
-  currencySearchInput: {
-    borderWidth: 0,
-  },
-  currencyList: {
-    paddingBottom: 24,
-  },
-  currencyRowPressable: {
-    marginBottom: 10,
-  },
-  currencyRow: {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  currencyCode: {
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  currencyLabel: {
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  input: {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 15,
-  },
-  multilineInput: {
-    minHeight: 100,
-    textAlignVertical: 'top',
+  fxManualButtonHint: {
+    fontSize: 12,
+    marginTop: 2,
   },
   emptyState: {
     flex: 1,

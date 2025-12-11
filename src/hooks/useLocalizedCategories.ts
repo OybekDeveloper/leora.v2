@@ -15,7 +15,6 @@ type CategoryKey =
   | 'healthcare'
   | 'education'
   | 'charity'
-  | 'debtRepayment'
   | 'transfer'
   | 'savings'
   | 'other';
@@ -34,7 +33,6 @@ const CATEGORY_NAME_TO_KEY: Record<string, CategoryKey> = {
   'Healthcare': 'healthcare',
   'Education': 'education',
   'Charity': 'charity',
-  'Debt Repayment': 'debtRepayment',
   'Transfer': 'transfer',
   'Savings': 'savings',
   'Other': 'other',

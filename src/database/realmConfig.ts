@@ -4,7 +4,7 @@ import { financeSchemas } from './schema/financeSchemas';
 import { plannerSchemas } from './schema/plannerSchemas';
 import { SeedService } from '@/services/SeedService';
 
-const schemaVersion = 20;
+const schemaVersion = 21;
 
 const ensureField = <T>(collection: Realm.Results<T>, field: keyof T, value: any) => {
   collection.forEach((item: any) => {
@@ -216,6 +216,13 @@ export const realmConfig: Realm.Configuration = {
 
     // Migration for schema version 19 - balance adjustment transaction flag
     ensureField(transactions, 'isBalanceAdjustment', false);
+
+    // Migration for schema version 21 - debt settlement info fields
+    ensureField(debts, 'settledAt', null);
+    ensureField(debts, 'finalRateUsed', null);
+    ensureField(debts, 'finalProfitLoss', null);
+    ensureField(debts, 'finalProfitLossCurrency', null);
+    ensureField(debts, 'totalPaidInRepaymentCurrency', null);
   },
   onFirstOpen: (realm) => {
     const seeder = new SeedService(realm);

@@ -12,6 +12,8 @@ import type { FinanceCurrency } from '@/stores/useFinancePreferencesStore';
 import { useShallow } from 'zustand/react/shallow';
 import { usePlannerDomainStore } from '@/stores/usePlannerDomainStore';
 import { useAppTheme } from '@/constants/theme';
+import { formatNumberWithSpaces } from '@/utils/formatNumber';
+import * as Progress from 'react-native-progress';
 
 type InfoRowProps = { label: string; value: string };
 
@@ -69,7 +71,7 @@ const BudgetDetail = () => {
       goals: state.goals,
     })),
   );
-  const { convertAmount, formatCurrency, globalCurrency } = useFinanceCurrency();
+  const { convertAmount, globalCurrency } = useFinanceCurrency();
 
   const budgetId = params.budgetId ?? params.id;
 
@@ -116,16 +118,27 @@ const BudgetDetail = () => {
   const balanceValue = budget?.currentBalance ?? budget?.remainingAmount ?? remainingValue;
 
   const formatValue = useCallback(
-    (value: number) =>
-      formatCurrency(value, {
-        fromCurrency: globalCurrency,
-        convert: false,
-      }),
-    [formatCurrency, globalCurrency],
+    (value: number) => {
+      const formatted = formatNumberWithSpaces(value);
+      return `${formatted} ${globalCurrency}`;
+    },
+    [globalCurrency],
   );
 
   // Determine if this is a spending or saving budget
   const isSpendingBudget = budget?.transactionType !== 'income';
+
+  // Progress foizi hisoblash
+  const progressPercentage = useMemo(() => {
+    if (limitValue <= 0) return 0;
+    return Math.min((spentValue / limitValue) * 100, 100);
+  }, [limitValue, spentValue]);
+
+  const progressColor = useMemo(() => {
+    if (progressPercentage >= 100) return theme.colors.danger;
+    if (progressPercentage >= 90) return '#F59E0B'; // warning orange
+    return theme.colors.success;
+  }, [progressPercentage, theme.colors.danger, theme.colors.success]);
 
   const statusLabel = useMemo(() => {
     const state = resolveBudgetState(limitValue, spentValue);
@@ -196,7 +209,29 @@ const BudgetDetail = () => {
           </Text>
         </View>
 
-        <AdaptiveGlassView style={[styles.glassSurface, styles.card, styles.summaryCard]}>
+        <AdaptiveGlassView style={[styles.glassSurface, styles.card, styles.summaryCard, { backgroundColor: theme.colors.card }]}>
+          {/* Progress Bar */}
+          <View style={styles.progressContainer}>
+            <View style={styles.progressHeader}>
+              <Text style={[styles.progressLabel, { color: theme.colors.textSecondary }]}>
+                {isSpendingBudget ? detailStrings.spentLabel : (detailStrings.contributedLabel ?? 'Contributed')}
+              </Text>
+              <Text style={[styles.progressPercent, { color: progressColor }]}>
+                {progressPercentage.toFixed(0)}%
+              </Text>
+            </View>
+            <Progress.Bar
+              progress={progressPercentage / 100}
+              width={null}
+              height={10}
+              color={progressColor}
+              unfilledColor={theme.colors.surfaceElevated}
+              borderWidth={0}
+              borderRadius={5}
+              animated={true}
+            />
+          </View>
+
           <View style={styles.summaryRow}>
             <Text style={[styles.summaryLabel, { color: theme.colors.textSecondary }]}>
               {isSpendingBudget ? detailStrings.limitLabel : (detailStrings.targetLabel ?? 'Target')}
@@ -207,7 +242,7 @@ const BudgetDetail = () => {
             <Text style={[styles.summaryLabel, { color: theme.colors.textSecondary }]}>
               {isSpendingBudget ? detailStrings.spentLabel : (detailStrings.contributedLabel ?? 'Contributed')}
             </Text>
-            <Text style={[styles.summaryValue, { color: theme.colors.textPrimary }]}>{formatValue(spentValue)}</Text>
+            <Text style={[styles.summaryValue, { color: progressColor }]}>{formatValue(spentValue)}</Text>
           </View>
           <View style={styles.summaryRow}>
             <Text style={[styles.summaryLabel, { color: theme.colors.textSecondary }]}>{detailStrings.remainingLabel}</Text>
@@ -219,7 +254,7 @@ const BudgetDetail = () => {
           </View>
         </AdaptiveGlassView>
 
-        <AdaptiveGlassView style={[styles.glassSurface, styles.card]}>
+        <AdaptiveGlassView style={[styles.glassSurface, styles.card, { backgroundColor: theme.colors.card }]}>
           <Text style={[styles.sectionLabel, { color: theme.colors.textPrimary }]}>{detailStrings.title}</Text>
           <InfoRow
             label={detailStrings.accountLabel}
@@ -244,7 +279,7 @@ const BudgetDetail = () => {
           />
         </AdaptiveGlassView>
 
-        <AdaptiveGlassView style={[styles.glassSurface, styles.card]}>
+        <AdaptiveGlassView style={[styles.glassSurface, styles.card, { backgroundColor: theme.colors.card }]}>
           <Text style={[styles.sectionLabel, { color: theme.colors.textPrimary }]}>{detailStrings.valueAddTitle}</Text>
           <InfoRow
             label={detailStrings.valueAddAccountCurrency}
@@ -260,7 +295,7 @@ const BudgetDetail = () => {
           />
         </AdaptiveGlassView>
 
-        <AdaptiveGlassView style={[styles.glassSurface, styles.card]}>
+        <AdaptiveGlassView style={[styles.glassSurface, styles.card, { backgroundColor: theme.colors.card }]}>
           <Text style={[styles.sectionLabel, { color: theme.colors.textPrimary }]}>{detailStrings.actions.title}</Text>
           <Pressable onPress={handleEdit} style={styles.actionRow}>
             <Text style={[styles.actionLabel, { color: theme.colors.textPrimary }]}>{detailStrings.actions.edit}</Text>
@@ -287,15 +322,15 @@ const BudgetDetail = () => {
           >
             <Text style={[styles.actionLabel, { color: theme.colors.textPrimary }]}>{detailStrings.actions.viewGoal}</Text>
           </Pressable>
-          <Pressable onPress={handleDelete} style={[styles.actionRow, styles.dangerRow]}>
-            <Text style={[styles.actionLabel, styles.dangerText]}>{detailStrings.actions.delete}</Text>
+          <Pressable onPress={handleDelete} style={[styles.actionRow, styles.dangerRow, { borderTopColor: theme.colors.border }]}>
+            <Text style={[styles.actionLabel, { color: theme.colors.danger }]}>{detailStrings.actions.delete}</Text>
           </Pressable>
         </AdaptiveGlassView>
       </ScrollView>
 
       <View style={styles.actionButtons}>
         <Pressable
-          style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}
+          style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed, { borderColor: theme.colors.border }]}
           onPress={handleViewTransactions}
         >
           <Text style={[styles.secondaryButtonText, { color: theme.colors.textSecondary }]}>
@@ -303,19 +338,26 @@ const BudgetDetail = () => {
           </Text>
         </Pressable>
         <Pressable
-          style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}
-          onPress={handleEdit}
+          style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed, { backgroundColor: theme.colors.primary }]}
+          onPress={() =>
+            router.push({
+              pathname: '/(modals)/finance/budget-add-value',
+              params: { budgetId: budget.id },
+            })
+          }
         >
-          <AdaptiveGlassView style={[styles.glassSurface, styles.primaryButtonInner]}>
-            <Text style={styles.primaryButtonText}>{detailStrings.actions.edit}</Text>
-          </AdaptiveGlassView>
+          <Text style={styles.primaryButtonText}>
+            {isSpendingBudget
+              ? (detailStrings.actions.recordExpense ?? 'Record expense')
+              : (detailStrings.actions.addToBudget ?? 'Add to budget')}
+          </Text>
         </Pressable>
       </View>
       <Pressable
         onPress={handleDelete}
         style={({ pressed }) => [styles.deleteButton, pressed && styles.pressed, { paddingBottom: insets.bottom + 8 }]}
       >
-        <Text style={styles.deleteButtonText}>{detailStrings.actions.delete}</Text>
+        <Text style={[styles.deleteButtonText, { color: theme.colors.danger }]}>{detailStrings.actions.delete}</Text>
       </Pressable>
     </SafeAreaView>
   );
@@ -368,7 +410,24 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   summaryCard: {
+    gap: 12,
+  },
+  progressContainer: {
     gap: 8,
+    marginBottom: 8,
+  },
+  progressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  progressLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  progressPercent: {
+    fontSize: 15,
+    fontWeight: '700',
   },
   summaryRow: {
     flexDirection: 'row',
@@ -416,11 +475,7 @@ const styles = StyleSheet.create({
   },
   dangerRow: {
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(255,255,255,0.12)',
     marginTop: 4,
-  },
-  dangerText: {
-    color: '#F87171',
   },
   actionButtons: {
     flexDirection: 'row',
@@ -433,6 +488,8 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',
+    borderRadius: 16,
+    borderWidth: 1,
   },
   secondaryButtonText: {
     fontSize: 15,
@@ -441,12 +498,9 @@ const styles = StyleSheet.create({
   primaryButton: {
     flex: 1,
     borderRadius: 16,
-  },
-  primaryButtonInner: {
     paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 16,
   },
   primaryButtonText: {
     fontSize: 15,
@@ -461,7 +515,6 @@ const styles = StyleSheet.create({
   deleteButtonText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#FF6B6B',
   },
   pressed: {
     opacity: 0.7,

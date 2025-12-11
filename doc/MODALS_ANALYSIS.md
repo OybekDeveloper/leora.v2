@@ -14,7 +14,7 @@ Bu hujjat `app/(modals)` va `src/components/modals` papkalaridagi barcha modalla
 | `app/(modals)/menage-widget.tsx` | Horizontal + Vertical | 3 ta |
 | `app/(modals)/notifications.tsx` | Vertical | 1 ta |
 | `app/(modals)/search.tsx` | Vertical | 1 ta |
-| `app/(modals)/finance-search.tsx` | Vertical | 1 ta |
+| `app/(modals)/finance/finance-search.tsx` | Vertical | 1 ta |
 
 ---
 

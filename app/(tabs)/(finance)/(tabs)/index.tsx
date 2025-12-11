@@ -36,6 +36,8 @@ import {
   useFinancePreferencesStore,
 } from '@/stores/useFinancePreferencesStore';
 import { formatCompactNumber } from '@/utils/formatNumber';
+import { useFinanceDateStore } from '@/stores/useFinanceDateStore';
+import { toISODateKey } from '@/utils/calendar';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -146,6 +148,9 @@ export default function FinanceReviewScreen() {
     baseCurrency,
   } = useFinanceCurrency();
 
+  // Finance date store dan tanlangan sanani olish
+  const selectedDate = useFinanceDateStore((state) => state.selectedDate);
+
   // Parse params from account-filter modal
   const selectedAccountIds = useMemo(
     () => (params.selectedAccountIds ? params.selectedAccountIds.split(',').filter(Boolean) : []),
@@ -230,6 +235,37 @@ export default function FinanceReviewScreen() {
     const previousMonth = currentMonth === 0 ? 11 : currentMonth - 1;
     const previousYear = currentMonth === 0 ? currentYear - 1 : currentYear;
 
+    // Tanlangan sanaga qarab transactions va budgets/debts ni filter qilish
+    const selectedKey = selectedDate ? toISODateKey(selectedDate) : null;
+
+    // Transactions filter - faqat tanlangan sanadagi transactionlar
+    const dateFilteredTransactions = selectedKey
+      ? transactions.filter((txn) => toISODateKey(new Date(txn.date)) === selectedKey)
+      : transactions;
+
+    // Budgets filter - tanlangan sana budget period ichida bo'lsa
+    const dateFilteredBudgets = selectedKey
+      ? budgets.filter((budget) => {
+          if (!budget.startDate && !budget.endDate) return true;
+          const startKey = budget.startDate ? toISODateKey(new Date(budget.startDate)) : null;
+          const endKey = budget.endDate ? toISODateKey(new Date(budget.endDate)) : null;
+          if (startKey && !endKey) return selectedKey >= startKey;
+          if (!startKey && endKey) return selectedKey <= endKey;
+          if (startKey && endKey) return selectedKey >= startKey && selectedKey <= endKey;
+          return true;
+        })
+      : budgets;
+
+    // Debts filter - tanlangan sana debt period ichida bo'lsa
+    const dateFilteredDebts = selectedKey
+      ? debts.filter((debt) => {
+          const startKey = toISODateKey(new Date(debt.startDate));
+          const dueKey = debt.dueDate ? toISODateKey(new Date(debt.dueDate)) : null;
+          if (!dueKey) return selectedKey >= startKey;
+          return selectedKey >= startKey && selectedKey <= dueKey;
+        })
+      : debts;
+
     const accountCurrencyMap = new Map(
       filteredAccounts.map((account) => [account.id, normalizeFinanceCurrency(account.currency)]),
     );
@@ -252,7 +288,7 @@ export default function FinanceReviewScreen() {
     };
 
     const filterByDate = (month: number, year: number) =>
-      transactions.filter((transaction) => {
+      dateFilteredTransactions.filter((transaction) => {
         const date = new Date(transaction.date);
         return date.getMonth() === month && date.getFullYear() === year && includesSelectedAccount(transaction);
       });
@@ -291,7 +327,7 @@ export default function FinanceReviewScreen() {
     );
 
     // Budgetlarni filterlash - agar accountId bo'lsa, tanlangan accountlarga mos kelishi kerak
-    const filteredBudgets = budgets.filter((budget) => {
+    const filteredBudgets = dateFilteredBudgets.filter((budget) => {
       // Agar budget accountga bog'lanmagan bo'lsa - barcha accountlar uchun
       if (!budget.accountId) return true;
       // Agar hech qanday account tanlanmagan bo'lsa - barchasini ko'rsatish
@@ -324,7 +360,7 @@ export default function FinanceReviewScreen() {
       : 0;
     const progressUsedGlobal = budgetsTotals.spent || outcomeCurrent;
 
-    const recentTransactions: RecentTransactionRow[] = transactions
+    const recentTransactions: RecentTransactionRow[] = dateFilteredTransactions
       .filter((transaction) => transaction.type !== 'transfer')
       .filter(includesSelectedAccount)
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
@@ -351,7 +387,7 @@ export default function FinanceReviewScreen() {
       });
 
     // Expense structure - faqat tanlangan accountlar uchun
-    const categoryTotals = transactions
+    const categoryTotals = dateFilteredTransactions
       .filter((transaction) => transaction.type === 'expense' && includesSelectedAccount(transaction))
       .reduce<Record<string, number>>((acc, transaction) => {
         const key = transaction.categoryId ?? transaction.description ?? 'Other';
@@ -373,7 +409,7 @@ export default function FinanceReviewScreen() {
       formatFinanceCurrency(value, { fromCurrency: globalCurrency, convert: false });
 
     // Debtlarni filterlash - agar fundingAccountId bo'lsa, tanlangan accountlarga mos kelishi kerak
-    const filteredDebts = debts.filter((debt) => {
+    const filteredDebts = dateFilteredDebts.filter((debt) => {
       // Agar debt accountga bog'lanmagan bo'lsa - barchasini ko'rsatish
       if (!debt.fundingAccountId) return true;
       // Agar hech qanday account tanlanmagan bo'lsa - barchasini ko'rsatish
@@ -441,6 +477,7 @@ export default function FinanceReviewScreen() {
     transactions,
     filteredAccounts,
     filteredAccountIds,
+    selectedDate,
   ]);
 
   const transactionColumns: TableColumn<RecentTransactionRow>[] = [
@@ -592,7 +629,7 @@ export default function FinanceReviewScreen() {
                 {reviewStrings.fxQuick.overrideButton}
               </Text>
               <Text style={[styles.fxActionDescription, { color: theme.colors.textSecondary }]}>
-                {reviewStrings.fxQuick.overrideHint.replace('{base}', financePreferencesBaseCurrency)}
+                {reviewStrings.fxQuick.overrideHint.replace('{base}', globalCurrency)}
               </Text>
             </AdaptiveGlassView>
           </Pressable>

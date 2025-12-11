@@ -20,6 +20,8 @@ import { type FilterState, useTransactionFilterStore } from '@/stores/useTransac
 import { useFinanceCurrency } from '@/hooks/useFinanceCurrency';
 import { FxService } from '@/services/fx/FxService';
 import { normalizeFinanceCurrency } from '@/utils/financeCurrency';
+import { useFinanceDateStore } from '@/stores/useFinanceDateStore';
+import { toISODateKey } from '@/utils/calendar';
 
 const BASE_CURRENCY = 'UZS';
 
@@ -238,11 +240,22 @@ const TransactionsPage: React.FC = () => {
   // Use globalCurrency from useFinanceCurrency hook (same as index.tsx)
   const { globalCurrency } = useFinanceCurrency();
 
-  // Domain transactions ni CardData ga aylantirish
-  const cardTransactions = useMemo<TransactionCardData[]>(
-    () => domainTransactions.map((txn) => mapToCardData(txn, accounts, debts)),
-    [domainTransactions, accounts, debts],
-  );
+  // Finance date store dan tanlangan sanani olish
+  const selectedDate = useFinanceDateStore((state) => state.selectedDate);
+
+  // Domain transactions ni CardData ga aylantirish va sanaga qarab filter qilish
+  const cardTransactions = useMemo<TransactionCardData[]>(() => {
+    // Avval sanaga qarab filter qilish
+    const dateFiltered = selectedDate
+      ? domainTransactions.filter((txn) => {
+          const txnDateKey = toISODateKey(new Date(txn.date));
+          const selectedDateKey = toISODateKey(selectedDate);
+          return txnDateKey === selectedDateKey;
+        })
+      : domainTransactions;
+
+    return dateFiltered.map((txn) => mapToCardData(txn, accounts, debts));
+  }, [domainTransactions, accounts, debts, selectedDate]);
 
   const filters = useTransactionFilterStore((state) => state.filters);
 

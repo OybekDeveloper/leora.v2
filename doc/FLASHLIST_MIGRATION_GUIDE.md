@@ -268,7 +268,7 @@ const styles = StyleSheet.create({
 #### Vertical FlashList:
 - `app/(modals)/menage-widget.tsx` - 1 ta vertical list (main scroll)
 - `app/(modals)/notifications.tsx` - 1 ta vertical list
-- `app/(modals)/finance-search.tsx` - 1 ta vertical list
+- `app/(modals)/finance/finance-search.tsx` - 1 ta vertical list
 - `app/(modals)/search.tsx` - 1 ta vertical list
 
 ### Exceptions (O'zgartirish shart emas):

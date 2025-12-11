@@ -5,6 +5,8 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { mmkvStorageAdapter } from '@/utils/storage';
 import { FxService, type FxProviderId, type TransferRateInfo } from '@/services/fx';
 import { getProviderForRegion } from '@/services/fx/providers';
+import { useFinanceDomainStore } from '@/stores/useFinanceDomainStore';
+import { getFinanceDaoRegistry } from '@/database/dao/financeDaoRegistry';
 
 export type FinanceCurrency =
   | 'UZS'
@@ -209,7 +211,7 @@ const createFinancePreferencesStore: StateCreator<FinancePreferencesStore> = (se
         return {};
       }
 
-      const syncDisplayCurrency = options?.syncDisplayCurrency ?? true;
+      const syncDisplayCurrency = options?.syncDisplayCurrency ?? false;
       return {
         region,
         baseCurrency: preset.currency,
@@ -314,14 +316,30 @@ const createFinancePreferencesStore: StateCreator<FinancePreferencesStore> = (se
     const actualProviderId = providerId ?? getProviderForRegion(state.region);
     await FxService.getInstance().syncProvider(actualProviderId, new Date(), state.baseCurrency);
     get().hydrateFxRates();
+    // Domain store ni ham yangilash - UI componentlar uchun
+    try {
+      const { fxRates: fxRateDao } = getFinanceDaoRegistry();
+      const allRates = fxRateDao.list();
+      useFinanceDomainStore.getState().hydrateFromRealm({ fxRates: allRates });
+    } catch {
+      // DAO hali inisializatsiya qilinmagan bo'lishi mumkin
+    }
   },
   overrideExchangeRate: (currency, rate) => {
     FxService.getInstance().overrideRate({
       fromCurrency: currency,
-      toCurrency: get().baseCurrency,
+      toCurrency: get().globalCurrency,
       rate,
     });
     get().hydrateFxRates();
+    // Domain store ni ham yangilash - UI componentlar uchun
+    try {
+      const { fxRates: fxRateDao } = getFinanceDaoRegistry();
+      const allRates = fxRateDao.list();
+      useFinanceDomainStore.getState().hydrateFromRealm({ fxRates: allRates });
+    } catch {
+      // DAO hali inisializatsiya qilinmagan bo'lishi mumkin
+    }
   },
 });
 

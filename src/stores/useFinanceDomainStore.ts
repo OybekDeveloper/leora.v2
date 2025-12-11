@@ -23,6 +23,7 @@ import { getFinanceDaoRegistry } from '@/database/dao/financeDaoRegistry';
 import type { BudgetCreateInput } from '@/database/dao/FinanceDAO';
 import { plannerEventBus } from '@/events/plannerEventBus';
 import { usePlannerDomainStore } from '@/stores/usePlannerDomainStore';
+import { FxService } from '@/services/fx/FxService';
 
 type CreateDebtInput = Omit<
   Debt,
@@ -119,6 +120,14 @@ interface FinanceDomainState {
 
 const generateId = (_prefix: string) => new BSON.ObjectId().toHexString();
 
+// Summani valyutaga qarab yaxlitlash (UZS: 0 kasr, boshqalar: 2 kasr)
+const roundAmountForCurrency = (amount: number, currency: string): number => {
+  if (!Number.isFinite(amount)) return 0;
+  const decimals = currency === 'UZS' ? 0 : 2;
+  const factor = Math.pow(10, decimals);
+  return Math.round(amount * factor) / factor;
+};
+
 const getBaseCurrency = () => useFinancePreferencesStore.getState().baseCurrency;
 
 const convertToBase = (amount: number, fromCurrency: string, baseCurrency: string, rates: FxRate[]): number => {
@@ -178,6 +187,90 @@ const mapDebtAdjustmentFromTransaction = (
   const amountDebtCurrency = convertBetweenCurrencies(sourceAmount, sourceCurrency, debt.principalCurrency);
   const amountBaseCurrency = convertBetweenCurrencies(sourceAmount, sourceCurrency, debt.baseCurrency);
   return { debt, amountDebtCurrency, amountBaseCurrency };
+};
+
+/**
+ * Calculate settlement info when debt is fully paid
+ * Returns profit/loss based on exchange rate difference between start and settlement
+ */
+const calculateSettlementInfo = (
+  debt: Debt,
+  payments: DebtPayment[],
+): {
+  settledAt: string;
+  finalRateUsed: number;
+  finalProfitLoss: number;
+  finalProfitLossCurrency: string;
+  totalPaidInRepaymentCurrency: number;
+} | null => {
+  // Only calculate if repaymentCurrency is different from principalCurrency
+  if (!debt.repaymentCurrency || debt.repaymentCurrency === debt.principalCurrency) {
+    return null;
+  }
+
+  const debtPayments = payments.filter((p) => p.debtId === debt.id);
+  if (debtPayments.length === 0) {
+    return null;
+  }
+
+  // Calculate total paid in repayment currency
+  // Each payment has amount in payment currency (which should be repaymentCurrency)
+  const totalPaidInRepaymentCurrency = debtPayments.reduce((sum, payment) => {
+    if (payment.currency === debt.repaymentCurrency) {
+      return sum + payment.amount;
+    }
+    // If payment was in different currency, convert it
+    return sum + convertBetweenCurrencies(payment.amount, payment.currency, debt.repaymentCurrency!);
+  }, 0);
+
+  // Get original amount and start rate
+  const originalPrincipal = debt.principalOriginalAmount ?? debt.principalAmount;
+  const startRate = debt.repaymentRateOnStart ?? 1;
+
+  // Get current/final rate
+  const finalRate = FxService.getInstance().getRate(
+    debt.principalCurrency as FinanceCurrency,
+    debt.repaymentCurrency as FinanceCurrency,
+  );
+
+  // Profit/Loss calculation BASED ON RATE CHANGE ONLY:
+  // If rate didn't change, profit/loss = 0 (regardless of how much was paid)
+  // If rate changed: profitLoss = rateDifference × originalPrincipal
+  //
+  // Example (i_owe - men qarz oldim):
+  // - Borrowed 1000 USD at rate 12000 (startRate)
+  // - Current rate: 12400 (finalRate)
+  // - Rate difference: 12400 - 12000 = 400
+  // - Loss = 400 × 1000 = 400,000 UZS (kurs oshdi = zarar)
+  //
+  // Example (they_owe_me - menga qarzdor):
+  // - Lent 1000 USD at rate 12000
+  // - Current rate: 12400
+  // - Profit = 400 × 1000 = 400,000 UZS (kurs oshdi = foyda)
+
+  const rateDifference = finalRate - startRate;
+
+  // Agar kurs o'zgarmagan bo'lsa - foyda/zarar 0
+  let profitLoss = 0;
+  if (Math.abs(rateDifference) > 0.0001) {
+    // Kurs o'zgarishi × original summa = foyda/zarar (repayment currency da)
+    const profitLossAmount = originalPrincipal * rateDifference;
+
+    // Yo'nalishga qarab:
+    // i_owe: Kurs oshsa = zarar (ko'proq to'lashim kerak) = manfiy qiymat
+    // they_owe_me: Kurs oshsa = foyda (ko'proq pul olaman) = musbat qiymat
+    profitLoss = debt.direction === 'i_owe'
+      ? -profitLossAmount  // Kurs oshsa = zarar = manfiy
+      : profitLossAmount;  // Kurs oshsa = foyda = musbat
+  }
+
+  return {
+    settledAt: new Date().toISOString(),
+    finalRateUsed: finalRate,
+    finalProfitLoss: roundAmountForCurrency(profitLoss, debt.repaymentCurrency),
+    finalProfitLossCurrency: debt.repaymentCurrency,
+    totalPaidInRepaymentCurrency: roundAmountForCurrency(totalPaidInRepaymentCurrency, debt.repaymentCurrency),
+  };
 };
 
 const resolveGoalLinksForTransaction = (
@@ -523,7 +616,10 @@ const persistChangedBudgets = (updatedBudgets: Budget[], previousBudgets: Budget
 };
 
 const resolveDebtStatus = (debt: Debt): DebtStatus => {
-  if (debt.principalAmount <= 0) {
+  // MUHIM: Floating point xatolari uchun tolerans (0.01 dan kichik = to'langan)
+  // Chunki multi-currency conversion va rounding xatolari tufayli
+  // principalAmount 0 dan sal katta bo'lishi mumkin
+  if (debt.principalAmount <= 0.01) {
     return 'paid';
   }
   if (debt.dueDate && new Date(debt.dueDate) < new Date() && debt.status !== 'paid') {
@@ -636,15 +732,29 @@ export const useFinanceDomainStore = create<FinanceDomainState>((set, get) => ({
       createTransaction: (payload) => {
         const baseCurrency = payload.baseCurrency ?? getBaseCurrency();
         const rateUsedToBase = payload.rateUsedToBase ?? 1;
-        const convertedAmountToBase = payload.convertedAmountToBase ?? payload.amount * rateUsedToBase;
+        // Summalarni valyutaga qarab yaxlitlash (UZS: 0, boshqalar: 2 kasr)
+        const roundedAmount = roundAmountForCurrency(payload.amount, payload.currency);
+        const convertedAmountToBase = roundAmountForCurrency(
+          payload.convertedAmountToBase ?? roundedAmount * rateUsedToBase,
+          baseCurrency,
+        );
+        const roundedToAmount = payload.toAmount !== undefined && payload.toCurrency
+          ? roundAmountForCurrency(payload.toAmount, payload.toCurrency)
+          : payload.toAmount;
+        const roundedFeeAmount = payload.feeAmount !== undefined
+          ? roundAmountForCurrency(payload.feeAmount, payload.currency)
+          : payload.feeAmount;
         const { transactions: txnDao, budgets: budgetDao } = getFinanceDaoRegistry();
         const prevAccounts = get().accounts;
         const prevBudgets = get().budgets;
         const created = txnDao.create({
           ...payload,
+          amount: roundedAmount,
           baseCurrency,
           rateUsedToBase,
           convertedAmountToBase,
+          toAmount: roundedToAmount,
+          feeAmount: roundedFeeAmount,
         });
         const timestamp = created.updatedAt;
         const newEntries = buildBudgetEntriesForTransaction(created, get().budgets, timestamp);
@@ -665,6 +775,10 @@ export const useFinanceDomainStore = create<FinanceDomainState>((set, get) => ({
               principalAmount: nextPrincipal,
               principalBaseValue: nextBase,
             });
+
+            // NOTE: Settlement info hisoblash addDebtPayment ga ko'chirildi
+            // chunki bu yerda yangi payment hali state.debtPayments ga qo'shilmagan
+
             const updatedDebt: Debt = {
               ...debtAdjustment.debt,
               principalAmount: nextPrincipal,
@@ -708,18 +822,33 @@ export const useFinanceDomainStore = create<FinanceDomainState>((set, get) => ({
         if (!existing) {
           return;
         }
-        const amount = updates.amount ?? existing.amount;
+        const currency = updates.currency ?? existing.currency;
+        const amount = updates.amount !== undefined
+          ? roundAmountForCurrency(updates.amount, currency)
+          : existing.amount;
         const rateUsedToBase = updates.rateUsedToBase ?? existing.rateUsedToBase ?? 1;
         const baseCurrency = updates.baseCurrency ?? existing.baseCurrency ?? getBaseCurrency();
-        const convertedAmountToBase = updates.convertedAmountToBase ?? amount * rateUsedToBase;
+        const convertedAmountToBase = roundAmountForCurrency(
+          updates.convertedAmountToBase ?? amount * rateUsedToBase,
+          baseCurrency,
+        );
+        const roundedToAmount = updates.toAmount !== undefined && (updates.toCurrency ?? existing.toCurrency)
+          ? roundAmountForCurrency(updates.toAmount, updates.toCurrency ?? existing.toCurrency!)
+          : updates.toAmount;
+        const roundedFeeAmount = updates.feeAmount !== undefined
+          ? roundAmountForCurrency(updates.feeAmount, currency)
+          : updates.feeAmount;
         const { transactions: txnDao, budgets: budgetDao } = getFinanceDaoRegistry();
         const prevAccounts = get().accounts;
         const prevBudgets = get().budgets;
         const updated = txnDao.update(id, {
           ...updates,
+          amount,
           baseCurrency,
           rateUsedToBase,
           convertedAmountToBase,
+          toAmount: roundedToAmount,
+          feeAmount: roundedFeeAmount,
         });
         if (!updated) {
           return;
@@ -1458,19 +1587,31 @@ export const useFinanceDomainStore = create<FinanceDomainState>((set, get) => ({
         const { fundingOverrideAmount, ...debtPayload } = payload;
         const baseCurrency = debtPayload.baseCurrency ?? getBaseCurrency();
         const nowIso = new Date().toISOString();
-        const principalOriginalAmount =
-          debtPayload.principalOriginalAmount ?? debtPayload.principalAmount;
+        // Summalarni yaxlitlash
+        const principalOriginalAmount = roundAmountForCurrency(
+          debtPayload.principalOriginalAmount ?? debtPayload.principalAmount,
+          debtPayload.principalOriginalCurrency ?? debtPayload.principalCurrency,
+        );
         const principalOriginalCurrency =
           debtPayload.principalOriginalCurrency ?? debtPayload.principalCurrency;
-        const resolvedPrincipal = debtPayload.principalAmount ?? principalOriginalAmount;
-        const principalBaseValueExplicit = convertBetweenCurrencies(
-          principalOriginalAmount,
-          principalOriginalCurrency,
+        const resolvedPrincipal = roundAmountForCurrency(
+          debtPayload.principalAmount ?? principalOriginalAmount,
+          debtPayload.principalCurrency,
+        );
+        const principalBaseValueExplicit = roundAmountForCurrency(
+          convertBetweenCurrencies(
+            principalOriginalAmount,
+            principalOriginalCurrency,
+            baseCurrency,
+          ),
           baseCurrency,
         );
         const rateOnStart =
           debtPayload.rateOnStart ??
           (principalOriginalAmount ? principalBaseValueExplicit / principalOriginalAmount : 1);
+        const roundedRepaymentAmount = debtPayload.repaymentAmount !== undefined && debtPayload.repaymentCurrency
+          ? roundAmountForCurrency(debtPayload.repaymentAmount, debtPayload.repaymentCurrency)
+          : debtPayload.repaymentAmount;
 
         // Debug: Log resolved values before creating debt
         console.log('[Store.createDebt] Resolved values:', {
@@ -1488,6 +1629,7 @@ export const useFinanceDomainStore = create<FinanceDomainState>((set, get) => ({
           principalBaseValue: debtPayload.principalBaseValue ?? principalBaseValueExplicit,
           baseCurrency,
           rateOnStart,
+          repaymentAmount: roundedRepaymentAmount,
           status: debtPayload.status ?? 'active',
         });
 
@@ -1592,14 +1734,34 @@ export const useFinanceDomainStore = create<FinanceDomainState>((set, get) => ({
           console.log('[FinanceDomainStore] updateDebt: Debt not found');
           return;
         }
+        // Summalarni yaxlitlash
+        const roundedUpdates = { ...updates };
+        if (updates.principalAmount !== undefined) {
+          roundedUpdates.principalAmount = roundAmountForCurrency(
+            updates.principalAmount,
+            updates.principalCurrency ?? existing.principalCurrency,
+          );
+        }
+        if (updates.principalBaseValue !== undefined) {
+          roundedUpdates.principalBaseValue = roundAmountForCurrency(
+            updates.principalBaseValue,
+            updates.baseCurrency ?? existing.baseCurrency,
+          );
+        }
+        if (updates.repaymentAmount !== undefined && (updates.repaymentCurrency ?? existing.repaymentCurrency)) {
+          roundedUpdates.repaymentAmount = roundAmountForCurrency(
+            updates.repaymentAmount,
+            updates.repaymentCurrency ?? existing.repaymentCurrency!,
+          );
+        }
         const merged: Debt = {
           ...existing,
-          ...updates,
+          ...roundedUpdates,
         };
         const normalizedStatus = resolveDebtStatus(merged);
         const { debts: debtDao } = getFinanceDaoRegistry();
-        console.log('[FinanceDomainStore] updateDebt: Calling debtDao.update with:', { id, updates: { ...updates, status: normalizedStatus } });
-        const updated = debtDao.update(id, { ...updates, status: normalizedStatus });
+        console.log('[FinanceDomainStore] updateDebt: Calling debtDao.update with:', { id, updates: { ...roundedUpdates, status: normalizedStatus } });
+        const updated = debtDao.update(id, { ...roundedUpdates, status: normalizedStatus });
         if (!updated) {
           console.log('[FinanceDomainStore] updateDebt: debtDao.update returned null');
           return;
@@ -1642,33 +1804,34 @@ export const useFinanceDomainStore = create<FinanceDomainState>((set, get) => ({
         }
         const paymentCurrency = payload.currency;
         const baseCurrency = debt.baseCurrency;
-        const convertedAmountToDebtExplicit = convertBetweenCurrencies(
-          payload.amount,
-          paymentCurrency,
+        // To'lov summasini yaxlitlash
+        const roundedPaymentAmount = roundAmountForCurrency(payload.amount, paymentCurrency);
+        // Konvertatsiya qilib, valyutaga mos yaxlitlash
+        const convertedAmountToDebtExplicit = roundAmountForCurrency(
+          convertBetweenCurrencies(roundedPaymentAmount, paymentCurrency, debt.principalCurrency),
           debt.principalCurrency,
         );
-        const convertedAmountToBaseExplicit = convertBetweenCurrencies(
-          payload.amount,
-          paymentCurrency,
+        const convertedAmountToBaseExplicit = roundAmountForCurrency(
+          convertBetweenCurrencies(roundedPaymentAmount, paymentCurrency, baseCurrency),
           baseCurrency,
         );
         const convertedAmountToDebt = payload.convertedAmountToDebt ?? convertedAmountToDebtExplicit;
         const convertedAmountToBase = payload.convertedAmountToBase ?? convertedAmountToBaseExplicit;
         const rateUsedToDebt =
           payload.rateUsedToDebt ??
-          (payload.amount !== 0 ? convertedAmountToDebt / payload.amount : 1);
+          (roundedPaymentAmount !== 0 ? convertedAmountToDebt / roundedPaymentAmount : 1);
         const rateUsedToBase =
           payload.rateUsedToBase ??
-          (payload.amount !== 0 ? convertedAmountToBase / payload.amount : 1);
+          (roundedPaymentAmount !== 0 ? convertedAmountToBase / roundedPaymentAmount : 1);
 
         let relatedTransactionId: string | undefined;
         const targetAccountId = payload.accountId ?? debt.fundingAccountId;
         if (targetAccountId) {
           const account = get().accounts.find((acc) => acc.id === targetAccountId);
         if (account) {
-          const amountInAccountCurrency = convertBetweenCurrencies(
-            payload.amount,
-            paymentCurrency,
+          // Account valyutasiga konvertatsiya qilib yaxlitlash
+          const amountInAccountCurrency = roundAmountForCurrency(
+            convertBetweenCurrencies(payload.amount, paymentCurrency, account.currency),
             account.currency,
           );
           // IMPORTANT: paidAmount MUST be in debt's principal currency for correct deduction
@@ -1711,6 +1874,7 @@ export const useFinanceDomainStore = create<FinanceDomainState>((set, get) => ({
 
         const payment: DebtPayment = {
           ...payload,
+          amount: roundedPaymentAmount,
           id: generateId('dpay'),
           baseCurrency,
           rateUsedToBase,
@@ -1729,6 +1893,33 @@ export const useFinanceDomainStore = create<FinanceDomainState>((set, get) => ({
         set((state) => ({
           debtPayments: [payment, ...state.debtPayments],
         }));
+
+        // Settlement info hisoblash - payment state ga qo'shilgandan KEYIN
+        // Bu yerda barcha paymentlar mavjud, shuning uchun to'g'ri hisoblash mumkin
+        const updatedDebt = get().debts.find((d) => d.id === debt.id);
+        if (updatedDebt && updatedDebt.status === 'paid' && !updatedDebt.settledAt) {
+          const allPayments = get().debtPayments;
+          const settlementInfo = calculateSettlementInfo(updatedDebt, allPayments);
+
+          if (settlementInfo) {
+            debtDao.update(updatedDebt.id, {
+              settledAt: settlementInfo.settledAt,
+              finalRateUsed: settlementInfo.finalRateUsed,
+              finalProfitLoss: settlementInfo.finalProfitLoss,
+              finalProfitLossCurrency: settlementInfo.finalProfitLossCurrency,
+              totalPaidInRepaymentCurrency: settlementInfo.totalPaidInRepaymentCurrency,
+            });
+
+            set((state) => ({
+              debts: state.debts.map((d) =>
+                d.id === updatedDebt.id
+                  ? { ...d, ...settlementInfo }
+                  : d
+              ),
+            }));
+          }
+        }
+
         return payment;
       },
 

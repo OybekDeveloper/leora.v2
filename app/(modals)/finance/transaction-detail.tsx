@@ -15,11 +15,37 @@ import TransactionCardIcon from '@/components/screens/finance/transactions/Trans
 import type { TransactionCardType } from '@/components/screens/finance/transactions/types';
 import { FxService } from '@/services/fx/FxService';
 import { normalizeFinanceCurrency } from '@/utils/financeCurrency';
+import { formatExchangeRate } from '@/utils/formatExchangeRate';
 
 const BASE_CURRENCY = 'UZS';
 
-const formatCurrencyDisplay = (value: number, currency?: string) => {
+// Format son qisqartirish: 1000+ → 1K, 1000000+ → 1M
+const formatCompactNumber = (value: number): string => {
+  const absValue = Math.abs(value);
+
+  if (absValue >= 1_000_000) {
+    const millions = absValue / 1_000_000;
+    return `${millions.toFixed(millions >= 10 ? 0 : 1)}M`;
+  }
+
+  if (absValue >= 1_000) {
+    const thousands = absValue / 1_000;
+    return `${thousands.toFixed(thousands >= 10 ? 0 : 1)}K`;
+  }
+
+  return absValue.toFixed(0);
+};
+
+const formatCurrencyDisplay = (value: number, currency?: string, compact: boolean = false) => {
   const resolvedCurrency = currency ?? BASE_CURRENCY;
+
+  // Agar compact format kerak bo'lsa va 1000 dan katta bo'lsa
+  if (compact && Math.abs(value) >= 1_000) {
+    const compactNumber = formatCompactNumber(value);
+    const currencySymbol = resolvedCurrency === 'UZS' ? 'so\'m' : resolvedCurrency;
+    return `${compactNumber} ${currencySymbol}`;
+  }
+
   try {
     return new Intl.NumberFormat(resolvedCurrency === 'UZS' ? 'uz-UZ' : 'en-US', {
       style: 'currency',
@@ -404,11 +430,11 @@ export default function TransactionDetailModal() {
             </View>
             <View style={styles.headerCardAmount}>
               <Text style={[styles.amount, { color: theme.colors.textPrimary }]}>
-                {getAmountSign()} {formatCurrencyDisplay(selectedTransaction.amount, selectedTransaction.currency)}
+                {getAmountSign()} {formatCurrencyDisplay(selectedTransaction.amount, selectedTransaction.currency, true)}
               </Text>
               {selectedTransaction.type === 'transfer' && selectedTransaction.toAmount && selectedTransaction.toCurrency !== selectedTransaction.currency && (
                 <Text style={[styles.conversionText, { color: theme.colors.textMuted }]}>
-                  → {formatCurrencyDisplay(selectedTransaction.toAmount, selectedTransaction.toCurrency)}
+                  → {formatCurrencyDisplay(selectedTransaction.toAmount, selectedTransaction.toCurrency, true)}
                 </Text>
               )}
             </View>
@@ -460,6 +486,39 @@ export default function TransactionDetailModal() {
           />
         </AdaptiveGlassView>
 
+        {/* Debt Payment Details Card */}
+        {cardType === 'debt' && relatedDebt && selectedTransaction.paidAmount && (
+          <AdaptiveGlassView style={[styles.glassSurface, styles.detailCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+            <Text style={[styles.linkedSectionTitle, { color: theme.colors.textSecondary }]}>
+              Debt Payment
+            </Text>
+            {/* Original debt currency */}
+            {selectedTransaction.originalAmount && selectedTransaction.originalCurrency && (
+              <DetailRow
+                label="Debt Amount"
+                value={formatCurrencyDisplay(selectedTransaction.originalAmount, selectedTransaction.originalCurrency, true)}
+              />
+            )}
+            {/* Amount paid in account currency */}
+            <DetailRow
+              label="Paid"
+              value={formatCurrencyDisplay(selectedTransaction.amount, selectedTransaction.currency, true)}
+            />
+            {/* Conversion rate */}
+            {selectedTransaction.conversionRate && selectedTransaction.originalCurrency && selectedTransaction.currency !== selectedTransaction.originalCurrency && (
+              <DetailRow
+                label="Rate"
+                value={formatExchangeRate(selectedTransaction.conversionRate, selectedTransaction.currency, selectedTransaction.originalCurrency)}
+              />
+            )}
+            {/* Debt status after payment */}
+            <DetailRow
+              label="Remaining"
+              value={formatCurrencyDisplay(relatedDebt.principalAmount, relatedDebt.principalCurrency, true)}
+            />
+          </AdaptiveGlassView>
+        )}
+
         {/* Note Card */}
         {selectedTransaction.description && (
           <AdaptiveGlassView style={[styles.glassSurface, styles.detailCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
@@ -483,7 +542,7 @@ export default function TransactionDetailModal() {
             />
             <DetailRow
               label={(transactionsStrings.details as any).exchangeRate ?? 'Exchange Rate'}
-              value={`1 ${selectedTransaction.currency} = ${(selectedTransaction.rateUsedToBase ?? 1).toFixed(4)} ${selectedTransaction.baseCurrency}`}
+              value={formatExchangeRate(selectedTransaction.rateUsedToBase ?? 1, selectedTransaction.currency, selectedTransaction.baseCurrency)}
             />
           </AdaptiveGlassView>
         )}

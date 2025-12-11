@@ -22,6 +22,14 @@ const defaultUserId = 'local-user';
 
 const hasRealmInstance = (realm: Realm | null): realm is Realm => Boolean(realm && !realm.isClosed);
 
+// Summani valyutaga qarab yaxlitlash (UZS: 0 kasr, boshqalar: 2 kasr)
+const roundAmountForCurrency = (amount: number, currency: string): number => {
+  if (!Number.isFinite(amount)) return 0;
+  const decimals = currency === 'UZS' ? 0 : 2;
+  const factor = Math.pow(10, decimals);
+  return Math.round(amount * factor) / factor;
+};
+
 const mapAccount = (record: any): Account => ({
   id: fromObjectId(record._id)!,
   userId: record.userId ?? defaultUserId,
@@ -158,6 +166,12 @@ const mapDebt = (record: any): Debt => ({
   reminderTime: record.reminderTime ?? undefined,
   status: record.status,
   showStatus: record.showStatus ?? 'active',
+  // Settlement info
+  settledAt: toISODate(record.settledAt) ?? undefined,
+  finalRateUsed: record.finalRateUsed ?? undefined,
+  finalProfitLoss: record.finalProfitLoss ?? undefined,
+  finalProfitLossCurrency: record.finalProfitLossCurrency ?? undefined,
+  totalPaidInRepaymentCurrency: record.totalPaidInRepaymentCurrency ?? undefined,
   createdAt: toISODate(record.createdAt)!,
   updatedAt: toISODate(record.updatedAt)!,
 });
@@ -444,6 +458,8 @@ export class BudgetDAO {
 
   create(input: BudgetCreateInput): Budget {
     const now = new Date();
+    // Summalarni yaxlitlash
+    const roundedLimitAmount = roundAmountForCurrency(input.limitAmount, input.currency);
     let created: any;
     this.realm.write(() => {
       created = this.realm.create('Budget', {
@@ -456,18 +472,18 @@ export class BudgetDAO {
         accountId: toObjectId(input.accountId),
         transactionType: input.transactionType ?? 'expense',
         currency: input.currency,
-        limitAmount: input.limitAmount,
+        limitAmount: roundedLimitAmount,
         periodType: input.periodType,
         startDate: input.startDate ? new Date(input.startDate) : null,
         endDate: input.endDate ? new Date(input.endDate) : null,
         spentAmount: 0,
-        remainingAmount: input.limitAmount,
+        remainingAmount: roundedLimitAmount,
         percentUsed: 0,
         rolloverMode: input.rolloverMode ?? null,
         isArchived: false,
         notifyOnExceed: input.notifyOnExceed ?? false,
         contributionTotal: 0,
-        currentBalance: input.limitAmount,
+        currentBalance: roundedLimitAmount,
         idempotencyKey: (input as any).idempotencyKey ?? null,
         createdAt: now,
         updatedAt: now,
@@ -480,6 +496,8 @@ export class BudgetDAO {
   update(id: string, updates: Partial<Budget>): Budget | null {
     const record = this.realm.objectForPrimaryKey('Budget', toObjectId(id)!);
     if (!record) return null;
+    // Valyutani olish
+    const currency = updates.currency ?? (record as any).currency;
     this.realm.write(() => {
       Object.entries(updates).forEach(([key, value]) => {
         if (value === undefined) return;
@@ -487,6 +505,9 @@ export class BudgetDAO {
           (record as any)[key] = toObjectId(value as string) ?? null;
         } else if ((key === 'startDate' || key === 'endDate') && value) {
           (record as any)[key] = new Date(value as string);
+        } else if (key === 'limitAmount' || key === 'spentAmount' || key === 'remainingAmount' || key === 'currentBalance' || key === 'contributionTotal') {
+          // Summalarni yaxlitlash
+          (record as any)[key] = roundAmountForCurrency(value as number, currency);
         } else {
           (record as any)[key] = value;
         }
@@ -691,7 +712,7 @@ export class DebtDAO {
           }
           (record as any)[key] = null;
           return;
-        } else if ((key === 'startDate' || key === 'dueDate') && value) {
+        } else if ((key === 'startDate' || key === 'dueDate' || key === 'settledAt') && value) {
           (record as any)[key] = new Date(value as string);
         } else {
           (record as any)[key] = value;

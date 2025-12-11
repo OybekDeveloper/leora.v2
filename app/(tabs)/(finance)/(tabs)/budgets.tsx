@@ -12,8 +12,9 @@ import EmptyState from '@/components/shared/EmptyState';
 import SelectableListItem from '@/components/shared/SelectableListItem';
 import SelectionToolbar from '@/components/shared/SelectionToolbar';
 import UndoSnackbar from '@/components/shared/UndoSnackbar';
-import { useSelectedDayStore } from '@/stores/selectedDayStore';
+import { useFinanceDateStore } from '@/stores/useFinanceDateStore';
 import { useUndoDeleteStore } from '@/stores/useUndoDeleteStore';
+import { toISODateKey } from '@/utils/calendar';
 import type { Budget } from '@/domain/finance/types';
 import { startOfDay } from '@/utils/calendar';
 import { useLocalization } from '@/localization/useLocalization';
@@ -290,7 +291,8 @@ const BudgetsScreen: React.FC = () => {
   const router = useRouter();
   const { convertAmount, formatCurrency: formatFinanceCurrency, globalCurrency } = useFinanceCurrency();
 
-  const selectedDate = useSelectedDayStore((state) => state.selectedDate);
+  // Finance date store dan tanlangan sanani olish
+  const selectedDate = useFinanceDateStore((state) => state.selectedDate);
   const normalizedSelectedDate = useMemo(
     () => startOfDay(selectedDate ?? new Date()),
     [selectedDate],
@@ -348,7 +350,25 @@ const BudgetsScreen: React.FC = () => {
 
   const aggregate = useMemo(() => {
     // Filter out archived budgets
-    const activeBudgets = domainBudgets.filter((b) => !b.isArchived);
+    let activeBudgets = domainBudgets.filter((b) => !b.isArchived);
+
+    // Sanaga qarab filter qilish: startDate <= selectedDate <= endDate
+    if (selectedDate) {
+      const selectedKey = toISODateKey(selectedDate);
+      activeBudgets = activeBudgets.filter((budget) => {
+        // Agar sana yo'q bo'lsa, ko'rsatamiz
+        if (!budget.startDate && !budget.endDate) return true;
+        const startKey = budget.startDate ? toISODateKey(new Date(budget.startDate)) : null;
+        const endKey = budget.endDate ? toISODateKey(new Date(budget.endDate)) : null;
+        // Faqat startDate bor
+        if (startKey && !endKey) return selectedKey >= startKey;
+        // Faqat endDate bor
+        if (!startKey && endKey) return selectedKey <= endKey;
+        // Ikkalasi ham bor
+        if (startKey && endKey) return selectedKey >= startKey && selectedKey <= endKey;
+        return true;
+      });
+    }
 
     const total = activeBudgets.reduce(
       (acc, budget) => {

@@ -424,7 +424,7 @@ function RootNavigator({
           options={{
             headerShown: false,
             presentation: 'modal',
-            animation:"slide_from_bottom",
+            animation: "slide_from_bottom",
           }}
         />
         <Stack.Screen
@@ -445,6 +445,14 @@ function RootNavigator({
           options={{
             presentation: 'modal',
             headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="(modals)/profile-edit"
+          options={{
+            presentation: 'modal',
+            headerShown: false,
+            animation: "slide_from_bottom"
           }}
         />
         <Stack.Screen
@@ -512,28 +520,47 @@ function RootNavigator({
         />
         {/* Finance Screen Modals */}
         <Stack.Screen
-          name="(modals)/finance-currency"
+          name="(modals)/finance/finance-currency"
           options={{
             presentation: 'modal',
             headerShown: false,
+            animation: "slide_from_bottom",
           }}
         />
         <Stack.Screen
-          name="(modals)/finance-stats"
+          name="(modals)/finance/finance-region"
           options={{
             presentation: 'modal',
             headerShown: false,
+            animation: "slide_from_bottom",
           }}
         />
         <Stack.Screen
-          name="(modals)/finance-export"
+          name="(modals)/finance/finance-commodities"
           options={{
             presentation: 'modal',
             headerShown: false,
+            animation: "slide_from_bottom",
           }}
         />
         <Stack.Screen
-          name="(modals)/finance-search"
+          name="(modals)/finance/finance-stats"
+          options={{
+            presentation: 'modal',
+            headerShown: false,
+            animation: "slide_from_bottom",
+          }}
+        />
+        <Stack.Screen
+          name="(modals)/finance/finance-export"
+          options={{
+            presentation: 'modal',
+            headerShown: false,
+            animation: "slide_from_bottom",
+          }}
+        />
+        <Stack.Screen
+          name="(modals)/finance/finance-search"
           options={{
             presentation: 'modal',
             headerShown: false,

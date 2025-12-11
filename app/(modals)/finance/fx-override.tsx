@@ -27,6 +27,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { type FxProviderId, getProviderForRegion } from '@/services/fx/providers';
 import { FxService } from '@/services/fx/FxService';
 import type { FxRate } from '@/domain/finance/types';
+import { formatExchangeRate } from '@/utils/formatExchangeRate';
 
 export default function FxOverrideModal() {
   const router = useRouter();
@@ -35,12 +36,13 @@ export default function FxOverrideModal() {
   const fxStrings = strings.financeScreens.review.fxQuick;
   const styles = createStyles(theme);
 
-  const { syncExchangeRates, overrideExchangeRate, baseCurrency: financePreferencesBaseCurrency, region } =
+  const { syncExchangeRates, overrideExchangeRate, baseCurrency: financePreferencesBaseCurrency, globalCurrency, region } =
     useFinancePreferencesStore(
       useShallow((state) => ({
         syncExchangeRates: state.syncExchangeRates,
         overrideExchangeRate: state.overrideExchangeRate,
         baseCurrency: state.baseCurrency,
+        globalCurrency: state.globalCurrency,
         region: state.region,
       })),
     );
@@ -57,17 +59,19 @@ export default function FxOverrideModal() {
   const [historyModalVisible, setHistoryModalVisible] = useState(false);
   const [editingRateId, setEditingRateId] = useState<string | null>(null);
   const [editingRateValue, setEditingRateValue] = useState('');
+  const [isEditingCurrentRate, setIsEditingCurrentRate] = useState(false);
+  const [currentRateEditInput, setCurrentRateEditInput] = useState('');
 
   // Format rate for display
   const formatRate = useCallback(
     (rate: number) => {
-      const maxFractionDigits = financePreferencesBaseCurrency === 'UZS' ? 0 : 4;
+      const maxFractionDigits = globalCurrency === 'UZS' ? 0 : 4;
       return new Intl.NumberFormat(locale, {
         maximumFractionDigits: maxFractionDigits,
         minimumFractionDigits: 0,
       }).format(rate);
     },
-    [financePreferencesBaseCurrency, locale]
+    [globalCurrency, locale]
   );
 
   // Format timestamp for journal
@@ -160,38 +164,99 @@ export default function FxOverrideModal() {
 
   const [overrideCurrency, setOverrideCurrency] = useState<FinanceCurrency>(() => {
     const fallback =
-      AVAILABLE_FINANCE_CURRENCIES.find((code) => code !== financePreferencesBaseCurrency) ??
-      financePreferencesBaseCurrency;
+      AVAILABLE_FINANCE_CURRENCIES.find((code) => code !== globalCurrency) ??
+      globalCurrency;
     return fallback as FinanceCurrency;
   });
 
   useEffect(() => {
-    if (overrideCurrency === financePreferencesBaseCurrency) {
+    if (overrideCurrency === globalCurrency) {
       const fallback =
-        AVAILABLE_FINANCE_CURRENCIES.find((code) => code !== financePreferencesBaseCurrency) ??
-        financePreferencesBaseCurrency;
+        AVAILABLE_FINANCE_CURRENCIES.find((code) => code !== globalCurrency) ??
+        globalCurrency;
       setOverrideCurrency(fallback as FinanceCurrency);
     }
-  }, [financePreferencesBaseCurrency, overrideCurrency]);
+  }, [globalCurrency, overrideCurrency]);
 
-  // Get current rate for selected currency pair
+  // Trigger for re-fetching rate after override
+  const [rateRefreshKey, setRateRefreshKey] = useState(0);
+
+  // Get current rate for selected currency pair - TO'G'RIDAN-TO'G'RI FxService dan
   const currentRateForSelected = useMemo(() => {
-    const relevantRates = fxRates.filter(
-      (rate) => rate.fromCurrency === overrideCurrency && rate.toCurrency === financePreferencesBaseCurrency
+    // FxService dan hozirgi kursni olish
+    const currentRate = FxService.getInstance().getRate(
+      overrideCurrency as FinanceCurrency,
+      globalCurrency as FinanceCurrency
     );
-    if (relevantRates.length === 0) return null;
-    // Get latest by updatedAt
-    return relevantRates.reduce((latest, rate) =>
-      new Date(rate.updatedAt) > new Date(latest.updatedAt) ? rate : latest
-    );
-  }, [fxRates, overrideCurrency, financePreferencesBaseCurrency]);
+
+    // Agar kurs topilmasa
+    if (!currentRate || currentRate === 1 && overrideCurrency !== globalCurrency) {
+      // fxRates dan fallback
+      const relevantRates = fxRates.filter(
+        (rate) => rate.fromCurrency === overrideCurrency && rate.toCurrency === globalCurrency
+      );
+      if (relevantRates.length === 0) return null;
+      return relevantRates.reduce((latest, rate) =>
+        new Date(rate.updatedAt) > new Date(latest.updatedAt) ? rate : latest
+      );
+    }
+
+    // FxService dan topilgan kursni FxRate formatida qaytarish
+    const nowIso = new Date().toISOString();
+    return {
+      id: 'current',
+      fromCurrency: overrideCurrency,
+      toCurrency: globalCurrency,
+      rate: currentRate,
+      source: 'manual',
+      isOverridden: false,
+      date: nowIso,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    } as FxRate;
+  }, [fxRates, overrideCurrency, globalCurrency, rateRefreshKey]);
+
+  // Normalize rate for display - always show larger currency as "1"
+  // Katta valyutani har doim "1" qilib ko'rsatamiz
+  const { displayRate, displayBaseCurrency, displayQuoteCurrency, isInverted } = useMemo(() => {
+    if (!currentRateForSelected) {
+      return {
+        displayRate: 0,
+        displayBaseCurrency: overrideCurrency,
+        displayQuoteCurrency: globalCurrency,
+        isInverted: false,
+      };
+    }
+
+    const rate = currentRateForSelected.rate;
+
+    // Agar rate < 1 bo'lsa, demak globalCurrency > overrideCurrency
+    // Display: 1 globalCurrency = (1/rate) overrideCurrency
+    if (rate < 1 && rate > 0) {
+      return {
+        displayRate: 1 / rate,
+        displayBaseCurrency: globalCurrency,    // Katta valyuta
+        displayQuoteCurrency: overrideCurrency, // Kichik valyuta
+        isInverted: true,
+      };
+    }
+
+    // Aks holda rate >= 1, demak overrideCurrency > globalCurrency (yoki teng)
+    // Display: 1 overrideCurrency = rate globalCurrency
+    return {
+      displayRate: rate,
+      displayBaseCurrency: overrideCurrency,  // Katta valyuta
+      displayQuoteCurrency: globalCurrency,   // Kichik valyuta
+      isInverted: false,
+    };
+  }, [currentRateForSelected, overrideCurrency, globalCurrency]);
 
   // Get all manual override rates for history modal
   const manualOverrideRates = useMemo(() => {
     return fxRates
-      .filter((rate) => rate.isOverridden && rate.toCurrency === financePreferencesBaseCurrency)
+      .filter((rate) => rate.isOverridden && rate.toCurrency === globalCurrency)
       .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-  }, [fxRates, financePreferencesBaseCurrency]);
+  }, [fxRates, globalCurrency]);
 
   const lastSyncLabel = useMemo(() => {
     if (!lastSyncAt) {
@@ -212,6 +277,8 @@ export default function FxOverrideModal() {
       setFxSyncing(true);
       await syncExchangeRates(selectedProvider);
       setLastSyncAt(new Date());
+      // Trigger rate refresh
+      setRateRefreshKey((prev) => prev + 1);
       const providerLabel = providerOptions.find((option) => option.id === selectedProvider)?.label ?? '';
       setFxStatus({
         type: 'success',
@@ -255,8 +322,8 @@ export default function FxOverrideModal() {
   ]);
 
   const overrideCurrencyOptions = useMemo(
-    () => AVAILABLE_FINANCE_CURRENCIES.filter((code) => code !== financePreferencesBaseCurrency),
-    [financePreferencesBaseCurrency],
+    () => AVAILABLE_FINANCE_CURRENCIES.filter((code) => code !== globalCurrency),
+    [globalCurrency],
   );
 
   const handleClose = useCallback(() => {
@@ -352,7 +419,7 @@ export default function FxOverrideModal() {
           <View style={styles.divider} />
           <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>{fxStrings.overrideTitle}</Text>
           <Text style={[styles.modalSubtitle, { color: theme.colors.textSecondary }]}>
-            {fxStrings.overrideHint.replace('{base}', financePreferencesBaseCurrency)}
+            {fxStrings.overrideHint.replace('{base}', globalCurrency)}
           </Text>
 
           {/* Currency Selection */}
@@ -385,84 +452,146 @@ export default function FxOverrideModal() {
             })}
           </View>
 
-          {/* Rate Input */}
-          <TextInput
-            value={overrideRateInput}
-            onChangeText={setOverrideRateInput}
-            placeholder={fxStrings.overridePlaceholder}
-            placeholderTextColor={theme.colors.textMuted}
-            keyboardType="decimal-pad"
+          {/* Current Rate Card - Always visible */}
+          <View
             style={[
-              styles.modalInput,
-              {
-                color: theme.colors.textPrimary,
-                borderColor: theme.colors.border,
-                backgroundColor: theme.colors.card,
-              },
+              styles.currentRateCard,
+              currentRateForSelected?.isOverridden && styles.currentRateCardOverridden,
+              { backgroundColor: currentRateForSelected?.isOverridden ? `${theme.colors.primary}08` : theme.colors.card },
+              isEditingCurrentRate && { borderColor: theme.colors.primary, borderWidth: 2 },
             ]}
-          />
+          >
+            <View style={styles.currentRateContent}>
+              <Text style={[styles.currentRateLabel, { color: theme.colors.textSecondary }]}>
+                {(fxStrings as any).currentRate ?? 'CURRENT RATE'} ({globalCurrency} ga nisbatan)
+              </Text>
 
-          {/* Error Message */}
-          {overrideError ? (
-            <Text style={[styles.fxStatusText, { color: theme.colors.danger }]}>{overrideError}</Text>
-          ) : null}
-
-          {/* Current Rate for Selected Pair */}
-          {currentRateForSelected && (
-            <View
-              style={[
-                styles.currentRateCard,
-                currentRateForSelected.isOverridden && styles.currentRateCardOverridden,
-                { backgroundColor: currentRateForSelected.isOverridden ? `${theme.colors.primary}08` : theme.colors.card },
-              ]}
-            >
-              <View style={styles.currentRateContent}>
-                <Text style={[styles.currentRateLabel, { color: theme.colors.textSecondary }]}>
-                  {(fxStrings as any).currentRate ?? 'Current Rate'}
-                </Text>
-                <View style={styles.currentRateRow}>
-                  <Text style={[styles.currentRateValue, { color: theme.colors.textPrimary }]}>
-                    1 {overrideCurrency} = {formatRate(currentRateForSelected.rate)} {financePreferencesBaseCurrency}
-                  </Text>
-                </View>
-                <View style={styles.currentRateMeta}>
-                  <View
-                    style={[
-                      styles.journalSourceBadge,
-                      {
-                        backgroundColor: currentRateForSelected.isOverridden
-                          ? `${theme.colors.primary}20`
-                          : theme.colors.background,
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.journalSourceText,
-                        { color: currentRateForSelected.isOverridden ? theme.colors.primary : theme.colors.textMuted },
-                      ]}
-                    >
-                      {getSourceLabel(currentRateForSelected.source)}
+              {/* Conditionally show view or edit mode */}
+              {!isEditingCurrentRate ? (
+                <>
+                  <View style={styles.currentRateRow}>
+                    <Text style={[styles.currentRateValue, { color: theme.colors.textPrimary }]}>
+                      {currentRateForSelected
+                        ? formatExchangeRate(displayRate, displayBaseCurrency, displayQuoteCurrency)
+                        : `${fxStrings.noRateYet ?? 'No rate set yet'}`
+                      }
                     </Text>
                   </View>
-                  <Text style={[styles.journalDate, { color: theme.colors.textMuted }]}>
-                    {formatJournalDate(currentRateForSelected.updatedAt)}
-                  </Text>
-                </View>
-              </View>
-              {currentRateForSelected.isOverridden && (
+                  {currentRateForSelected && (
+                    <View style={styles.currentRateMeta}>
+                      <View
+                        style={[
+                          styles.journalSourceBadge,
+                          {
+                            backgroundColor: currentRateForSelected.isOverridden
+                              ? `${theme.colors.primary}20`
+                              : theme.colors.background,
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.journalSourceText,
+                            { color: currentRateForSelected.isOverridden ? theme.colors.primary : theme.colors.textMuted },
+                          ]}
+                        >
+                          {getSourceLabel(currentRateForSelected.source)}
+                        </Text>
+                      </View>
+                      <Text style={[styles.journalDate, { color: theme.colors.textMuted }]}>
+                        {formatJournalDate(currentRateForSelected.updatedAt)}
+                      </Text>
+                    </View>
+                  )}
+                </>
+              ) : (
+                // Edit mode - inline input
+                <TextInput
+                  value={currentRateEditInput}
+                  onChangeText={setCurrentRateEditInput}
+                  placeholder={fxStrings.overridePlaceholder ?? 'Enter rate'}
+                  placeholderTextColor={theme.colors.textMuted}
+                  keyboardType="decimal-pad"
+                  autoFocus
+                  style={[
+                    styles.currentRateEditInput,
+                    {
+                      color: theme.colors.textPrimary,
+                      borderColor: theme.colors.primary,
+                      backgroundColor: theme.colors.background,
+                    },
+                  ]}
+                />
+              )}
+            </View>
+
+            {/* Edit/Save/Cancel buttons */}
+            {!isEditingCurrentRate ? (
+              <Pressable
+                onPress={() => {
+                  setIsEditingCurrentRate(true);
+                  // Use normalized display rate for editing
+                  setCurrentRateEditInput(currentRateForSelected ? String(displayRate) : '');
+                }}
+                style={({ pressed }) => [styles.journalEditButton, pressed && styles.pressed]}
+                hitSlop={8}
+              >
+                <Pencil size={16} color={theme.colors.primary} />
+              </Pressable>
+            ) : (
+              <View style={styles.currentRateEditActions}>
                 <Pressable
                   onPress={() => {
-                    setOverrideRateInput(String(currentRateForSelected.rate));
+                    setIsEditingCurrentRate(false);
+                    setCurrentRateEditInput('');
                   }}
                   style={({ pressed }) => [styles.journalEditButton, pressed && styles.pressed]}
                   hitSlop={8}
                 >
-                  <Pencil size={16} color={theme.colors.primary} />
+                  <X size={16} color={theme.colors.textMuted} />
                 </Pressable>
-              )}
-            </View>
-          )}
+                <Pressable
+                  onPress={() => {
+                    const inputValue = Number(currentRateEditInput.replace(/\s+/g, '').replace(',', '.'));
+                    if (overrideCurrency === globalCurrency) {
+                      setOverrideError(fxStrings.overrideBaseError);
+                      setIsEditingCurrentRate(false);
+                      return;
+                    }
+                    if (!Number.isFinite(inputValue) || inputValue <= 0) {
+                      setOverrideError(fxStrings.overrideError);
+                      setIsEditingCurrentRate(false);
+                      return;
+                    }
+
+                    // Convert displayed rate back to actual storage format
+                    // If inverted, we need to invert it back
+                    const actualRate = isInverted ? (1 / inputValue) : inputValue;
+
+                    overrideExchangeRate(overrideCurrency, actualRate);
+                    // Trigger rate refresh
+                    setRateRefreshKey((prev) => prev + 1);
+                    setFxStatus({
+                      type: 'success',
+                      message: fxStrings.overrideSuccess.replace('{currency}', overrideCurrency),
+                    });
+                    setIsEditingCurrentRate(false);
+                    setCurrentRateEditInput('');
+                    setOverrideError(null);
+                  }}
+                  style={({ pressed }) => [styles.journalEditButton, pressed && styles.pressed]}
+                  hitSlop={8}
+                >
+                  <Check size={16} color={theme.colors.success} />
+                </Pressable>
+              </View>
+            )}
+          </View>
+
+          {/* Error Message - below the card */}
+          {overrideError ? (
+            <Text style={[styles.fxStatusText, { color: theme.colors.danger }]}>{overrideError}</Text>
+          ) : null}
 
           {/* History Button */}
           {manualOverrideRates.length > 0 && (
@@ -488,25 +617,17 @@ export default function FxOverrideModal() {
 
       </ScrollView>
 
-      {/* Actions */}
+      {/* Actions - faqat Close button */}
       <View style={styles.modalActions}>
-        <Pressable
-          style={({ pressed }) => [styles.modalSecondaryButton, { borderColor: theme.colors.border }, pressed && styles.pressed]}
-          onPress={handleClose}
-        >
-          <Text style={[styles.modalSecondaryLabel, { color: theme.colors.textSecondary }]}>
-            {fxStrings.overrideCancel}
-          </Text>
-        </Pressable>
         <Pressable
           style={({ pressed }) => [
             styles.modalPrimaryButton,
             { backgroundColor: theme.colors.primary },
             pressed && styles.pressed,
           ]}
-          onPress={handleApplyOverride}
+          onPress={handleClose}
         >
-          <Text style={styles.modalPrimaryLabel}>{fxStrings.overrideConfirm}</Text>
+          <Text style={styles.modalPrimaryLabel}>{fxStrings.overrideCancel ?? 'Done'}</Text>
         </Pressable>
       </View>
 
@@ -959,5 +1080,20 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>) =>
     historyActionButton: {
       padding: 8,
       borderRadius: 8,
+    },
+    currentRateEditInput: {
+      borderWidth: 1,
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      fontSize: 16,
+      fontWeight: '700',
+      marginTop: 8,
+    },
+    currentRateEditActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      marginLeft: 8,
     },
   });

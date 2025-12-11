@@ -33,14 +33,20 @@ import { normalizeFinanceCurrency } from '@/utils/financeCurrency';
 
 const formatCurrencyDisplay = (value: number, currency?: string) => {
   const resolvedCurrency = currency ?? 'USD';
+  const absValue = Math.abs(value);
+
   try {
-    return new Intl.NumberFormat(resolvedCurrency === 'UZS' ? 'uz-UZ' : 'en-US', {
-      style: 'currency',
-      currency: resolvedCurrency,
-      maximumFractionDigits: resolvedCurrency === 'UZS' ? 0 : 2,
-    }).format(Math.abs(value));
+    // Format number with proper decimal places
+    const decimals = resolvedCurrency === 'UZS' ? 0 : 2;
+    const formatted = new Intl.NumberFormat(resolvedCurrency === 'UZS' ? 'uz-UZ' : 'en-US', {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    }).format(absValue);
+
+    // Return without dollar sign - just number and currency code
+    return `${formatted} ${resolvedCurrency}`;
   } catch {
-    return `${resolvedCurrency} ${Math.abs(value).toFixed(2)}`;
+    return `${absValue.toFixed(resolvedCurrency === 'UZS' ? 0 : 2)} ${resolvedCurrency}`;
   }
 };
 
@@ -130,12 +136,13 @@ export default function DebtDetailModal() {
   const closeLabel = commonStrings.close ?? 'Close';
 
 
-  const { debts, debtPayments, accounts, deleteDebt } = useFinanceDomainStore(
+  const { debts, debtPayments, accounts, deleteDebt, fxRates } = useFinanceDomainStore(
     useShallow((state) => ({
       debts: state.debts,
       debtPayments: state.debtPayments,
       accounts: state.accounts,
       deleteDebt: state.deleteDebt,
+      fxRates: state.fxRates, // FX kurs o'zgarganda UI yangilanishi uchun
     })),
   );
 
@@ -171,8 +178,35 @@ export default function DebtDetailModal() {
     if (!debt?.repaymentCurrency || debt.repaymentCurrency === debt.principalCurrency) {
       return null;
     }
+
     const startRate = debt.repaymentRateOnStart ?? 1;
-    // Hozirgi kursni FxService dan olish
+    const originalPrincipal = (debt as any).principalOriginalAmount ?? debt.principalAmount;
+
+    // YOPILGAN QARZ: Saqlangan settlement ma'lumotlarini ishlatish
+    if (debt.settledAt && debt.finalProfitLoss !== undefined) {
+      const finalRate = debt.finalRateUsed ?? startRate;
+      const expectedAtStartRate = originalPrincipal * startRate;
+      const totalPaid = debt.totalPaidInRepaymentCurrency ?? expectedAtStartRate;
+
+      // finalProfitLoss allaqachon to'g'ri hisoblab saqlangan
+      const profitLossInRepaymentCurrency = debt.finalProfitLoss;
+      const profitLossInPrincipal = finalRate > 0 ? profitLossInRepaymentCurrency / finalRate : 0;
+
+      return {
+        startRate,
+        currentRate: finalRate,
+        rateDifference: finalRate - startRate,
+        profitLossInRepaymentCurrency,
+        profitLossInPrincipal,
+        isProfit: profitLossInRepaymentCurrency >= 0,
+        expectedAtStartRate,
+        currentAtCurrentRate: totalPaid,
+        isSettled: true,
+        settledAt: debt.settledAt,
+      };
+    }
+
+    // AKTIV QARZ: Hozirgi kursni FxService dan olish
     const currentRate = FxService.getInstance().getRate(
       normalizeFinanceCurrency(debt.principalCurrency),
       normalizeFinanceCurrency(debt.repaymentCurrency)
@@ -211,8 +245,9 @@ export default function DebtDetailModal() {
       isProfit,
       expectedAtStartRate,
       currentAtCurrentRate,
+      isSettled: false,
     };
-  }, [debt]);
+  }, [debt, fxRates]); // fxRates - kurs o'zgarganda qayta hisoblash uchun
 
   const handleBack = useCallback(() => {
     router.back();
@@ -228,10 +263,6 @@ export default function DebtDetailModal() {
 
   const handleSchedule = useCallback(() => {
     router.push({ pathname: '/(modals)/finance/debt-actions', params: { id: debt?.id, action: 'extend_date' } });
-  }, [router, debt?.id]);
-
-  const handleMarkSettled = useCallback(() => {
-    router.push({ pathname: '/(modals)/finance/debt-actions', params: { id: debt?.id, action: 'mark_settled' } });
   }, [router, debt?.id]);
 
   const handleEdit = useCallback(() => {
@@ -277,7 +308,11 @@ export default function DebtDetailModal() {
 
   const isTheyOweMe = debt.direction === 'they_owe_me';
   const isIOwe = debt.direction === 'i_owe';
-  const isPaid = debt.status === 'paid' || debt.principalAmount <= 0;
+  // MUHIM: Faqat qolgan summa 0.01 dan kichik bo'lganda to'langan deb hisoblanadi
+  // debt.status 'paid' bo'lishi mumkin, lekin principalAmount > 0.01 bo'lsa, to'lanmagan!
+  // Bu holat user "Mark as Settled" bosganda, lekin keyinroq yangi to'lov qo'shganda yuzaga keladi
+  // Floating point xatolari uchun 0.01 tolerans
+  const isPaid = debt.principalAmount <= 0.01;
   const payFullLabel = isIOwe ? 'Repay Full' : 'Collect Full';
   const payPartialLabel = isIOwe ? 'Repay Partial' : 'Collect Partial';
 
@@ -285,11 +320,23 @@ export default function DebtDetailModal() {
   console.log('[DebtDetail] Debt state:', {
     id: debt.id,
     counterparty: debt.counterpartyName,
+    principalCurrency: debt.principalCurrency,
     principalAmount: debt.principalAmount,
     principalOriginalAmount: debt.principalOriginalAmount,
+    'progressData.remaining': progressData.remaining,
+    'progressData.paid': progressData.paid,
+    'progressData.original': progressData.original,
     status: debt.status,
     isPaid,
     direction: debt.direction,
+    paymentsCount: payments.length,
+    payments: payments.map(p => ({
+      id: p.id,
+      amount: p.amount,
+      currency: p.currency,
+      convertedAmountToDebt: p.convertedAmountToDebt,
+      rateUsedToDebt: p.rateUsedToDebt,
+    })),
   });
 
   return (
@@ -406,12 +453,7 @@ export default function DebtDetailModal() {
               onPress={handleSchedule}
               theme={theme}
             />
-            <ActionButton
-              icon={<Check size={18} color={theme.colors.primary} />}
-              label="Settled"
-              onPress={handleMarkSettled}
-              theme={theme}
-            />
+            {/* "Mark as Settled" tugmasi olib tashlandi - faqat to'liq to'langandan keyin avtomatik 'paid' statusga o'tadi */}
           </View>
         )}
 
@@ -497,7 +539,9 @@ export default function DebtDetailModal() {
               ) : (
                 <TrendingDown size={16} color={theme.colors.danger} />
               )}
-              <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>Valyuta Farqi</Text>
+              <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>
+                {currencyPL.isSettled ? 'Yakuniy Natija' : 'Valyuta Farqi'}
+              </Text>
             </View>
             <View style={styles.detailsList}>
               <DetailRow
@@ -506,7 +550,7 @@ export default function DebtDetailModal() {
                 theme={theme}
               />
               <DetailRow
-                label="Hozirgi kurs"
+                label={currencyPL.isSettled ? 'Yakuniy kurs' : 'Hozirgi kurs'}
                 value={`1 ${debt.principalCurrency} = ${currencyPL.currentRate.toLocaleString()} ${debt.repaymentCurrency}`}
                 theme={theme}
               />
@@ -516,7 +560,7 @@ export default function DebtDetailModal() {
                 theme={theme}
               />
               <DetailRow
-                label="Hozirgi summa"
+                label={currencyPL.isSettled ? "To'langan summa" : 'Hozirgi summa'}
                 value={formatCurrencyDisplay(currencyPL.currentAtCurrentRate, debt.repaymentCurrency)}
                 valueColor={currencyPL.isProfit ? theme.colors.success : theme.colors.danger}
                 theme={theme}
@@ -534,6 +578,14 @@ export default function DebtDetailModal() {
                 valueColor={currencyPL.isProfit ? theme.colors.success : theme.colors.danger}
                 theme={theme}
               />
+              {/* Yopilgan sana */}
+              {currencyPL.isSettled && currencyPL.settledAt && (
+                <DetailRow
+                  label="Yopilgan sana"
+                  value={formatDate(currencyPL.settledAt)}
+                  theme={theme}
+                />
+              )}
             </View>
           </AdaptiveGlassView>
         )}

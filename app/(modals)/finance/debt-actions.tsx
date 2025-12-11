@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -35,22 +35,40 @@ import { FxService } from '@/services/fx/FxService';
 import { TrendingUp, TrendingDown } from 'lucide-react-native';
 import { normalizeFinanceCurrency } from '@/utils/financeCurrency';
 import type { FinanceCurrency } from '@/stores/useFinancePreferencesStore';
+import { formatExchangeRate } from '@/utils/formatExchangeRate';
 
 const FlashList = FlashListBase as any;
 
 // =====================================================
 // Utility Functions
 // =====================================================
-const formatCurrencyDisplay = (value: number, currency?: string) => {
+
+// Summani valyutaga qarab yaxlitlash (UZS: 0 kasr, boshqalar: 2 kasr)
+const roundAmount = (amount: number, currency: string): number => {
+  const decimals = currency === 'UZS' ? 0 : 2;
+  const factor = Math.pow(10, decimals);
+  return Math.round(amount * factor) / factor;
+};
+
+const formatCurrencyDisplay = (value: number, currency?: string, showSign: boolean = false) => {
   const resolvedCurrency = currency ?? 'USD';
+  const absValue = Math.abs(value);
+
   try {
-    return new Intl.NumberFormat(resolvedCurrency === 'UZS' ? 'uz-UZ' : 'en-US', {
-      style: 'currency',
-      currency: resolvedCurrency,
-      maximumFractionDigits: resolvedCurrency === 'UZS' ? 0 : 2,
-    }).format(Math.abs(value));
+    // Format number with proper decimal places
+    const decimals = resolvedCurrency === 'UZS' ? 0 : 2;
+    const formatted = new Intl.NumberFormat(resolvedCurrency === 'UZS' ? 'uz-UZ' : 'en-US', {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    }).format(absValue);
+
+    // Add sign if requested and value is negative
+    const sign = showSign && value < 0 ? '-' : '';
+    // Return without dollar sign - just number and currency code
+    return `${sign}${formatted} ${resolvedCurrency}`;
   } catch {
-    return `${resolvedCurrency} ${Math.abs(value).toFixed(2)}`;
+    const sign = showSign && value < 0 ? '-' : '';
+    return `${sign}${absValue.toFixed(resolvedCurrency === 'UZS' ? 0 : 2)} ${resolvedCurrency}`;
   }
 };
 
@@ -123,7 +141,7 @@ type PaymentFormProps = {
   debt: Debt;
   isPartial: boolean;
   onClose: () => void;
-  onSubmit: (amount: number, accountId: string | null, paymentDate: Date, note?: string) => void;
+  onSubmit: (amount: number, accountId: string | null, paymentDate: Date, note?: string, paymentCurrency?: string) => void;
 };
 
 const PaymentForm = ({ debt, isPartial, onClose, onSubmit }: PaymentFormProps) => {
@@ -133,26 +151,46 @@ const PaymentForm = ({ debt, isPartial, onClose, onSubmit }: PaymentFormProps) =
   const currencyConversionStrings = (debtActionsStrings as any)?.currencyConversion ?? {};
   const isIOwe = debt.direction === 'i_owe';
 
-  // Accounts from store
-  const accounts = useFinanceDomainStore((state) => state.accounts);
+  console.log('[PaymentForm] Initialized with isPartial:', isPartial);
+
+  // Accounts and fxRates from store
+  const { accounts, fxRates } = useFinanceDomainStore(
+    useShallow((state) => ({
+      accounts: state.accounts,
+      fxRates: state.fxRates, // FX kurs o'zgarganda UI yangilanishi uchun
+    }))
+  );
+
+  // Filter accounts based on repayment currency
+  // Agar repaymentCurrency tanlangan bo'lsa - FAQAT shu valyutadagi accountlar
+  const availableAccounts = useMemo(() => {
+    if (!debt.repaymentCurrency || debt.repaymentCurrency === debt.principalCurrency) {
+      // Agar repayment currency yo'q yoki bir xil bo'lsa - barcha accountlar
+      return accounts;
+    }
+    // FAQAT repayment currency dagi accountlar (principal emas!)
+    // Chunki foydalanuvchi "UZS da to'layman" degan
+    return accounts.filter((acc) => acc.currency === debt.repaymentCurrency);
+  }, [accounts, debt.repaymentCurrency, debt.principalCurrency]);
 
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(debt.fundingAccountId ?? null);
   const [note, setNote] = useState('');
 
-  // To'lov valyutasi avtomatik aniqlanadi:
-  // 1. Agar qarz uchun repaymentCurrency tanlangan bo'lsa - shu valyutada
-  // 2. Aks holda - tanlangan account valyutasida
+  // Tanlangan accountni topish
   const selectedAccount = useMemo(
-    () => accounts.find((a) => a.id === selectedAccountId),
-    [accounts, selectedAccountId]
+    () => availableAccounts.find((a) => a.id === selectedAccountId),
+    [availableAccounts, selectedAccountId]
   );
 
+  // To'lov valyutasi dinamik aniqlanadi:
+  // 1. Agar qarz uchun repaymentCurrency tanlangan bo'lsa - shu valyutada
+  // 2. Aks holda - tanlangan account valyutasida (DINAMIK!)
   const paymentCurrency = useMemo<FinanceCurrency>(() => {
     // Agar qarz yaratilganda repaymentCurrency tanlangan bo'lsa - shu valyutada qaytarish
     if (debt.repaymentCurrency) {
       return debt.repaymentCurrency as FinanceCurrency;
     }
-    // Aks holda tanlangan account valyutasida
+    // Aks holda tanlangan account valyutasida (MUHIM: bu dinamik!)
     if (selectedAccount?.currency) {
       return selectedAccount.currency as FinanceCurrency;
     }
@@ -160,20 +198,52 @@ const PaymentForm = ({ debt, isPartial, onClose, onSubmit }: PaymentFormProps) =
     return (debt.principalCurrency as FinanceCurrency) ?? 'USD';
   }, [debt.repaymentCurrency, debt.principalCurrency, selectedAccount?.currency]);
 
-  // Amount ni to'lov valyutasida hisoblash (2 kasrgacha yaxlitlash)
+  // Amount ni to'lov valyutasida hisoblash
+  // MUHIM: FxService.convert() ishlatamiz - u to'g'ri konversiya qiladi
   const paymentAmountInCurrency = useMemo(() => {
     if (paymentCurrency === debt.principalCurrency) {
-      return Math.round(debt.principalAmount * 100) / 100;
+      return debt.principalAmount;
     }
-    // Valyuta konvertatsiya
-    const rate = FxService.getInstance().getRate(
-      normalizeFinanceCurrency(debt.principalCurrency),
-      normalizeFinanceCurrency(paymentCurrency)
-    ) ?? 1;
-    return Math.round(debt.principalAmount * rate * 100) / 100;
-  }, [debt.principalAmount, debt.principalCurrency, paymentCurrency]);
 
-  const [amount, setAmount] = useState(isPartial ? '' : formatNumberWithSpaces(paymentAmountInCurrency));
+    // FxService.convert() - qarz valyutasidan to'lov valyutasiga
+    // Masalan: 962,500 UZS → ? TRY (1 TRY = 375 UZS bo'lsa, natija = 2,566.67 TRY)
+    const conversion = FxService.getInstance().convert(
+      debt.principalAmount,
+      normalizeFinanceCurrency(debt.principalCurrency),
+      normalizeFinanceCurrency(paymentCurrency),
+      'buy' // Biz to'lov valyutasini "sotib olmoqdamiz"
+    );
+
+    const result = conversion.convertedAmount;
+
+    console.log('[PaymentForm] Calculating payment amount:', {
+      debtAmount: debt.principalAmount,
+      debtCurrency: debt.principalCurrency,
+      paymentCurrency: paymentCurrency,
+      effectiveRate: conversion.effectiveRate,
+      convertedAmount: result,
+      isPartial: isPartial,
+    });
+
+    // Summani valyutaga qarab yaxlitlash (UZS: 0 kasr, boshqalar: 2 kasr)
+    return roundAmount(result, paymentCurrency);
+  }, [debt.principalAmount, debt.principalCurrency, paymentCurrency, isPartial]);
+
+  // Full payment va Partial payment uchun yaxlitlangan qiymat
+  const exactPaymentAmount = paymentAmountInCurrency;
+  const displayPaymentAmount = roundAmount(paymentAmountInCurrency, paymentCurrency);
+
+  const [amount, setAmount] = useState(
+    isPartial ? '' : formatNumberWithSpaces(displayPaymentAmount)
+  );
+
+  // YANGI: paymentCurrency o'zgarganda amount ni yangilash (faqat Full Payment uchun)
+  useEffect(() => {
+    if (!isPartial) {
+      const displayAmount = roundAmount(paymentAmountInCurrency, paymentCurrency);
+      setAmount(formatNumberWithSpaces(displayAmount));
+    }
+  }, [paymentAmountInCurrency, isPartial, paymentCurrency]);
 
   // Account select handler
   const handleAccountSelect = useCallback((accountId: string) => {
@@ -211,7 +281,7 @@ const PaymentForm = ({ debt, isPartial, onClose, onSubmit }: PaymentFormProps) =
       isProfit,
       hasChange: Math.abs(rateDifference) > 0.0001,
     };
-  }, [debt]);
+  }, [debt, fxRates]); // fxRates - kurs o'zgarganda qayta hisoblash uchun
 
   const handleAmountChange = (text: string) => {
     // Faqat raqam va nuqta qabul qilish
@@ -223,27 +293,135 @@ const PaymentForm = ({ debt, isPartial, onClose, onSubmit }: PaymentFormProps) =
     if (parts.length === 2 && parts[1].length > 2) {
       sanitized = parts[0] + '.' + parts[1].substring(0, 2);
     }
-    const num = parseFloat(sanitized) || 0;
+    let num = parseFloat(sanitized) || 0;
+
+    // MAX SUMMA CHEKLOVI: qarz summasidan oshib ketmasligi kerak
+    const maxAmount = roundAmount(paymentAmountInCurrency, paymentCurrency);
+    if (num > maxAmount) {
+      num = maxAmount;
+    }
+
     // 2 kasrgacha yaxlitlash
-    const rounded = Math.round(num * 100) / 100;
+    const rounded = roundAmount(num, paymentCurrency);
     setAmount(rounded > 0 ? formatNumberWithSpaces(rounded) : sanitized);
   };
 
   const handleSubmit = () => {
-    const parsedAmount = parseSpacedNumber(amount);
+    // Full payment da: exactPaymentAmount ishlatish (aniq qiymat, yaxlitlashsiz)
+    // Partial payment da: foydalanuvchi kiritgan qiymatni parse qilish
+    const parsedAmount = isPartial ? parseSpacedNumber(amount) : exactPaymentAmount;
+
+    console.log('[handleSubmit] Payment submission:', {
+      isPartial,
+      displayAmount: amount,
+      parsedAmount,
+      exactPaymentAmount,
+      usedAmount: parsedAmount,
+    });
+
+    // 1. Basic validation
     if (parsedAmount <= 0) {
-      Alert.alert(debtActionsStrings?.errors?.invalidAmount ?? 'Invalid amount', debtActionsStrings?.errors?.enterValidAmount ?? 'Please enter a valid amount');
-      return;
-    }
-    if (parsedAmount > debt.principalAmount) {
       Alert.alert(
-        debtActionsStrings?.errors?.amountTooHigh ?? 'Amount too high',
-        `${debtActionsStrings?.errors?.maxAmount ?? 'Maximum amount is'} ${formatCurrencyDisplay(debt.principalAmount, debt.principalCurrency)}`
+        debtActionsStrings?.errors?.invalidAmount ?? 'Invalid amount',
+        debtActionsStrings?.errors?.enterValidAmount ?? 'Please enter a valid amount'
       );
       return;
     }
-    // To'lov sanasi avtomatik - bugun
-    onSubmit(parsedAmount, selectedAccountId, new Date(), note || undefined);
+
+    // 2. Account balance validation
+    if (!selectedAccount) {
+      Alert.alert(
+        debtActionsStrings?.errors?.noAccount ?? 'No account selected',
+        debtActionsStrings?.errors?.selectAccount ?? 'Please select an account'
+      );
+      return;
+    }
+
+    // Account valyutasida to'lov summasi
+    const amountInAccountCurrency = paymentCurrency === selectedAccount.currency
+      ? parsedAmount
+      : (FxService.getInstance().getRate(
+          normalizeFinanceCurrency(paymentCurrency),
+          normalizeFinanceCurrency(selectedAccount.currency)
+        ) ?? 1) * parsedAmount;
+
+    // Balance tekshirish (faqat i_owe uchun - men qarz oldim, qaytarmoqchiman)
+    // MUHIM: Floating point xatolari uchun 1 birlik tolerans (1 so'm/cent)
+    if (isIOwe && amountInAccountCurrency > selectedAccount.currentBalance + 1) {
+      const formatCurrencyForAlert = (val: number, curr: string) => {
+        try {
+          const decimals = curr === 'UZS' ? 0 : 2;
+          const formatted = new Intl.NumberFormat(curr === 'UZS' ? 'uz-UZ' : 'en-US', {
+            minimumFractionDigits: decimals,
+            maximumFractionDigits: decimals,
+          }).format(val);
+          return `${formatted} ${curr}`;
+        } catch {
+          return `${val.toFixed(curr === 'UZS' ? 0 : 2)} ${curr}`;
+        }
+      };
+
+      Alert.alert(
+        debtActionsStrings?.errors?.insufficientBalance ?? 'Insufficient balance',
+        `Your ${selectedAccount.name} has only ${formatCurrencyForAlert(selectedAccount.currentBalance, selectedAccount.currency)}. You need ${formatCurrencyForAlert(amountInAccountCurrency, selectedAccount.currency)}.`
+      );
+      return;
+    }
+
+    // 3. Debt amount validation
+    // MUHIM: FxService.convert() ishlatamiz, chunki getRate() teskari kurs qaytarishi mumkin
+    // Masalan: TRY→UZS uchun 0.00267 o'rniga 375 kerak
+    let amountInDebtCurrency: number;
+    if (paymentCurrency === debt.principalCurrency) {
+      amountInDebtCurrency = parsedAmount;
+    } else {
+      const conversion = FxService.getInstance().convert(
+        parsedAmount,
+        normalizeFinanceCurrency(paymentCurrency),
+        normalizeFinanceCurrency(debt.principalCurrency),
+        'sell' // To'lov qilayotganimiz uchun 'sell'
+      );
+      amountInDebtCurrency = conversion.convertedAmount;
+    }
+
+    console.log('[handleSubmit] Debt amount validation:', {
+      paymentAmount: parsedAmount,
+      paymentCurrency: paymentCurrency,
+      debtCurrency: debt.principalCurrency,
+      amountInDebtCurrency: amountInDebtCurrency,
+      debtPrincipalAmount: debt.principalAmount,
+      difference: amountInDebtCurrency - debt.principalAmount,
+      willFail: amountInDebtCurrency > debt.principalAmount,
+      isFullPayment: !isPartial,
+    });
+
+    // MUHIM: Floating point va yaxlitlash xatolari uchun tolerans
+    // Full payment va Partial payment uchun bir xil tolerans
+    // Chunki konvertatsiya qilganda yaxlitlash farqi bo'lishi mumkin
+    const tolerance = Math.max(debt.principalAmount * 0.01, 1); // 1% yoki 1 birlik
+
+    if (amountInDebtCurrency > debt.principalAmount + tolerance) {
+      // MUHIM: Alert da foydalanuvchi to'layotgan valyutada ko'rsatish (UZS emas, TRY!)
+      // paymentAmountInCurrency - bu qarz summasini to'lov valyutasida ifodalaydi
+      Alert.alert(
+        debtActionsStrings?.errors?.amountTooHigh ?? 'Amount too high',
+        `${debtActionsStrings?.errors?.maxAmount ?? 'Maximum amount is'} ${formatCurrencyDisplay(paymentAmountInCurrency, paymentCurrency)}`
+      );
+      return;
+    }
+
+    // ✅ Barcha validatsiyalar o'tdi - to'lovni yaratish
+    console.log('[handleSubmit] Submitting payment:', {
+      amount: parsedAmount,
+      accountId: selectedAccountId,
+      paymentCurrency: paymentCurrency,
+      debtCurrency: debt.principalCurrency,
+      convertedToDebt: amountInDebtCurrency,
+      debtPrincipalAmount: debt.principalAmount,
+      willFullyPay: Math.abs(amountInDebtCurrency - debt.principalAmount) <= 0.01,
+    });
+
+    onSubmit(parsedAmount, selectedAccountId, new Date(), note || undefined, paymentCurrency);
   };
 
   return (
@@ -269,7 +447,7 @@ const PaymentForm = ({ debt, isPartial, onClose, onSubmit }: PaymentFormProps) =
         </Text>
         <View style={styles.accountListWrapper}>
           <FlashList
-            data={accounts}
+            data={availableAccounts}
             keyExtractor={(item: Account) => item.id}
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -289,7 +467,7 @@ const PaymentForm = ({ debt, isPartial, onClose, onSubmit }: PaymentFormProps) =
                     {account.name}
                   </Text>
                   <Text style={[styles.accountChipSubtext, { color: active ? '#0E0E0E' : '#9E9E9E' }]}>
-                    {formatCurrencyDisplay(account.currentBalance ?? 0, account.currency)}
+                    {formatCurrencyDisplay(account.currentBalance ?? 0, account.currency, true)}
                   </Text>
                 </Pressable>
               );
@@ -338,7 +516,7 @@ const PaymentForm = ({ debt, isPartial, onClose, onSubmit }: PaymentFormProps) =
                 {currencyConversionStrings.startRate ?? 'Start rate'}:
               </Text>
               <Text style={[styles.currencyInfoValue, { color: theme.colors.textPrimary }]}>
-                1 {debt.principalCurrency} = {currencyInfo.startRate.toLocaleString()} {debt.repaymentCurrency}
+                {formatExchangeRate(currencyInfo.startRate, debt.principalCurrency, debt.repaymentCurrency ?? 'USD')}
               </Text>
             </View>
             <View style={styles.currencyInfoRow}>
@@ -346,7 +524,7 @@ const PaymentForm = ({ debt, isPartial, onClose, onSubmit }: PaymentFormProps) =
                 {currencyConversionStrings.currentRate ?? 'Current rate'}:
               </Text>
               <Text style={[styles.currencyInfoValue, { color: theme.colors.textPrimary }]}>
-                1 {debt.principalCurrency} = {currencyInfo.currentRate.toLocaleString()} {debt.repaymentCurrency}
+                {formatExchangeRate(currencyInfo.currentRate, debt.principalCurrency, debt.repaymentCurrency ?? 'USD')}
               </Text>
             </View>
             {currencyInfo.hasChange && (
@@ -385,7 +563,7 @@ const PaymentForm = ({ debt, isPartial, onClose, onSubmit }: PaymentFormProps) =
         <Text style={[styles.fieldHelper, { color: theme.colors.textMuted }]}>
           {debtActionsStrings?.fields?.remaining ?? 'Remaining'}: {formatCurrencyDisplay(paymentAmountInCurrency, paymentCurrency)}
           {paymentCurrency !== debt.principalCurrency && (
-            ` (${formatCurrencyDisplay(debt.principalAmount, debt.principalCurrency)})`
+            ` = ${formatCurrencyDisplay(debt.principalAmount, debt.principalCurrency)}`
           )}
         </Text>
       </View>
@@ -656,14 +834,17 @@ export default function DebtActionsModal() {
     }
   }, [router, activeAction]);
 
-  const handlePaymentSubmit = useCallback((amount: number, accountId: string | null, paymentDate: Date, note?: string) => {
+  const handlePaymentSubmit = useCallback((amount: number, accountId: string | null, paymentDate: Date, note?: string, paymentCurrency?: string) => {
     if (!debt) return;
 
     try {
+      // To'lov qaysi valyutada amalga oshirilganini aniqlash
+      const actualPaymentCurrency = paymentCurrency || debt.principalCurrency;
+
       addDebtPayment({
         debtId: debt.id,
         amount,
-        currency: debt.principalCurrency,
+        currency: actualPaymentCurrency,  // ✅ To'lov valyutasini to'g'ri yuborish
         paymentDate: paymentDate.toISOString(),
         accountId: accountId ?? undefined,
         note,
@@ -675,7 +856,7 @@ export default function DebtActionsModal() {
 
       Alert.alert(
         debtActionsStrings?.success?.paymentRecorded ?? 'Payment Recorded',
-        `${formatCurrencyDisplay(amount, debt.principalCurrency)} ${actionLabel} ${debtActionsStrings?.success?.hasBeenRecorded ?? 'has been recorded.'}`
+        `${formatCurrencyDisplay(amount, actualPaymentCurrency)} ${actionLabel} ${debtActionsStrings?.success?.hasBeenRecorded ?? 'has been recorded.'}`
       );
       router.back();
     } catch (error) {
@@ -758,7 +939,11 @@ export default function DebtActionsModal() {
   }
 
   const isIOwe = debt.direction === 'i_owe';
-  const isPaid = debt.status === 'paid' || debt.principalAmount <= 0;
+  // MUHIM: Faqat qolgan summa 0.01 dan kichik bo'lganda to'langan deb hisoblanadi
+  // debt.status 'paid' bo'lishi mumkin, lekin principalAmount > 0.01 bo'lsa, to'lanmagan!
+  // Bu holat user "Mark as Settled" bosganda, lekin keyinroq yangi to'lov qo'shganda yuzaga keladi
+  // Floating point xatolari uchun 0.01 tolerans
+  const isPaid = debt.principalAmount <= 0.01;
 
   // Get title based on active action
   const getTitle = () => {
@@ -864,14 +1049,7 @@ export default function DebtActionsModal() {
                   theme={theme}
                 />
 
-                {/* Mark as Settled */}
-                <ActionCard
-                  icon={<CheckCircle2 size={22} color={theme.colors.success} />}
-                  title={debtActionsStrings?.markSettled?.title ?? 'Mark as Settled'}
-                  subtitle={debtActionsStrings?.markSettled?.subtitle ?? 'Mark this debt as settled without recording a payment'}
-                  onPress={() => setActiveAction('mark_settled')}
-                  theme={theme}
-                />
+                {/* Mark as Settled - OLIB TASHLANDI (faqat to'liq to'langandan keyin banner ko'rsatiladi) */}
               </View>
             )}
           </ScrollView>

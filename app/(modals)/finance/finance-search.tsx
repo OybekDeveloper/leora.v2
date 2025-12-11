@@ -21,6 +21,7 @@ interface SearchResult {
   subtitle: string;
   amount?: string;
   route: string;
+  params?: Record<string, string>; // Detail page uchun params
 }
 
 const FinanceSearchModal = () => {
@@ -89,7 +90,8 @@ const FinanceSearchModal = () => {
           toCurrency: globalCurrency,
           convert: true,
         }),
-        route: '/(tabs)/(finance)/(tabs)/transactions',
+        route: '/(modals)/finance/transaction-detail',
+        params: { id: transaction.id },
       });
     });
 
@@ -106,7 +108,8 @@ const FinanceSearchModal = () => {
           title: budget.name,
           subtitle: budget.budgetType,
           amount: spent,
-          route: '/(tabs)/(finance)/(tabs)/budgets',
+          route: '/(modals)/finance/budget-detail',
+          params: { budgetId: budget.id },
         });
       }
     });
@@ -126,7 +129,8 @@ const FinanceSearchModal = () => {
             toCurrency: globalCurrency,
             convert: true,
           }),
-          route: '/(tabs)/(finance)/(tabs)/debts',
+          route: '/(modals)/finance/debt-detail',
+          params: { id: debt.id },
         });
       }
     });
@@ -134,10 +138,14 @@ const FinanceSearchModal = () => {
     return matches;
   }, [accounts, budgets, debts, formatCurrency, globalCurrency, query, transactions]);
 
-  const handleNavigate = (destination: string) => {
+  const handleNavigate = (result: SearchResult) => {
     router.back();
     setTimeout(() => {
-      router.push(destination as any);
+      if (result.params) {
+        router.push({ pathname: result.route as any, params: result.params });
+      } else {
+        router.push(result.route as any);
+      }
     }, 50);
   };
 
@@ -173,7 +181,7 @@ const FinanceSearchModal = () => {
         contentContainerStyle={styles.listContent}
         estimatedItemSize={80}
         renderItem={({ item }: { item: SearchResult }) => (
-          <Pressable style={styles.resultRow} onPress={() => handleNavigate(item.route)}>
+          <Pressable style={styles.resultRow} onPress={() => handleNavigate(item)}>
             <View>
               <Text style={styles.resultTitle}>{item.title}</Text>
               <Text style={styles.resultSubtitle}>{item.subtitle}</Text>

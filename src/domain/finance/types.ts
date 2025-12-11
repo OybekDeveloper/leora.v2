@@ -194,6 +194,14 @@ export interface Debt {
   status: DebtStatus;
   showStatus?: ShowStatus; // Defaults to 'active' in database schema
   isPending?: boolean;
+
+  // Settlement info - saved when debt is fully paid
+  settledAt?: string;                    // ISO timestamp when fully settled
+  finalRateUsed?: number;                // Exchange rate used for final payment
+  finalProfitLoss?: number;              // Profit (+) or Loss (-) in repayment currency
+  finalProfitLossCurrency?: string;      // Currency of profit/loss (usually repaymentCurrency)
+  totalPaidInRepaymentCurrency?: number; // Total amount paid in repayment currency
+
   createdAt: string;
   updatedAt: string;
 }
