@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Plus } from 'lucide-react-native';
 
 import { AdaptiveGlassView } from '@/components/ui/AdaptiveGlassView';
 import { useLocalization } from '@/localization/useLocalization';
@@ -12,8 +13,9 @@ import type { FinanceCurrency } from '@/stores/useFinancePreferencesStore';
 import { useShallow } from 'zustand/react/shallow';
 import { usePlannerDomainStore } from '@/stores/usePlannerDomainStore';
 import { useAppTheme } from '@/constants/theme';
-import { formatNumberWithSpaces } from '@/utils/formatNumber';
 import * as Progress from 'react-native-progress';
+import { FINANCE_CATEGORIES } from '@/constants/financeCategories';
+import { useLocalizedCategories } from '@/hooks/useLocalizedCategories';
 
 type InfoRowProps = { label: string; value: string };
 
@@ -71,7 +73,8 @@ const BudgetDetail = () => {
       goals: state.goals,
     })),
   );
-  const { convertAmount, globalCurrency } = useFinanceCurrency();
+  const { globalCurrency, formatAccountAmount } = useFinanceCurrency();
+  const { getLocalizedCategoryName } = useLocalizedCategories();
 
   const budgetId = params.budgetId ?? params.id;
 
@@ -96,6 +99,20 @@ const BudgetDetail = () => {
     [budget?.linkedGoalId, goals],
   );
 
+  // Get category details for display
+  const budgetCategories = useMemo(() => {
+    if (!budget?.categoryIds?.length) return [];
+    return budget.categoryIds.map((catName) => {
+      const found = FINANCE_CATEGORIES.find((c) => c.name === catName);
+      return {
+        name: catName,
+        localizedName: getLocalizedCategoryName(catName),
+        icon: found?.icon,
+        colorToken: found?.colorToken ?? 'textSecondary',
+      };
+    });
+  }, [budget?.categoryIds, getLocalizedCategoryName]);
+
   const budgetCurrency = useMemo(
     () =>
       budget
@@ -106,23 +123,13 @@ const BudgetDetail = () => {
     [account?.currency, budget, globalCurrency],
   );
 
-  const spentValue = useMemo(
-    () => convertAmount(budget?.spentAmount ?? 0, budgetCurrency, globalCurrency),
-    [budget?.spentAmount, budgetCurrency, convertAmount, globalCurrency],
-  );
-  const limitValue = useMemo(
-    () => convertAmount(budget?.limitAmount ?? 0, budgetCurrency, globalCurrency),
-    [budget?.limitAmount, budgetCurrency, convertAmount, globalCurrency],
-  );
-  const remainingValue = Math.max(limitValue - spentValue, 0);
-  const balanceValue = budget?.currentBalance ?? budget?.remainingAmount ?? remainingValue;
+  const spentValue = useMemo(() => budget?.spentAmount ?? 0, [budget?.spentAmount]);
+  const limitValue = useMemo(() => budget?.limitAmount ?? 0, [budget?.limitAmount]);
+  const remainingValue = limitValue - spentValue;
 
   const formatValue = useCallback(
-    (value: number) => {
-      const formatted = formatNumberWithSpaces(value);
-      return `${formatted} ${globalCurrency}`;
-    },
-    [globalCurrency],
+    (value: number) => formatAccountAmount(value, budgetCurrency as FinanceCurrency),
+    [budgetCurrency, formatAccountAmount],
   );
 
   // Determine if this is a spending or saving budget
@@ -248,11 +255,55 @@ const BudgetDetail = () => {
             <Text style={[styles.summaryLabel, { color: theme.colors.textSecondary }]}>{detailStrings.remainingLabel}</Text>
             <Text style={[styles.summaryValue, { color: theme.colors.textPrimary }]}>{formatValue(remainingValue)}</Text>
           </View>
-          <View style={styles.summaryRow}>
-            <Text style={[styles.summaryLabel, { color: theme.colors.textSecondary }]}>{detailStrings.balanceLabel}</Text>
-            <Text style={[styles.summaryValue, { color: theme.colors.textPrimary }]}>{formatValue(balanceValue ?? remainingValue)}</Text>
-          </View>
+
+          {/* Add Value Button - Prominent placement */}
+          <Pressable
+            onPress={() =>
+              router.push({
+                pathname: '/(modals)/finance/budget-add-value',
+                params: { budgetId: budget.id },
+              })
+            }
+            style={({ pressed }) => [
+              styles.addValueButton,
+              pressed && styles.pressed,
+              { backgroundColor: theme.colors.primary },
+            ]}
+          >
+            <Plus size={20} color="#FFFFFF" />
+            <Text style={styles.addValueButtonText}>
+              {isSpendingBudget
+                ? (detailStrings.actions?.recordExpense ?? 'Record expense')
+                : (detailStrings.actions?.addToBudget ?? 'Add to budget')}
+            </Text>
+          </Pressable>
         </AdaptiveGlassView>
+
+        {/* Categories Section */}
+        {budgetCategories.length > 0 && (
+          <AdaptiveGlassView style={[styles.glassSurface, styles.card, { backgroundColor: theme.colors.card }]}>
+            <Text style={[styles.sectionLabel, { color: theme.colors.textPrimary }]}>
+              {detailStrings.categoriesLabel}
+            </Text>
+            <View style={styles.categoriesContainer}>
+              {budgetCategories.map((cat) => {
+                const IconComponent = cat.icon;
+                const iconColor = theme.colors[cat.colorToken] ?? theme.colors.textSecondary;
+                return (
+                  <View
+                    key={cat.name}
+                    style={[styles.categoryChip, { backgroundColor: `${iconColor}15` }]}
+                  >
+                    {IconComponent && <IconComponent size={16} color={iconColor} />}
+                    <Text style={[styles.categoryChipText, { color: theme.colors.textPrimary }]}>
+                      {cat.localizedName}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+          </AdaptiveGlassView>
+        )}
 
         <AdaptiveGlassView style={[styles.glassSurface, styles.card, { backgroundColor: theme.colors.card }]}>
           <Text style={[styles.sectionLabel, { color: theme.colors.textPrimary }]}>{detailStrings.title}</Text>
@@ -260,14 +311,11 @@ const BudgetDetail = () => {
             label={detailStrings.accountLabel}
             value={account?.name ?? detailStrings.goalUnlinked}
           />
-          <InfoRow label={detailStrings.categoriesLabel} value={(budget.categoryIds ?? []).join(', ') || '—'} />
           <InfoRow
-            label={detailStrings.createdAt}
-            value={formatDate(budget.createdAt)}
-          />
-          <InfoRow
-            label={detailStrings.updatedAt}
-            value={formatDate(budget.updatedAt)}
+            label={(detailStrings as any).periodLabel ?? 'Period'}
+            value={budget.startDate && budget.endDate
+              ? `${formatDate(budget.startDate)} - ${formatDate(budget.endDate)}`
+              : '—'}
           />
           <InfoRow
             label={detailStrings.notifyLabel}
@@ -279,86 +327,32 @@ const BudgetDetail = () => {
           />
         </AdaptiveGlassView>
 
-        <AdaptiveGlassView style={[styles.glassSurface, styles.card, { backgroundColor: theme.colors.card }]}>
-          <Text style={[styles.sectionLabel, { color: theme.colors.textPrimary }]}>{detailStrings.valueAddTitle}</Text>
-          <InfoRow
-            label={detailStrings.valueAddAccountCurrency}
-            value={account?.currency ?? '—'}
-          />
-          <InfoRow
-            label={detailStrings.valueAddBudgetCurrency}
-            value={budgetCurrency}
-          />
-          <InfoRow
-            label={detailStrings.valueAddDisplayCurrency}
-            value={globalCurrency}
-          />
-        </AdaptiveGlassView>
-
+        {/* Actions Section */}
         <AdaptiveGlassView style={[styles.glassSurface, styles.card, { backgroundColor: theme.colors.card }]}>
           <Text style={[styles.sectionLabel, { color: theme.colors.textPrimary }]}>{detailStrings.actions.title}</Text>
           <Pressable onPress={handleEdit} style={styles.actionRow}>
             <Text style={[styles.actionLabel, { color: theme.colors.textPrimary }]}>{detailStrings.actions.edit}</Text>
           </Pressable>
-          <Pressable
-            onPress={() =>
-              router.push({
-                pathname: '/(modals)/finance/budget-add-value',
-                params: { budgetId: budget.id },
-              })
-            }
-            style={styles.actionRow}
-          >
+          <Pressable onPress={handleViewTransactions} style={styles.actionRow}>
             <Text style={[styles.actionLabel, { color: theme.colors.textPrimary }]}>
-              {isSpendingBudget
-                ? (detailStrings.actions.recordExpense ?? 'Record expense')
-                : (detailStrings.actions.addToBudget ?? 'Add to budget')}
+              {detailStrings.actions.viewTransactions}
             </Text>
           </Pressable>
-          <Pressable
-            onPress={handleViewGoal}
-            disabled={!linkedGoal}
-            style={[styles.actionRow, !linkedGoal && styles.disabledRow]}
-          >
-            <Text style={[styles.actionLabel, { color: theme.colors.textPrimary }]}>{detailStrings.actions.viewGoal}</Text>
-          </Pressable>
+          {linkedGoal && (
+            <Pressable onPress={handleViewGoal} style={styles.actionRow}>
+              <Text style={[styles.actionLabel, { color: theme.colors.textPrimary }]}>{detailStrings.actions.viewGoal}</Text>
+            </Pressable>
+          )}
           <Pressable onPress={handleDelete} style={[styles.actionRow, styles.dangerRow, { borderTopColor: theme.colors.border }]}>
             <Text style={[styles.actionLabel, { color: theme.colors.danger }]}>{detailStrings.actions.delete}</Text>
           </Pressable>
         </AdaptiveGlassView>
-      </ScrollView>
 
-      <View style={styles.actionButtons}>
-        <Pressable
-          style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed, { borderColor: theme.colors.border }]}
-          onPress={handleViewTransactions}
-        >
-          <Text style={[styles.secondaryButtonText, { color: theme.colors.textSecondary }]}>
-            {detailStrings.actions.viewTransactions}
-          </Text>
-        </Pressable>
-        <Pressable
-          style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed, { backgroundColor: theme.colors.primary }]}
-          onPress={() =>
-            router.push({
-              pathname: '/(modals)/finance/budget-add-value',
-              params: { budgetId: budget.id },
-            })
-          }
-        >
-          <Text style={styles.primaryButtonText}>
-            {isSpendingBudget
-              ? (detailStrings.actions.recordExpense ?? 'Record expense')
-              : (detailStrings.actions.addToBudget ?? 'Add to budget')}
-          </Text>
-        </Pressable>
-      </View>
-      <Pressable
-        onPress={handleDelete}
-        style={({ pressed }) => [styles.deleteButton, pressed && styles.pressed, { paddingBottom: insets.bottom + 8 }]}
-      >
-        <Text style={[styles.deleteButtonText, { color: theme.colors.danger }]}>{detailStrings.actions.delete}</Text>
-      </Pressable>
+        {/* Disclaimer */}
+        <Text style={[styles.disclaimer, { color: theme.colors.textMuted }]}>
+          {detailStrings.categoriesLabel}: {budgetCategories.map(c => c.localizedName).join(', ') || '—'}
+        </Text>
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -477,44 +471,41 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     marginTop: 4,
   },
-  actionButtons: {
+  categoriesContainer: {
     flexDirection: 'row',
-    gap: 12,
-    paddingHorizontal: 20,
-    marginTop: 12,
+    flexWrap: 'wrap',
+    gap: 8,
   },
-  secondaryButton: {
-    flex: 1,
-    paddingVertical: 16,
+  categoryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  categoryChipText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  addValueButton: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 16,
-    borderWidth: 1,
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 12,
+    marginTop: 4,
   },
-  secondaryButtonText: {
-    fontSize: 15,
-    fontWeight: '500',
-  },
-  primaryButton: {
-    flex: 1,
-    borderRadius: 16,
-    paddingVertical: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  primaryButtonText: {
+  addValueButtonText: {
     fontSize: 15,
     fontWeight: '700',
     color: '#FFFFFF',
   },
-  deleteButton: {
-    paddingVertical: 16,
-    alignItems: 'center',
-    paddingHorizontal: 20,
-  },
-  deleteButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
+  disclaimer: {
+    fontSize: 12,
+    textAlign: 'center',
+    lineHeight: 18,
   },
   pressed: {
     opacity: 0.7,

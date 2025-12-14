@@ -4,15 +4,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
 
 import { AdaptiveGlassView } from '@/components/ui/AdaptiveGlassView';
-import { Theme, useAppTheme } from '@/constants/theme';
+import { Theme, useAppTheme, createThemedStyles } from '@/constants/theme';
 import { useAccountLocalization } from '@/localization/more/account';
 
-const createStyles = (theme: Theme) =>
+const useStyles = createThemedStyles((theme: Theme) =>
   StyleSheet.create({
     safe: {
       flex: 1,
       backgroundColor: theme.colors.background,
-      paddingBottom: 32
+      paddingBottom: 32,
     },
     content: {
       paddingHorizontal: theme.spacing.lg,
@@ -31,15 +31,13 @@ const createStyles = (theme: Theme) =>
       borderRadius: theme.radius.xxl,
       padding: theme.spacing.xl,
       gap: theme.spacing.lg,
+      backgroundColor: theme.colors.card,
     },
     infoRow: {
       borderRadius: theme.radius.xl,
       paddingHorizontal: theme.spacing.lg,
       paddingVertical: theme.spacing.md,
-      backgroundColor:
-        theme.mode === 'dark'
-          ? 'rgba(34,36,48,0.85)'
-          : 'rgba(229,232,240,0.88)',
+      backgroundColor: theme.colors.overlayWeak,
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
@@ -75,10 +73,9 @@ const createStyles = (theme: Theme) =>
       padding: theme.spacing.lg,
       alignItems: 'center',
       gap: theme.spacing.md,
-      backgroundColor:
-        theme.mode === 'dark'
-          ? 'rgba(32,34,44,0.9)'
-          : 'rgba(226,232,240,0.85)',
+      backgroundColor: theme.colors.surface,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
     },
     radialLabel: {
       fontSize: 13,
@@ -96,10 +93,7 @@ const createStyles = (theme: Theme) =>
     improvementRow: {
       borderRadius: theme.radius.xl,
       padding: theme.spacing.md,
-      backgroundColor:
-        theme.mode === 'dark'
-          ? 'rgba(35,39,51,0.85)'
-          : 'rgba(229,232,240,0.88)',
+      backgroundColor: theme.colors.surface,
       gap: theme.spacing.xs,
     },
     improvementHeader: {
@@ -120,10 +114,7 @@ const createStyles = (theme: Theme) =>
     improvementBar: {
       height: 6,
       borderRadius: theme.radius.full,
-      backgroundColor:
-        theme.mode === 'dark'
-          ? 'rgba(148,163,184,0.15)'
-          : 'rgba(15,23,42,0.08)',
+      backgroundColor: theme.colors.border,
       overflow: 'hidden',
     },
     improvementFill: {
@@ -135,6 +126,7 @@ const createStyles = (theme: Theme) =>
       borderRadius: theme.radius.xxl,
       padding: theme.spacing.xl,
       gap: theme.spacing.md,
+      backgroundColor: theme.colors.card,
     },
     insightRow: {
       flexDirection: 'row',
@@ -154,7 +146,13 @@ const createStyles = (theme: Theme) =>
       color: theme.colors.textSecondary,
       lineHeight: 20,
     },
-  });
+    circleLabel: {
+      marginTop: 8,
+      fontSize: 12,
+      color: theme.colors.textSecondary,
+    },
+  }),
+);
 
 const CircleChart: React.FC<{ size: number; stroke: number; progress: number; label: string }> = ({
   size,
@@ -174,7 +172,7 @@ const CircleChart: React.FC<{ size: number; stroke: number; progress: number; la
       <View style={{ position: 'relative' }}>
         <Svg width={size} height={size}>
           <Circle
-            stroke="rgba(148,163,184,0.18)"
+            stroke={theme.colors.border}
             fill="none"
             cx={size / 2}
             cy={size / 2}
@@ -182,7 +180,7 @@ const CircleChart: React.FC<{ size: number; stroke: number; progress: number; la
             strokeWidth={stroke}
           />
           <Circle
-            stroke="rgba(226,232,240,0.85)"
+            stroke={theme.colors.primary}
             fill="none"
             cx={size / 2}
             cy={size / 2}
@@ -210,14 +208,14 @@ const CircleChart: React.FC<{ size: number; stroke: number; progress: number; la
           {percentage}%
         </Text>
       </View>
-      <Text style={{ marginTop: 8, fontSize: 12, color: theme.colors.textSecondary }}>{label}</Text>
+      <Text style={useStyles().circleLabel}>{label}</Text>
     </View>
   );
 };
 
 const StatisticsScreen: React.FC = () => {
   const theme = useAppTheme();
-  const styles = useMemo(() => createStyles(theme), [theme]);
+  const styles = useStyles();
   const { statistics: copy } = useAccountLocalization();
 
   return (

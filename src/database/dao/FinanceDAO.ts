@@ -104,7 +104,7 @@ const mapBudget = (record: any): Budget => ({
   userId: record.userId ?? defaultUserId,
   name: record.name,
   budgetType: record.budgetType,
-  categoryIds: record.categoryIds ?? [],
+  categoryIds: record.categoryIds ? Array.from(record.categoryIds) : [],
   linkedGoalId: fromObjectId(record.linkedGoalId),
   accountId: fromObjectId(record.accountId),
   transactionType: record.transactionType ?? undefined,
@@ -118,6 +118,7 @@ const mapBudget = (record: any): Budget => ({
   percentUsed: record.percentUsed ?? 0,
   contributionTotal: record.contributionTotal ?? 0,
   currentBalance: record.currentBalance ?? record.remainingAmount ?? record.limitAmount,
+  isOverspent: record.isOverspent ?? false,
   rolloverMode: record.rolloverMode ?? undefined,
   isArchived: Boolean(record.isArchived),
   showStatus: record.showStatus ?? (record.isArchived ? 'archived' : 'active'),
@@ -442,7 +443,7 @@ export class TransactionDAO {
   }
 }
 
-export type BudgetCreateInput = Omit<Budget, 'id' | 'spentAmount' | 'remainingAmount' | 'percentUsed' | 'createdAt' | 'updatedAt'> & {
+export type BudgetCreateInput = Omit<Budget, 'id' | 'spentAmount' | 'remainingAmount' | 'percentUsed' | 'createdAt' | 'updatedAt' | 'isOverspent'> & {
   transactionType?: BudgetFlowType;
 };
 
@@ -484,6 +485,7 @@ export class BudgetDAO {
         notifyOnExceed: input.notifyOnExceed ?? false,
         contributionTotal: 0,
         currentBalance: roundedLimitAmount,
+        isOverspent: false,
         idempotencyKey: (input as any).idempotencyKey ?? null,
         createdAt: now,
         updatedAt: now,

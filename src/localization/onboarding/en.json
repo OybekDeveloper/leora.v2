@@ -2,24 +2,131 @@
   "skip": "Skip",
   "continue": "Continue",
   "getStarted": "Get Started",
+  "mockup": {
+    "budget": {
+      "category": "Groceries"
+    },
+    "debt": {
+      "inDays": "days"
+    },
+    "analytics": {
+      "income": "Income",
+      "expense": "Expense",
+      "vsLastMonth": "vs last month",
+      "transport": "Transport"
+    },
+    "accounts": {
+      "mainCard": "Main Card",
+      "savings": "Savings"
+    },
+    "goals": {
+      "name": "New Laptop"
+    },
+    "tasks": {
+      "item1": "Project presentation",
+      "item2": "Write report",
+      "item3": "Reply emails"
+    },
+    "habits": {
+      "name": "Drink water",
+      "record": "Record"
+    },
+    "focus": {
+      "task": "Coding"
+    },
+    "ai": {
+      "title": "AI Analysis",
+      "insight": "Transport expenses increased by 23% this month",
+      "suggestion": "Use public transport"
+    },
+    "voice": {
+      "command": "\"500k for groceries\"",
+      "result": "Expense added"
+    },
+    "reminders": {
+      "debt": "Pay debt",
+      "budget": "Budget limit",
+      "today": "Today"
+    },
+    "predictions": {
+      "title": "Advice",
+      "prediction": "Next month ~4.2M expense",
+      "tip": "8% less than last month",
+      "accuracy": "accuracy"
+    }
+  },
   "pages": [
     {
-      "id": "welcome",
-      "title": "Leora",
-      "subtitle": "Manage your life",
-      "description": "Control your financial goals, daily habits, and time in one place"
+      "id": "budget",
+      "title": "Budget",
+      "subtitle": "Control your spending",
+      "description": "Set budgets by category and track your expenses in real-time"
     },
     {
-      "id": "finance",
-      "title": "Finance",
-      "subtitle": "Track your money",
-      "description": "Record income and expenses, create budgets, manage debts, and achieve financial goals"
+      "id": "debt",
+      "title": "Debts",
+      "subtitle": "Manage your debts",
+      "description": "Record given and received loans, track payment due dates"
     },
     {
-      "id": "planner",
-      "title": "Planner",
-      "subtitle": "Achieve your goals",
-      "description": "Set goals, create tasks, build useful habits, and track your progress"
+      "id": "analytics",
+      "title": "Analytics",
+      "subtitle": "Financial statistics",
+      "description": "Analyze income and expense dynamics, identify trends"
+    },
+    {
+      "id": "accounts",
+      "title": "Accounts",
+      "subtitle": "All accounts in one place",
+      "description": "Manage cash, cards, and savings in one place"
+    },
+    {
+      "id": "goals",
+      "title": "Goals",
+      "subtitle": "Achieve your dreams",
+      "description": "Set financial and personal goals, track progress"
+    },
+    {
+      "id": "tasks",
+      "title": "Tasks",
+      "subtitle": "Plan your work",
+      "description": "Create daily tasks, set priority levels"
+    },
+    {
+      "id": "habits",
+      "title": "Habits",
+      "subtitle": "Build healthy habits",
+      "description": "Track daily habits, collect streaks and beat your records"
+    },
+    {
+      "id": "focus",
+      "title": "Focus",
+      "subtitle": "Deep work mode",
+      "description": "Work efficiently with Pomodoro technique, stay focused"
+    },
+    {
+      "id": "ai-analysis",
+      "title": "AI Analysis",
+      "subtitle": "Smart recommendations",
+      "description": "AI analyzes your spending and provides helpful advice"
+    },
+    {
+      "id": "voice",
+      "title": "Voice Commands",
+      "subtitle": "Control with voice",
+      "description": "Add expenses, create tasks, or set reminders using your voice"
+    },
+    {
+      "id": "reminders",
+      "title": "Reminders",
+      "subtitle": "Never forget anything",
+      "description": "Get notified about debt payments and budget limits on time"
+    },
+    {
+      "id": "predictions",
+      "title": "Advice",
+      "subtitle": "Smart recommendations",
+      "description": "Get personalized financial advice with AI and optimize your budget"
     }
   ]
 }

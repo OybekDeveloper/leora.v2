@@ -118,7 +118,7 @@ export default function QuickExpenseModal() {
   const [categoryDraft, setCategoryDraft] = useState('');
   const [pickerMode, setPickerMode] = useState<'date' | 'time' | null>(null);
   const [selectedBudgetId, setSelectedBudgetId] = useState<string | null>(null);
-  const [showBudgetPicker, setShowBudgetPicker] = useState(false);
+  const [userSelectedNoBudget, setUserSelectedNoBudget] = useState(false);
 
   const availableCategories = useMemo(() => {
     const baseList = getCategoriesForType(activeTab);
@@ -158,7 +158,7 @@ export default function QuickExpenseModal() {
       setTransactionDate(new Date());
       setNote('');
       setSelectedBudgetId(null);
-      setShowBudgetPicker(false);
+      setUserSelectedNoBudget(false);
       setPickerMode(null);
     },
     [accounts],
@@ -197,14 +197,26 @@ export default function QuickExpenseModal() {
     });
   }, [budgets, selectedCategory, activeTab]);
 
-  // All budgets (for showing all options regardless of type/category)
-  const allBudgets = budgets;
+  // When category changes, handle budget selection based on transaction type:
+  // - Expense (outcome): Auto-select first matching budget (required if budget exists)
+  // - Income: Default to "No budget" (optional)
+  useEffect(() => {
+    if (!selectedCategory) {
+      setSelectedBudgetId(null);
+      setUserSelectedNoBudget(true);
+      return;
+    }
 
-  // Other budgets (all except category-specific ones)
-  const otherBudgets = useMemo(() => {
-    const categoryBudgetIds = new Set(categoryBudgets.map((b) => b.id));
-    return budgets.filter((budget) => !categoryBudgetIds.has(budget.id));
-  }, [budgets, categoryBudgets]);
+    // For expense transactions: auto-select first matching budget (required)
+    if (activeTab === 'outcome' && categoryBudgets.length > 0) {
+      setSelectedBudgetId(categoryBudgets[0].id);
+      setUserSelectedNoBudget(false);
+    } else {
+      // For income transactions: default to "No budget" (optional)
+      setSelectedBudgetId(null);
+      setUserSelectedNoBudget(true);
+    }
+  }, [selectedCategory, activeTab, categoryBudgets]);
 
   const selectedBudget = useMemo(() => {
     if (!selectedBudgetId) return null;
@@ -409,13 +421,11 @@ export default function QuickExpenseModal() {
       goalForLink = goals.find((goal) => goal.id === editingTransaction.goalId) ?? null;
     }
 
-    // Priority: user-selected budget > linkedBudget > inferred budget
-    let budgetForLink = selectedBudget;
-    if (!budgetForLink) {
-      budgetForLink = linkedBudget;
-    }
-    if (!budgetForLink && inferredBudgetId) {
-      budgetForLink = budgets.find((budget) => budget.id === inferredBudgetId) ?? null;
+    // Only use budget if user explicitly selected one (not "No budget")
+    // Default is "No budget" - transaction won't be linked to any budget
+    let budgetForLink = null;
+    if (selectedBudgetId && !userSelectedNoBudget) {
+      budgetForLink = selectedBudget;
     }
 
     let debtForLink = linkedDebt;
@@ -432,6 +442,10 @@ export default function QuickExpenseModal() {
     const convertedAmountToBase = amountNumber * rateToBase;
 
     // Build payload with safe null handling for all linked data
+    // Skip budget auto-matching only for income transactions when user chose "No budget"
+    // For expense transactions, budget matching is always required if budgets exist
+    const shouldSkipBudgetMatching = activeTab === 'income' && userSelectedNoBudget && categoryBudgets.length > 0;
+
     const basePayload: Parameters<typeof createTransaction>[0] = {
       userId: 'local-user',
       type: domainType,
@@ -440,19 +454,21 @@ export default function QuickExpenseModal() {
       currency: selectedAccountData.currency,
       categoryId: selectedCategory,
       name: transactionName.trim() || undefined,
-      counterpartyId: selectedCounterpartyId ?? undefined,
+      counterpartyId: editingTransaction?.counterpartyId ?? linkedDebt?.counterpartyId ?? undefined,
       description: finalNote.length ? finalNote : undefined,
       date: transactionDate.toISOString(),
       baseCurrency: normalizedBaseCurrency,
       rateUsedToBase: rateToBase,
       convertedAmountToBase,
+      // Skip budget auto-matching if user explicitly chose "No budget"
+      skipBudgetMatching: shouldSkipBudgetMatching || undefined,
       // Linked data - safe null handling
       goalId: goalForLink?.id ?? editingTransaction?.goalId ?? linkedGoalId ?? undefined,
-      budgetId: budgetForLink?.id ?? editingTransaction?.budgetId ?? undefined,
+      budgetId: budgetForLink?.id ?? undefined,
       debtId: debtForLink?.id ?? editingTransaction?.debtId ?? undefined,
       goalName: goalForLink?.title ?? editingTransaction?.goalName ?? undefined,
       goalType: goalForLink?.goalType ?? editingTransaction?.goalType ?? undefined,
-      relatedBudgetId: budgetForLink?.id ?? editingTransaction?.relatedBudgetId ?? undefined,
+      relatedBudgetId: budgetForLink?.id ?? undefined,
       relatedDebtId: debtForLink?.id ?? editingTransaction?.relatedDebtId ?? undefined,
       plannedAmount: goalForLink?.targetValue ?? editingTransaction?.plannedAmount ?? undefined,
       paidAmount: amountNumber,
@@ -470,6 +486,7 @@ export default function QuickExpenseModal() {
     amountNumber,
     budgets,
     baseCurrency,
+    categoryBudgets,
     convertAmount,
     createTransaction,
     debts,
@@ -477,19 +494,19 @@ export default function QuickExpenseModal() {
     goals,
     handleClose,
     isSaveDisabled,
-    linkedBudget,
     linkedDebt,
     linkedGoal,
-    inferredBudgetId,
     inferredDebtId,
     linkedGoalId,
     note,
     selectedAccountData,
     selectedBudget,
+    selectedBudgetId,
     selectedCategory,
     transactionDate,
     transactionName,
     updateTransaction,
+    userSelectedNoBudget,
   ]);
 
   const renderCategoryIcon = (category: FinanceCategory, size: number, color: string) => {
@@ -566,19 +583,13 @@ export default function QuickExpenseModal() {
               </Pressable>
             </View>
 
-            <View style={styles.section}>
-              <Text style={styles.sectionLabel}>
-                {detailStrings.name ?? 'Name'}
-              </Text>
-              <AdaptiveGlassView style={[styles.glassSurface, styles.inputWrapper]}>
-                <TextInput
-                  value={transactionName}
-                  onChangeText={setTransactionName}
-                  placeholder={quickStrings.namePlaceholder ?? 'Transaction name (optional)'}
-                  placeholderTextColor={theme.colors.textMuted}
-                  style={styles.textInput}
-                />
-              </AdaptiveGlassView>
+            <View style={[styles.section, { zIndex: 9999 }]}>
+              <AccountPicker
+                selectedAccountId={selectedAccount}
+                onSelect={handleAccountSelect}
+                label={detailStrings.account ?? 'Account'}
+                placeholder={quickStrings.selectAccountPlaceholder ?? 'Select account...'}
+              />
             </View>
 
             <View style={styles.section}>
@@ -592,6 +603,21 @@ export default function QuickExpenseModal() {
                   placeholder={quickStrings.amountPlaceholder ?? 'Input amount'}
                   placeholderTextColor={theme.colors.textMuted}
                   keyboardType="numeric"
+                  style={styles.textInput}
+                />
+              </AdaptiveGlassView>
+            </View>
+
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>
+                {detailStrings.name ?? 'Name'}
+              </Text>
+              <AdaptiveGlassView style={[styles.glassSurface, styles.inputWrapper]}>
+                <TextInput
+                  value={transactionName}
+                  onChangeText={setTransactionName}
+                  placeholder={quickStrings.namePlaceholder ?? 'Transaction name (optional)'}
+                  placeholderTextColor={theme.colors.textMuted}
                   style={styles.textInput}
                 />
               </AdaptiveGlassView>
@@ -653,135 +679,87 @@ export default function QuickExpenseModal() {
               </View>
             </View>
 
-            {/* Budget Picker - shows when budgets exist for this transaction type */}
-            {allBudgets.length > 0 && (
+            {/* Budget Chips - shows when category is selected and matching budgets exist */}
+            {selectedCategory && categoryBudgets.length > 0 && (
               <View style={styles.section}>
                 <Text style={styles.sectionLabel}>
-                  {quickStrings.budget ?? 'Budget'} ({quickStrings.optional ?? 'optional'})
+                  {quickStrings.budget ?? 'Budget'}
                 </Text>
-                <Pressable
-                  onPress={() => setShowBudgetPicker(!showBudgetPicker)}
-                  style={({ pressed }) => [pressed && styles.pressed]}
-                >
-                  <AdaptiveGlassView style={[styles.glassSurface, styles.budgetPickerButton]}>
-                    <Text style={[styles.budgetPickerText, { color: selectedBudget ? theme.colors.textPrimary : theme.colors.textMuted }]}>
-                      {selectedBudget?.name ?? (quickStrings.selectBudget ?? 'Select budget...')}
-                    </Text>
-                    <Ionicons
-                      name={showBudgetPicker ? 'chevron-up' : 'chevron-down'}
-                      size={18}
-                      color={theme.colors.textMuted}
-                    />
-                  </AdaptiveGlassView>
-                </Pressable>
-                {showBudgetPicker && (
-                  <View style={styles.budgetDropdown}>
-                    {/* Option to clear selection */}
+                <View style={styles.budgetChipsContainer}>
+                  {/* No budget chip - only for income transactions (optional) */}
+                  {activeTab === 'income' && (
                     <Pressable
                       onPress={() => {
                         setSelectedBudgetId(null);
-                        setShowBudgetPicker(false);
+                        setUserSelectedNoBudget(true);
                       }}
-                      style={({ pressed }) => [styles.budgetOption, pressed && styles.pressed]}
+                      style={({ pressed }) => [styles.budgetChip, pressed && styles.pressed]}
                     >
-                      <AdaptiveGlassView style={[styles.glassSurface, styles.budgetOptionInner]}>
-                        <Text style={[styles.budgetOptionText, { color: theme.colors.textMuted }]}>
-                          {quickStrings.noBudget ?? 'No budget'}
-                        </Text>
+                      <AdaptiveGlassView
+                        style={[
+                          styles.glassSurface,
+                          styles.budgetChipInner,
+                          selectedBudgetId === null && styles.budgetChipSelected,
+                        ]}
+                      >
+                        <View style={styles.budgetChipContent}>
+                          <Text
+                            style={[
+                              styles.budgetChipText,
+                              { color: selectedBudgetId === null ? theme.colors.textPrimary : theme.colors.textMuted },
+                            ]}
+                          >
+                            {quickStrings.noBudget ?? 'No budget'}
+                          </Text>
+                        </View>
+                        {selectedBudgetId === null && (
+                          <Ionicons name="checkmark-circle" size={16} color={theme.colors.success} />
+                        )}
                       </AdaptiveGlassView>
                     </Pressable>
+                  )}
 
-                    {/* Category-specific budgets */}
-                    {categoryBudgets.length > 0 && (
-                      <>
-                        <Text style={styles.budgetSectionLabel}>
-                          {quickStrings.categoryBudgets ?? 'Category budgets'}
-                        </Text>
-                        {categoryBudgets.map((budget) => (
-                          <Pressable
-                            key={budget.id}
-                            onPress={() => {
-                              setSelectedBudgetId(budget.id);
-                              setShowBudgetPicker(false);
-                            }}
-                            style={({ pressed }) => [styles.budgetOption, pressed && styles.pressed]}
-                          >
-                            <AdaptiveGlassView
+                  {/* Matching budget chips */}
+                  {categoryBudgets.map((budget) => {
+                    const isSelected = selectedBudgetId === budget.id;
+                    return (
+                      <Pressable
+                        key={budget.id}
+                        onPress={() => {
+                          setSelectedBudgetId(budget.id);
+                          setUserSelectedNoBudget(false);
+                        }}
+                        style={({ pressed }) => [styles.budgetChip, pressed && styles.pressed]}
+                      >
+                        <AdaptiveGlassView
+                          style={[
+                            styles.glassSurface,
+                            styles.budgetChipInner,
+                            isSelected && styles.budgetChipSelected,
+                          ]}
+                        >
+                          <View style={styles.budgetChipContent}>
+                            <Text
                               style={[
-                                styles.glassSurface,
-                                styles.budgetOptionInner,
-                                selectedBudgetId === budget.id && styles.budgetOptionSelected,
+                                styles.budgetChipText,
+                                { color: isSelected ? theme.colors.textPrimary : theme.colors.textSecondary },
                               ]}
+                              numberOfLines={1}
                             >
-                              <View style={styles.budgetOptionContent}>
-                                <Text
-                                  style={[
-                                    styles.budgetOptionText,
-                                    { color: selectedBudgetId === budget.id ? theme.colors.textPrimary : theme.colors.textSecondary },
-                                  ]}
-                                  numberOfLines={1}
-                                >
-                                  {budget.name}
-                                </Text>
-                                <Text style={styles.budgetOptionSubtext}>
-                                  {formatNumberWithSpaces(budget.remainingAmount ?? 0)} / {formatNumberWithSpaces(budget.limitAmount ?? 0)} {budget.currency}
-                                </Text>
-                              </View>
-                              {selectedBudgetId === budget.id && (
-                                <Ionicons name="checkmark" size={18} color={theme.colors.textPrimary} />
-                              )}
-                            </AdaptiveGlassView>
-                          </Pressable>
-                        ))}
-                      </>
-                    )}
-
-                    {/* Other budgets */}
-                    {otherBudgets.length > 0 && (
-                      <>
-                        <Text style={styles.budgetSectionLabel}>
-                          {quickStrings.allBudgets ?? 'All budgets'}
-                        </Text>
-                        {otherBudgets.map((budget) => (
-                          <Pressable
-                            key={budget.id}
-                            onPress={() => {
-                              setSelectedBudgetId(budget.id);
-                              setShowBudgetPicker(false);
-                            }}
-                            style={({ pressed }) => [styles.budgetOption, pressed && styles.pressed]}
-                          >
-                            <AdaptiveGlassView
-                              style={[
-                                styles.glassSurface,
-                                styles.budgetOptionInner,
-                                selectedBudgetId === budget.id && styles.budgetOptionSelected,
-                              ]}
-                            >
-                              <View style={styles.budgetOptionContent}>
-                                <Text
-                                  style={[
-                                    styles.budgetOptionText,
-                                    { color: selectedBudgetId === budget.id ? theme.colors.textPrimary : theme.colors.textSecondary },
-                                  ]}
-                                  numberOfLines={1}
-                                >
-                                  {budget.name}
-                                </Text>
-                                <Text style={styles.budgetOptionSubtext}>
-                                  {formatNumberWithSpaces(budget.remainingAmount ?? 0)} / {formatNumberWithSpaces(budget.limitAmount ?? 0)} {budget.currency}
-                                </Text>
-                              </View>
-                              {selectedBudgetId === budget.id && (
-                                <Ionicons name="checkmark" size={18} color={theme.colors.textPrimary} />
-                              )}
-                            </AdaptiveGlassView>
-                          </Pressable>
-                        ))}
-                      </>
-                    )}
-                  </View>
-                )}
+                              {budget.name}
+                            </Text>
+                            <Text style={styles.budgetChipSubtext}>
+                              {formatNumberWithSpaces(budget.remainingAmount ?? 0)} {budget.currency}
+                            </Text>
+                          </View>
+                          {isSelected && (
+                            <Ionicons name="checkmark-circle" size={16} color={theme.colors.success} />
+                          )}
+                        </AdaptiveGlassView>
+                      </Pressable>
+                    );
+                  })}
+                </View>
               </View>
             )}
 
@@ -809,15 +787,6 @@ export default function QuickExpenseModal() {
                   </AdaptiveGlassView>
                 </Pressable>
               </View>
-            </View>
-
-            <View style={[styles.section, { zIndex: 9999 }]}>
-              <AccountPicker
-                selectedAccountId={selectedAccount}
-                onSelect={handleAccountSelect}
-                label={detailStrings.account ?? 'Account'}
-                placeholder={quickStrings.selectAccountPlaceholder ?? 'Select account...'}
-              />
             </View>
 
             {(linkedGoal || linkedBudget || linkedDebt) && (
@@ -1112,58 +1081,38 @@ const createStyles = (theme: Theme) =>
       fontWeight: '600',
       textAlign: 'center',
     },
-    budgetPickerButton: {
+    budgetChipsContainer: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    budgetChip: {
+      borderRadius: 12,
+    },
+    budgetChipInner: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
-      borderRadius: 16,
-      paddingHorizontal: 14,
-      paddingVertical: 12,
-    },
-    budgetPickerText: {
-      fontSize: 15,
-      fontWeight: '600',
-    },
-    budgetDropdown: {
-      marginTop: 8,
       gap: 6,
-    },
-    budgetOption: {
       borderRadius: 12,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
     },
-    budgetOptionInner: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      borderRadius: 12,
-      paddingHorizontal: 14,
-      paddingVertical: 10,
-    },
-    budgetOptionSelected: {
+    budgetChipSelected: {
       borderWidth: 1,
-      borderColor: theme.colors.glassBorder,
+      borderColor: theme.colors.success,
     },
-    budgetOptionContent: {
-      flex: 1,
+    budgetChipContent: {
       gap: 2,
+      minHeight: 32,
+      justifyContent: 'center',
     },
-    budgetOptionText: {
-      fontSize: 14,
+    budgetChipText: {
+      fontSize: 13,
       fontWeight: '600',
     },
-    budgetOptionSubtext: {
-      fontSize: 12,
-      fontWeight: '500',
-      color: theme.colors.textMuted,
-    },
-    budgetSectionLabel: {
+    budgetChipSubtext: {
       fontSize: 11,
-      fontWeight: '600',
-      letterSpacing: 0.5,
-      textTransform: 'uppercase',
-      marginTop: 8,
-      marginBottom: 4,
-      paddingHorizontal: 4,
+      fontWeight: '500',
       color: theme.colors.textMuted,
     },
     dateTimeRow: {

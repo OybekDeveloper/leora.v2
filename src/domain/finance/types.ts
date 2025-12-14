@@ -89,6 +89,7 @@ export interface Transaction {
   conversionRate?: number; // Konvertatsiya kursi (masalan 12500 UZS/USD)
   isPending?: boolean;
   isBalanceAdjustment?: boolean; // Account balance qo'lda o'zgartirilganda yaratilgan transaction
+  skipBudgetMatching?: boolean; // User explicitly chose "No budget" - skip auto-matching by category
   createdAt: string;
   updatedAt: string;
 }
@@ -114,6 +115,7 @@ export interface Budget {
   spentAmount: number;
   remainingAmount: number;
   percentUsed: number;
+  isOverspent: boolean;
   rolloverMode?: 'none' | 'carryover';
   isArchived: boolean; // DEPRECATED: Use showStatus instead
   showStatus?: ShowStatus; // Defaults to 'active' in database schema

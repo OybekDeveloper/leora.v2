@@ -2,24 +2,131 @@
   "skip": "O'tkazib yuborish",
   "continue": "Davom etish",
   "getStarted": "Boshlash",
+  "mockup": {
+    "budget": {
+      "category": "Oziq-ovqat"
+    },
+    "debt": {
+      "inDays": "kunda"
+    },
+    "analytics": {
+      "income": "Daromad",
+      "expense": "Xarajat",
+      "vsLastMonth": "o'tgan oyga nisbatan",
+      "transport": "Transport"
+    },
+    "accounts": {
+      "mainCard": "Asosiy karta",
+      "savings": "Jamg'arma"
+    },
+    "goals": {
+      "name": "Yangi laptop"
+    },
+    "tasks": {
+      "item1": "Loyiha taqdimoti",
+      "item2": "Hisobot yozish",
+      "item3": "Email javoblash"
+    },
+    "habits": {
+      "name": "Suv ichish",
+      "record": "Rekord"
+    },
+    "focus": {
+      "task": "Kod yozish"
+    },
+    "ai": {
+      "title": "AI Tahlil",
+      "insight": "Bu oyda transport xarajatlari 23% oshdi",
+      "suggestion": "Jamoat transportidan foydalaning"
+    },
+    "voice": {
+      "command": "\"500 ming so'm oziq-ovqatga\"",
+      "result": "Xarajat qo'shildi"
+    },
+    "reminders": {
+      "debt": "Qarz to'lash",
+      "budget": "Budjet limiti",
+      "today": "Bugun"
+    },
+    "predictions": {
+      "title": "Maslahat",
+      "prediction": "Keyingi oyda ~4.2M xarajat",
+      "tip": "O'tgan oyga nisbatan 8% kam",
+      "accuracy": "aniqlik"
+    }
+  },
   "pages": [
     {
-      "id": "welcome",
-      "title": "Leora",
-      "subtitle": "Hayotingizni boshqaring",
-      "description": "Moliyaviy maqsadlaringiz, kundalik odatlaringiz va vaqtingizni bir joyda nazorat qiling"
+      "id": "budget",
+      "title": "Budjet",
+      "subtitle": "Xarajatlarni nazorat qiling",
+      "description": "Kategoriyalar bo'yicha budjet belgilang va real vaqtda xarajatlaringizni kuzatib boring"
     },
     {
-      "id": "finance",
-      "title": "Moliya",
-      "subtitle": "Pullaringizni kuzating",
-      "description": "Daromad va xarajatlarni qayd qiling, budjetlar yarating, qarzlarni boshqaring va moliyaviy maqsadlarga erishing"
+      "id": "debt",
+      "title": "Qarzlar",
+      "subtitle": "Qarzlarni boshqaring",
+      "description": "Berilgan va olingan qarzlarni qayd qiling, to'lov muddatlarini kuzating"
     },
     {
-      "id": "planner",
-      "title": "Rejalashtiruvchi",
-      "subtitle": "Maqsadlaringizga erishing",
-      "description": "Maqsadlar qo'ying, vazifalar yarating, foydali odatlar shakllantiring va o'z taraqqiyotingizni kuzating"
+      "id": "analytics",
+      "title": "Tahlil",
+      "subtitle": "Moliyaviy statistika",
+      "description": "Daromad va xarajatlar dinamikasini tahlil qiling, tendensiyalarni aniqlang"
+    },
+    {
+      "id": "accounts",
+      "title": "Hisoblar",
+      "subtitle": "Barcha hisoblar bir joyda",
+      "description": "Naqd pul, kartalar va jamg'armalarni bir joyda boshqaring"
+    },
+    {
+      "id": "goals",
+      "title": "Maqsadlar",
+      "subtitle": "Orzularingizga erishing",
+      "description": "Moliyaviy va shaxsiy maqsadlar qo'ying, progress kuzating"
+    },
+    {
+      "id": "tasks",
+      "title": "Vazifalar",
+      "subtitle": "Ishlarni rejalashtiring",
+      "description": "Kundalik vazifalarni yarating, muhimlik darajasini belgilang"
+    },
+    {
+      "id": "habits",
+      "title": "Odatlar",
+      "subtitle": "Foydali odatlar shakllantiring",
+      "description": "Kundalik odatlarni kuzating, streak yig'ing va rekordlarni yangilang"
+    },
+    {
+      "id": "focus",
+      "title": "Fokus",
+      "subtitle": "Chuqur ishlang",
+      "description": "Pomodoro texnikasi bilan samarali ishlang, diqqatni jamlang"
+    },
+    {
+      "id": "ai-analysis",
+      "title": "AI Tahlil",
+      "subtitle": "Aqlli tavsiyalar",
+      "description": "Sun'iy intellekt sizning xarajatlaringizni tahlil qilib, foydali maslahatlar beradi"
+    },
+    {
+      "id": "voice",
+      "title": "Ovozli buyruqlar",
+      "subtitle": "Ovoz bilan boshqaring",
+      "description": "Ovozingiz bilan xarajat qo'shing, vazifa yarating yoki eslatma o'rnating"
+    },
+    {
+      "id": "reminders",
+      "title": "Eslatmalar",
+      "subtitle": "Hech narsani unutmang",
+      "description": "Qarz to'lovlari va budjet limitlari haqida o'z vaqtida xabardor bo'ling"
+    },
+    {
+      "id": "predictions",
+      "title": "Maslahatlar",
+      "subtitle": "Aqlli tavsiyalar",
+      "description": "AI yordamida shaxsiy moliyaviy maslahatlar oling va byudjetni optimallashtiring"
     }
   ]
 }

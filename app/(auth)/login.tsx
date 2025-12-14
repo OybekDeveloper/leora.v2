@@ -8,13 +8,11 @@ import {
   SocialLoginButtons,
   AuthScreenContainer,
 } from '@/components/screens/auth';
-import { LanguageSelectorControl } from '@/components/screens/auth/LanguageSelectorControl';
 import GlassCard from '@/components/shared/GlassCard';
 import { CheckIcon } from '@assets/icons';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useLockStore } from '@/stores/useLockStore';
 import { useLocalization } from '@/localization/useLocalization';
-import { SupportedLanguage, useSettingsStore } from '@/stores/useSettingsStore';
 import { useAppTheme, type Theme } from '@/constants/theme';
 
 const LoginScreen = () => {
@@ -29,8 +27,6 @@ const LoginScreen = () => {
   const setLoggedIn = useLockStore((state) => state.setLoggedIn);
   const setLocked = useLockStore((state) => state.setLocked);
   const updateLastActive = useLockStore((state) => state.updateLastActive);
-  const selectedLanguage = useSettingsStore((state) => state.language as SupportedLanguage);
-  const setLanguagePreference = useSettingsStore((state) => state.setLanguage);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -113,27 +109,11 @@ const LoginScreen = () => {
     );
   };
 
-  const handleSelectLanguage = useCallback(
-    (language: SupportedLanguage) => {
-      setLanguagePreference(language);
-      if (error) {
-        clearError();
-      }
-    },
-    [clearError, error, setLanguagePreference],
-  );
-
   return (
     <AuthScreenContainer>
       <View style={styles.container}>
         <GlassCard>
           <View style={styles.card}>
-            <LanguageSelectorControl
-              label={commonStrings.languageButtonLabel}
-              helper={commonStrings.languageHelper}
-              value={selectedLanguage}
-              onChange={handleSelectLanguage}
-            />
             {/* Header */}
             <View style={styles.header}>
               <Text style={styles.title}>{loginStrings.title}</Text>

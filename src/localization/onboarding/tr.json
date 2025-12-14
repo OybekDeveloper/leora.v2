@@ -2,24 +2,131 @@
   "skip": "Atla",
   "continue": "Devam et",
   "getStarted": "Başla",
+  "mockup": {
+    "budget": {
+      "category": "Market"
+    },
+    "debt": {
+      "inDays": "gün"
+    },
+    "analytics": {
+      "income": "Gelir",
+      "expense": "Gider",
+      "vsLastMonth": "geçen aya göre",
+      "transport": "Ulaşım"
+    },
+    "accounts": {
+      "mainCard": "Ana Kart",
+      "savings": "Birikim"
+    },
+    "goals": {
+      "name": "Yeni Laptop"
+    },
+    "tasks": {
+      "item1": "Proje sunumu",
+      "item2": "Rapor yaz",
+      "item3": "E-postalara cevap ver"
+    },
+    "habits": {
+      "name": "Su iç",
+      "record": "Rekor"
+    },
+    "focus": {
+      "task": "Kod yazma"
+    },
+    "ai": {
+      "title": "AI Analiz",
+      "insight": "Bu ay ulaşım harcamaları %23 arttı",
+      "suggestion": "Toplu taşıma kullan"
+    },
+    "voice": {
+      "command": "\"500 bin markete\"",
+      "result": "Harcama eklendi"
+    },
+    "reminders": {
+      "debt": "Borç öde",
+      "budget": "Bütçe limiti",
+      "today": "Bugün"
+    },
+    "predictions": {
+      "title": "Tavsiye",
+      "prediction": "Gelecek ay ~4.2M harcama",
+      "tip": "Geçen aya göre %8 az",
+      "accuracy": "doğruluk"
+    }
+  },
   "pages": [
     {
-      "id": "welcome",
-      "title": "Leora",
-      "subtitle": "Hayatını yönet",
-      "description": "Finansal hedeflerini, günlük alışkanlıklarını ve zamanını tek bir yerde kontrol et"
+      "id": "budget",
+      "title": "Bütçe",
+      "subtitle": "Harcamalarını kontrol et",
+      "description": "Kategorilere göre bütçe belirle ve harcamalarını gerçek zamanlı takip et"
     },
     {
-      "id": "finance",
-      "title": "Finans",
-      "subtitle": "Paranı takip et",
-      "description": "Gelir ve giderleri kaydet, bütçeler oluştur, borçları yönet ve finansal hedeflere ulaş"
+      "id": "debt",
+      "title": "Borçlar",
+      "subtitle": "Borçlarını yönet",
+      "description": "Verilen ve alınan borçları kaydet, ödeme vadelerini takip et"
     },
     {
-      "id": "planner",
-      "title": "Planlayıcı",
-      "subtitle": "Hedeflerine ulaş",
-      "description": "Hedefler koy, görevler oluştur, faydalı alışkanlıklar edin ve ilerlemeni takip et"
+      "id": "analytics",
+      "title": "Analitik",
+      "subtitle": "Finansal istatistikler",
+      "description": "Gelir ve gider dinamiklerini analiz et, trendleri belirle"
+    },
+    {
+      "id": "accounts",
+      "title": "Hesaplar",
+      "subtitle": "Tüm hesaplar tek yerde",
+      "description": "Nakit, kartlar ve birikimlerini tek bir yerde yönet"
+    },
+    {
+      "id": "goals",
+      "title": "Hedefler",
+      "subtitle": "Hayallerini gerçekleştir",
+      "description": "Finansal ve kişisel hedefler koy, ilerlemeyi takip et"
+    },
+    {
+      "id": "tasks",
+      "title": "Görevler",
+      "subtitle": "İşlerini planla",
+      "description": "Günlük görevler oluştur, öncelik seviyelerini belirle"
+    },
+    {
+      "id": "habits",
+      "title": "Alışkanlıklar",
+      "subtitle": "Sağlıklı alışkanlıklar edin",
+      "description": "Günlük alışkanlıkları takip et, seriler topla ve rekorlarını kır"
+    },
+    {
+      "id": "focus",
+      "title": "Odak",
+      "subtitle": "Derin çalışma modu",
+      "description": "Pomodoro tekniği ile verimli çalış, odaklanmayı sürdür"
+    },
+    {
+      "id": "ai-analysis",
+      "title": "AI Analiz",
+      "subtitle": "Akıllı öneriler",
+      "description": "Yapay zeka harcamalarını analiz eder ve faydalı tavsiyeler sunar"
+    },
+    {
+      "id": "voice",
+      "title": "Sesli Komutlar",
+      "subtitle": "Sesinle kontrol et",
+      "description": "Sesinle harcama ekle, görev oluştur veya hatırlatıcı kur"
+    },
+    {
+      "id": "reminders",
+      "title": "Hatırlatıcılar",
+      "subtitle": "Hiçbir şey unutma",
+      "description": "Borç ödemeleri ve bütçe limitleri hakkında zamanında bildirim al"
+    },
+    {
+      "id": "predictions",
+      "title": "Tavsiyeler",
+      "subtitle": "Akıllı öneriler",
+      "description": "Yapay zeka ile kişisel finansal tavsiyeler al ve bütçeni optimize et"
     }
   ]
 }

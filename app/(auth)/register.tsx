@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -26,10 +26,8 @@ import {
   useFinancePreferencesStore,
   type FinanceCurrency,
 } from '@/stores/useFinancePreferencesStore';
-import { useSettingsStore, type SupportedLanguage } from '@/stores/useSettingsStore';
 import { useAppTheme, type Theme } from '@/constants/theme';
 import { useLocalization } from '@/localization/useLocalization';
-import { LanguageSelectorControl } from '@/components/screens/auth/LanguageSelectorControl';
 
 const CURRENCY_LABELS: Record<FinanceCurrency, string> = {
   UZS: 'Uzbekistani Som',
@@ -53,8 +51,6 @@ const RegisterScreen = () => {
   const { register, isLoading, error, clearError } = useAuthStore();
   const financeRegion = useFinancePreferencesStore((state) => state.region);
   const globalCurrency = useFinancePreferencesStore((state) => state.globalCurrency);
-  const selectedLanguage = useSettingsStore((state) => state.language as SupportedLanguage);
-  const setLanguagePreference = useSettingsStore((state) => state.setLanguage);
   const setLoggedIn = useLockStore((state) => state.setLoggedIn);
   const setLocked = useLockStore((state) => state.setLocked);
   const updateLastActive = useLockStore((state) => state.updateLastActive);
@@ -232,26 +228,10 @@ const RegisterScreen = () => {
     router.push('/(auth)/select-currency');
   }, []);
 
-  const handleSelectLanguage = useCallback(
-    (language: SupportedLanguage) => {
-      setLanguagePreference(language);
-      if (error) {
-        clearError();
-      }
-    },
-    [clearError, error, setLanguagePreference],
-  );
-
   return (
     <AuthScreenContainer>
       <GlassCard>
         <View style={styles.container}>
-          <LanguageSelectorControl
-            label={registerStrings.languageSelector.label}
-            helper={registerStrings.languageSelector.helper}
-            value={selectedLanguage}
-            onChange={handleSelectLanguage}
-          />
           <View style={styles.header}>
             <Text style={styles.title}>{registerStrings.title}</Text>
             <Text style={styles.description}>
@@ -370,7 +350,6 @@ const RegisterScreen = () => {
                       <View style={{ flex: 1 }}>
                         <Text style={styles.selectorLabel}>{registerStrings.selectors.regionLabel}</Text>
                         <Text style={styles.selectorValue}>{selectedRegionPreset.label}</Text>
-                        <Text style={styles.selectorSubValue}>{selectedRegionPreset.description}</Text>
                       </View>
                       <Feather name="chevron-right" size={18} color={theme.colors.textSecondary} />
                     </View>

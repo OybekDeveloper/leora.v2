@@ -19,6 +19,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { AdaptiveGlassView } from '@/components/ui/AdaptiveGlassView';
 import CounterpartyPicker from '@/components/shared/CounterpartyPicker';
+import { AddAccountCTA } from '@/components/shared/AddAccountCTA';
 import { formatNumberWithSpaces, parseSpacedNumber } from '@/utils/formatNumber';
 import { useAppTheme } from '@/constants/theme';
 import { useLocalization } from '@/localization/useLocalization';
@@ -577,27 +578,34 @@ export default function DebtModal() {
                   ? (debtStrings.lentFromAccount ?? 'Given from account')
                   : (debtStrings.receivedToAccount ?? 'Received to account')}
               </Text>
-              <View style={styles.accountListContainer}>
-                <FlashList
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  data={accounts}
-                  keyExtractor={(item: Account) => item.id}
-                  estimatedItemSize={140}
-                  renderItem={({ item: account }: { item: Account }) => {
-                    const active = account.id === selectedAccountId;
-                    return (
-                      <Pressable onPress={() => handleAccountSelect(account.id)} style={({ pressed }) => [styles.accountChip, active && styles.accountChipActive, pressed && styles.pressed]}>
-                        <Text style={[styles.accountChipLabel, { color: active ? '#0E0E0E' : '#FFFFFF' }]}>{account.name}</Text>
-                        <Text style={[styles.accountChipSubtext, { color: active ? '#0E0E0E' : '#9E9E9E' }]}>{account.currency}</Text>
-                      </Pressable>
-                    );
-                  }}
-                  ListHeaderComponent={<View style={styles.listEdgeSpacer} />}
-                  ItemSeparatorComponent={() => <View style={styles.horizontalSeparator} />}
-                  ListFooterComponent={<View style={styles.listEdgeSpacer} />}
+              {accounts.length === 0 ? (
+                <AddAccountCTA
+                  title={debtStrings.accountEmptyTitle ?? 'Add an account'}
+                  subtitle={debtStrings.accountEmptySubtitle ?? 'Accounts are required to create a debt'}
                 />
-              </View>
+              ) : (
+                <View style={styles.accountListContainer}>
+                  <FlashList
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    data={accounts}
+                    keyExtractor={(item: Account) => item.id}
+                    estimatedItemSize={140}
+                    renderItem={({ item: account }: { item: Account }) => {
+                      const active = account.id === selectedAccountId;
+                      return (
+                        <Pressable onPress={() => handleAccountSelect(account.id)} style={({ pressed }) => [styles.accountChip, active && styles.accountChipActive, pressed && styles.pressed]}>
+                          <Text style={[styles.accountChipLabel, { color: active ? '#0E0E0E' : '#FFFFFF' }]}>{account.name}</Text>
+                          <Text style={[styles.accountChipSubtext, { color: active ? '#0E0E0E' : '#9E9E9E' }]}>{account.currency}</Text>
+                        </Pressable>
+                      );
+                    }}
+                    ListHeaderComponent={<View style={styles.listEdgeSpacer} />}
+                    ItemSeparatorComponent={() => <View style={styles.horizontalSeparator} />}
+                    ListFooterComponent={<View style={styles.listEdgeSpacer} />}
+                  />
+                </View>
+              )}
             </View>
 
             <View style={styles.section}>

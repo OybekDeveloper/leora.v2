@@ -156,6 +156,59 @@ const convertBetweenCurrencies = (amount: number, fromCurrency: string, toCurren
   }
 };
 
+const getFxRateForPair = (fxRates: FxRate[], fromCurrency: string, toCurrency: string): number | null => {
+  if (!fromCurrency || !toCurrency) {
+    return null;
+  }
+  if (fromCurrency === toCurrency) {
+    return 1;
+  }
+  const normalizeRate = (rate: FxRate): number => {
+    const nominal = rate.nominal ?? 1;
+    if (!Number.isFinite(rate.rate) || nominal <= 0) {
+      return rate.rate ?? 1;
+    }
+    return rate.rate / nominal;
+  };
+  const direct = fxRates.find(
+    (rate) => rate.fromCurrency === fromCurrency && rate.toCurrency === toCurrency,
+  );
+  if (direct) {
+    return normalizeRate(direct);
+  }
+  const inverse = fxRates.find(
+    (rate) => rate.fromCurrency === toCurrency && rate.toCurrency === fromCurrency,
+  );
+  if (inverse) {
+    const normalizedInverse = normalizeRate(inverse);
+    if (normalizedInverse !== 0) {
+      return 1 / normalizedInverse;
+    }
+  }
+  return null;
+};
+
+const convertCurrency = (
+  amount: number,
+  fromCurrency: string,
+  toCurrency: string,
+  fxRates: FxRate[],
+): number => {
+  if (!Number.isFinite(amount)) {
+    return 0;
+  }
+  if (!fromCurrency || !toCurrency || fromCurrency === toCurrency) {
+    return amount;
+  }
+
+  const rate = getFxRateForPair(fxRates, fromCurrency, toCurrency);
+  if (rate !== null) {
+    return amount * rate;
+  }
+
+  return convertBetweenCurrencies(amount, fromCurrency, toCurrency);
+};
+
 const mapDebtAdjustmentFromTransaction = (
   transaction: Transaction,
   debts: Debt[],
@@ -474,9 +527,15 @@ const applyTransactionToAccounts = (
 const buildBudgetEntriesForTransaction = (
   transaction: Transaction,
   budgets: Budget[],
+  fxRates: FxRate[],
   timestamp: string,
 ): BudgetEntry[] => {
   if (transaction.type === 'transfer') {
+    return [];
+  }
+
+  // If user explicitly chose "No budget", skip all budget matching
+  if (transaction.skipBudgetMatching && !transaction.budgetId) {
     return [];
   }
 
@@ -498,35 +557,33 @@ const buildBudgetEntriesForTransaction = (
       if (isSpendingBudget && isIncomeTransaction) return false;
       if (!isSpendingBudget && !isIncomeTransaction) return false;
 
-      // 3. Match by category
+      // 3. Match by category (if budget tracks categories we require a match)
       const txnCategory = transaction.categoryId;
-      if (budget.categoryIds && budget.categoryIds.length > 0 && txnCategory) {
-        if (!budget.categoryIds.includes(txnCategory)) return false;
+      if (budget.categoryIds && budget.categoryIds.length > 0) {
+        if (!txnCategory || !budget.categoryIds.includes(txnCategory)) return false;
       }
 
       // 4. Match by period (if budget has period)
       if (budget.periodType !== 'none' && budget.startDate && budget.endDate) {
         const budgetStart = new Date(budget.startDate);
         const budgetEnd = new Date(budget.endDate);
+        // Set budgetEnd to end of day (23:59:59.999) for inclusive comparison
+        budgetEnd.setHours(23, 59, 59, 999);
         if (txnDate < budgetStart || txnDate > budgetEnd) return false;
-      }
-
-      // 5. Currency compatibility
-      if (transaction.currency && budget.currency !== transaction.currency) {
-        if (transaction.baseCurrency !== budget.currency) return false;
       }
 
       return true;
     })
     .map((budget) => {
-      const sameCurrency = budget.currency === transaction.currency;
-      const rate = sameCurrency ? 1 : transaction.rateUsedToBase ?? 1;
-      const convertedAmount = amount * rate;
+      const txnCurrency = transaction.currency ?? budget.currency;
+      const convertedAmount = convertCurrency(amount, txnCurrency, budget.currency, fxRates);
+      const roundedAmount = roundAmountForCurrency(convertedAmount, budget.currency);
+      const rate = amount > 0 ? roundedAmount / amount : 1;
       return {
         id: generateId('bentry'),
         budgetId: budget.id,
         transactionId: transaction.id,
-        appliedAmountBudgetCurrency: convertedAmount,
+        appliedAmountBudgetCurrency: roundedAmount,
         rateUsedTxnToBudget: rate,
         snapshottedAt: timestamp,
       } satisfies BudgetEntry;
@@ -537,31 +594,21 @@ const recalcBudgetsFromEntries = (budgets: Budget[], entries: BudgetEntry[], tim
   budgets.map((budget) => {
     const appliedEntries = entries.filter((entry) => entry.budgetId === budget.id);
     if (appliedEntries.length === 0) {
-      const baselineBalance =
-        budget.transactionType === 'income'
-          ? budget.limitAmount
-          : Math.max(0, budget.limitAmount);
       return {
         ...budget,
         spentAmount: 0,
         contributionTotal: 0,
-        currentBalance: baselineBalance,
-        remainingAmount: baselineBalance,
+        currentBalance: budget.limitAmount,
+        remainingAmount: budget.limitAmount,
         percentUsed: 0,
+        isOverspent: budget.limitAmount < 0,
         updatedAt: timestamp,
       };
     }
     const spentAmount = appliedEntries.reduce((sum, entry) => sum + entry.appliedAmountBudgetCurrency, 0);
-    const isIncomeBudget = budget.transactionType === 'income';
-    const remainingAmount = isIncomeBudget
-      ? budget.limitAmount + spentAmount
-      : Math.max(0, budget.limitAmount - spentAmount);
-    const percentUsed = budget.limitAmount > 0
-      ? isIncomeBudget
-        ? spentAmount / budget.limitAmount
-        : spentAmount / budget.limitAmount
-      : 0;
-    const currentBalance = isIncomeBudget ? remainingAmount : remainingAmount;
+    const remainingAmount = budget.limitAmount - spentAmount;
+    const percentUsed = budget.limitAmount > 0 ? spentAmount / budget.limitAmount : 0;
+    const currentBalance = remainingAmount;
     return {
       ...budget,
       spentAmount,
@@ -569,6 +616,7 @@ const recalcBudgetsFromEntries = (budgets: Budget[], entries: BudgetEntry[], tim
       percentUsed,
       contributionTotal: spentAmount,
       currentBalance,
+      isOverspent: remainingAmount < 0,
       updatedAt: timestamp,
     } satisfies Budget;
   });
@@ -596,22 +644,24 @@ const persistChangedBudgets = (updatedBudgets: Budget[], previousBudgets: Budget
   const { budgets: budgetDao } = getFinanceDaoRegistry();
   updatedBudgets.forEach((budget) => {
     const previous = previousBudgets.find((b) => b.id === budget.id);
-    // Only persist if values actually changed
-    if (
-      previous &&
-      (previous.spentAmount !== budget.spentAmount ||
-        previous.remainingAmount !== budget.remainingAmount ||
-        previous.percentUsed !== budget.percentUsed)
-    ) {
-      budgetDao.update(budget.id, {
-        spentAmount: budget.spentAmount,
-        remainingAmount: budget.remainingAmount,
-        percentUsed: budget.percentUsed,
-        contributionTotal: budget.contributionTotal,
-        currentBalance: budget.currentBalance,
-        updatedAt: budget.updatedAt,
-      });
+    const hasChanged =
+      !previous ||
+      previous.spentAmount !== budget.spentAmount ||
+      previous.remainingAmount !== budget.remainingAmount ||
+      previous.percentUsed !== budget.percentUsed ||
+      previous.isOverspent !== budget.isOverspent;
+    if (!hasChanged) {
+      return;
     }
+    budgetDao.update(budget.id, {
+      spentAmount: budget.spentAmount,
+      remainingAmount: budget.remainingAmount,
+      percentUsed: budget.percentUsed,
+      contributionTotal: budget.contributionTotal,
+      currentBalance: budget.currentBalance,
+      isOverspent: budget.isOverspent,
+      updatedAt: budget.updatedAt,
+    });
   });
 };
 
@@ -757,7 +807,7 @@ export const useFinanceDomainStore = create<FinanceDomainState>((set, get) => ({
           feeAmount: roundedFeeAmount,
         });
         const timestamp = created.updatedAt;
-        const newEntries = buildBudgetEntriesForTransaction(created, get().budgets, timestamp);
+        const newEntries = buildBudgetEntriesForTransaction(created, get().budgets, get().fxRates, timestamp);
         const persistedEntries = newEntries.map((entry) => budgetDao.recordEntry(entry));
         const nextAccountsSnapshot: Account[] = [];
         const nextBudgetsSnapshot: Budget[] = [];
@@ -856,7 +906,7 @@ export const useFinanceDomainStore = create<FinanceDomainState>((set, get) => ({
         removeFinanceContributionForTransaction(id);
         budgetDao.removeEntriesForTransaction(id);
         const timestamp = updated.updatedAt;
-        const newEntries = buildBudgetEntriesForTransaction(updated, get().budgets, timestamp);
+        const newEntries = buildBudgetEntriesForTransaction(updated, get().budgets, get().fxRates, timestamp);
         const persistedEntries = newEntries.map((entry) => budgetDao.recordEntry(entry));
         const nextAccountsSnapshot: Account[] = [];
         const nextBudgetsSnapshot: Budget[] = [];
@@ -1397,7 +1447,7 @@ export const useFinanceDomainStore = create<FinanceDomainState>((set, get) => ({
         txnDao.setShowStatus(snapshot.id, 'active');
 
         // Rebuild budget entries
-        const newEntries = buildBudgetEntriesForTransaction(snapshot, get().budgets, timestamp);
+        const newEntries = buildBudgetEntriesForTransaction(snapshot, get().budgets, get().fxRates, timestamp);
         const persistedEntries = newEntries.map((entry) => budgetDao.recordEntry(entry));
 
         const nextAccountsSnapshot: Account[] = [];

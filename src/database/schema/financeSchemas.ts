@@ -114,6 +114,7 @@ export const BudgetSchema: ObjectSchema = {
     percentUsed: { type: 'double', default: 0 },
     contributionTotal: { type: 'double', default: 0 },
     currentBalance: { type: 'double', default: 0 },
+    isOverspent: { type: 'bool', default: false },
     rolloverMode: 'string?',
     isArchived: { type: 'bool', default: false }, // DEPRECATED: Use showStatus
     showStatus: { type: 'string', default: 'active' },

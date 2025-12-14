@@ -7,7 +7,7 @@ import { getFinanceRegionPreset, useFinancePreferencesStore } from '@/stores/use
 import { useFinanceDomainStore } from './useFinanceDomainStore';
 import { usePlannerDomainStore } from './usePlannerDomainStore';
 import { useLockStore } from './useLockStore';
-import { evaluatePasswordRequirements, MIN_PASSWORD_LENGTH } from '@/utils/validation';
+import { MIN_PASSWORD_LENGTH } from '@/utils/validation';
 
 interface AuthStore {
   // State
@@ -454,24 +454,10 @@ export const useAuthStore = create<AuthStore>()(
         return emailRegex.test(email);
       },
 
-      // Password validation helper
+      // Password validation helper - only minimum length required
       validatePassword: (password: string) => {
-        const requirements = evaluatePasswordRequirements(password);
-
-        if (!requirements.minLength) {
+        if (password.length < MIN_PASSWORD_LENGTH) {
           return { valid: false, message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters long` };
-        }
-        if (!requirements.uppercase) {
-          return { valid: false, message: 'Password must contain at least one uppercase letter' };
-        }
-        if (!requirements.lowercase) {
-          return { valid: false, message: 'Password must contain at least one lowercase letter' };
-        }
-        if (!requirements.number) {
-          return { valid: false, message: 'Password must contain at least one number' };
-        }
-        if (!requirements.special) {
-          return { valid: false, message: 'Password must contain at least one special character' };
         }
 
         return { valid: true };

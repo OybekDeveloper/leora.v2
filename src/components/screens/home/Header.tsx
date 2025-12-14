@@ -227,11 +227,11 @@ export default function Header({
       </View>
 
       <View style={styles.actions}>
-        {onSearchPress ? (
+        {/* {onSearchPress ? (
           <TouchableOpacity style={styles.iconButton} onPress={onSearchPress}>
             <ListSearchIcon color={theme.colors.textSecondary} size={22} />
           </TouchableOpacity>
-        ) : null}
+        ) : null} */}
         <TouchableOpacity style={styles.iconButton} onPress={onNotificationPress}>
           <BellFilledIcon color={theme.colors.textSecondary} size={22} />
           {unreadCount > 0 && (

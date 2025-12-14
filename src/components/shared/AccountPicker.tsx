@@ -20,6 +20,7 @@ import { useAppTheme } from '@/constants/theme';
 import { useFinanceDomainStore } from '@/stores/useFinanceDomainStore';
 import type { Account } from '@/domain/finance/types';
 import { useShallow } from 'zustand/react/shallow';
+import { AddAccountCTA } from '@/components/shared/AddAccountCTA';
 
 interface AccountPickerProps {
   selectedAccountId?: string | null;
@@ -63,6 +64,18 @@ const AccountPicker: React.FC<AccountPickerProps> = ({
       accounts: state.accounts,
     }))
   );
+
+  if (!accounts.length) {
+    return (
+      <View style={styles.container}>
+        {label ? <Text style={styles.label}>{label}</Text> : null}
+        <AddAccountCTA
+          title="Add your first account"
+          subtitle="Create an account to start tracking"
+        />
+      </View>
+    );
+  }
 
   const [searchText, setSearchText] = useState('');
   const [isOpen, setIsOpen] = useState(false);

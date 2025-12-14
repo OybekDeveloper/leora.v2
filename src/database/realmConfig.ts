@@ -4,7 +4,7 @@ import { financeSchemas } from './schema/financeSchemas';
 import { plannerSchemas } from './schema/plannerSchemas';
 import { SeedService } from '@/services/SeedService';
 
-const schemaVersion = 21;
+const schemaVersion = 22;
 
 const ensureField = <T>(collection: Realm.Results<T>, field: keyof T, value: any) => {
   collection.forEach((item: any) => {
@@ -50,6 +50,7 @@ export const realmConfig: Realm.Configuration = {
     ensureField(budgets, 'notifyOnExceed', false);
     ensureField(budgets, 'contributionTotal', 0);
     ensureField(budgets, 'currentBalance', (item: any) => item.remainingAmount ?? item.limitAmount ?? 0);
+    ensureField(budgets, 'isOverspent', false);
 
     const budgetEntries = newRealm.objects<any>('BudgetEntry');
     ensureField(budgetEntries, 'syncStatus', 'local');

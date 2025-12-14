@@ -25,6 +25,7 @@ import { useAppTheme, type Theme } from '@/constants/theme';
 import { useLocalization } from '@/localization/useLocalization';
 import { useFinanceDomainStore } from '@/stores/useFinanceDomainStore';
 import { useFinancePreferencesStore } from '@/stores/useFinancePreferencesStore';
+import { AddAccountCTA } from '@/components/shared/AddAccountCTA';
 import { useSelectedDayStore } from '@/stores/selectedDayStore';
 import { addDays, addMonths, startOfMonth, startOfWeek } from '@/utils/calendar';
 import type { BudgetPeriodType } from '@/domain/finance/types';
@@ -264,12 +265,14 @@ export default function BudgetModal() {
     const startIso = startDateValue.toISOString();
     const endIso = endDateValue.toISOString();
     const account = selectedAccountId ? accountMap.get(selectedAccountId) : undefined;
+    const budgetCurrency = account?.currency ?? baseCurrency;
 
     if (editingBudget) {
       updateBudget(editingBudget.id, {
         name: formName.trim(),
         limitAmount: limitValue,
         accountId: selectedAccountId ?? undefined,
+        currency: budgetCurrency,
         transactionType: transactionType === 'income' ? 'income' : 'expense',
         categoryIds: ensuredCategories,
         notifyOnExceed: notifyEnabled,
@@ -286,7 +289,7 @@ export default function BudgetModal() {
         categoryIds: ensuredCategories,
         accountId: selectedAccountId ?? undefined,
         transactionType: transactionType === 'income' ? 'income' : 'expense',
-        currency: linkedGoal?.currency ?? account?.currency ?? baseCurrency,
+        currency: budgetCurrency,
         limitAmount: limitValue,
         periodType,
         startDate: startIso,
@@ -429,33 +432,40 @@ export default function BudgetModal() {
 
             <View style={styles.sectionFullWidth}>
               <Text style={[styles.label, styles.labelWithPadding, { color: theme.colors.textSecondary }]}>{strings.financeScreens.debts.modal.accountLabel}</Text>
-              <View style={styles.accountListContainer}>
-                <FlashList
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  data={accounts}
-                  keyExtractor={(item: Account) => item.id}
-                  estimatedItemSize={140}
-                  renderItem={({ item: account }: { item: Account }) => {
-                    const isSelected = account.id === selectedAccountId;
-                    return (
-                      <Pressable onPress={() => setSelectedAccountId(account.id)} style={({ pressed }) => [pressed && styles.pressed]}>
-                        <AdaptiveGlassView
-                          style={[styles.glassSurface, styles.accountChip, { opacity: isSelected ? 1 : 0.6 }]}
-                        >
-                          <Text style={[styles.accountChipLabel, { color: isSelected ? theme.colors.textPrimary : theme.colors.textMuted }]}>
-                            {account.name}
-                          </Text>
-                          <Text style={styles.accountChipSubtext}>{account.currency}</Text>
-                        </AdaptiveGlassView>
-                      </Pressable>
-                    );
-                  }}
-                  ListHeaderComponent={<View style={styles.listEdgeSpacer} />}
-                  ItemSeparatorComponent={() => <View style={styles.horizontalSeparator} />}
-                  ListFooterComponent={<View style={styles.listEdgeSpacer} />}
+              {accounts.length === 0 ? (
+                <AddAccountCTA
+                  title={strings.financeScreens.budgets.form.addAccountTitle ?? 'Add your first account'}
+                  subtitle={strings.financeScreens.budgets.form.addAccountSubtitle ?? 'Accounts are required for budgets'}
                 />
-              </View>
+              ) : (
+                <View style={styles.accountListContainer}>
+                  <FlashList
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    data={accounts}
+                    keyExtractor={(item: Account) => item.id}
+                    estimatedItemSize={140}
+                    renderItem={({ item: account }: { item: Account }) => {
+                      const isSelected = account.id === selectedAccountId;
+                      return (
+                        <Pressable onPress={() => setSelectedAccountId(account.id)} style={({ pressed }) => [pressed && styles.pressed]}>
+                          <AdaptiveGlassView
+                            style={[styles.glassSurface, styles.accountChip, { opacity: isSelected ? 1 : 0.6 }]}
+                          >
+                            <Text style={[styles.accountChipLabel, { color: isSelected ? theme.colors.textPrimary : theme.colors.textMuted }]}>
+                              {account.name}
+                            </Text>
+                            <Text style={styles.accountChipSubtext}>{account.currency}</Text>
+                          </AdaptiveGlassView>
+                        </Pressable>
+                      );
+                    }}
+                    ListHeaderComponent={<View style={styles.listEdgeSpacer} />}
+                    ItemSeparatorComponent={() => <View style={styles.horizontalSeparator} />}
+                    ListFooterComponent={<View style={styles.listEdgeSpacer} />}
+                  />
+                </View>
+              )}
             </View>
 
             {/* Period section - show for both budget types */}

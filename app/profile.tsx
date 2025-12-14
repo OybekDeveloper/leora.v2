@@ -19,7 +19,7 @@ import { LevelProgress } from '@/components/shared/LevelProgress';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { usePlannerDomainStore } from '@/stores/usePlannerDomainStore';
 import { useFinanceDomainStore } from '@/stores/useFinanceDomainStore';
-import { useRealm } from '@/utils/RealmContext';
+import { useOptionalRealm } from '@/hooks/useOptionalRealm';
 import { storage } from '@/utils/storage';
 import * as Updates from 'expo-updates';
 import { useLocalization } from '@/localization/useLocalization';
@@ -64,7 +64,7 @@ const ProfileScreen = () => {
   const tasks = usePlannerDomainStore((state) => state.tasks);
   const resetPlannerData = usePlannerDomainStore((state) => state.reset);
   const resetFinanceData = useFinanceDomainStore((state) => state.reset);
-  const realm = useRealm();
+  const realm = useOptionalRealm();
 
   const [formState, setFormState] = useState<{ visibility: VisibilityOption }>({
     visibility: (user?.visibility ?? 'friends') as VisibilityOption,
@@ -197,9 +197,11 @@ const ProfileScreen = () => {
     setConfirmAction(null);
 
     // 1. Clear Realm database - delete all objects
-    realm.write(() => {
-      realm.deleteAll();
-    });
+    if (realm) {
+      realm.write(() => {
+        realm.deleteAll();
+      });
+    }
 
     // 2. Clear AsyncStorage persisted data
     await storage.removeItem('planner-domain');

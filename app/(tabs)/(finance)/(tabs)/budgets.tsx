@@ -37,7 +37,7 @@ interface CategoryBudget {
   spent: number;
   limit: number;
   state: BudgetState;
-  currency: string;
+  currency: FinanceCurrency;
   originalCurrency?: FinanceCurrency;
   accountName: string;
   categories: string[];
@@ -195,7 +195,7 @@ interface CategoryBudgetCardProps {
   savedLabel: string;
   onManage?: (budgetId: string) => void;
   onOpen?: (budgetId: string) => void;
-  formatValue: (value: number) => string;
+  formatBudgetValue: (value: number) => string;
   theme: Theme;
   styles: ReturnType<typeof createStyles>;
 }
@@ -208,7 +208,7 @@ const CategoryBudgetCard: React.FC<CategoryBudgetCardProps> = ({
   savedLabel,
   onManage,
   onOpen,
-  formatValue,
+  formatBudgetValue,
   theme,
   styles,
 }) => {
@@ -262,20 +262,20 @@ const CategoryBudgetCard: React.FC<CategoryBudgetCardProps> = ({
 
           <View style={styles.categoryAmountsRow}>
             <Text style={styles.categoryAmount}>
-              {formatValue(category.spent)}
+              {formatBudgetValue(category.spent)}
             </Text>
             <Text style={styles.categoryAmount}>
-              / {formatValue(category.limit)}
+              / {formatBudgetValue(category.limit)}
             </Text>
           </View>
 
           <AnimatedProgressBar percentage={progress} appearance={appearance} styles={styles} />
           <Text style={styles.remainingLabel}>
             {category.budgetKind === 'saving'
-              ? `${savedLabel}: ${formatValue(category.spent)}`
+              ? `${savedLabel}: ${formatBudgetValue(category.spent)}`
               : appearance.label === labels.exceeding
-                ? `${labels.exceeding}: ${formatValue(category.spent - category.limit)}`
-                : `${labels.within}: ${formatValue(remainingAmount)}`}
+                ? `${labels.exceeding}: ${formatBudgetValue(category.spent - category.limit)}`
+                : `${labels.within}: ${formatBudgetValue(remainingAmount)}`}
           </Text>
         </AdaptiveGlassView>
       </Animated.View>
@@ -289,7 +289,12 @@ const BudgetsScreen: React.FC = () => {
   const { strings, locale } = useLocalization();
   const budgetsStrings = strings.financeScreens.budgets;
   const router = useRouter();
-  const { convertAmount, formatCurrency: formatFinanceCurrency, globalCurrency } = useFinanceCurrency();
+  const {
+    convertAmount,
+    formatCurrency: formatFinanceCurrency,
+    globalCurrency,
+    formatAccountAmount,
+  } = useFinanceCurrency();
 
   // Finance date store dan tanlangan sanani olish
   const selectedDate = useFinanceDateStore((state) => state.selectedDate);
@@ -389,8 +394,8 @@ const BudgetsScreen: React.FC = () => {
       const resolvedCurrency = normalizeFinanceCurrency(
         (budget.currency ?? account?.currency ?? baseCurrency) as FinanceCurrency,
       );
-      const spent = convertAmount(budget.spentAmount, resolvedCurrency, globalCurrency);
-      const limit = convertAmount(budget.limitAmount, resolvedCurrency, globalCurrency);
+      const spent = budget.spentAmount;
+      const limit = budget.limitAmount;
       const state = resolveBudgetState(limit, spent);
       return {
         id: budget.id,
@@ -399,7 +404,7 @@ const BudgetsScreen: React.FC = () => {
         spent,
         limit,
         state,
-        currency: globalCurrency,
+        currency: resolvedCurrency,
         originalCurrency: resolvedCurrency,
         accountName: account?.name ?? strings.financeScreens.accounts.header,
         categories: budget.categoryIds ?? [],
@@ -593,6 +598,9 @@ const BudgetsScreen: React.FC = () => {
                   handleToggleSelection(category.id);
                 };
 
+                const formatBudgetAmount = (value: number) =>
+                  formatAccountAmount(value, category.currency);
+
                 return (
                   <SelectableListItem
                     id={category.id}
@@ -611,7 +619,7 @@ const BudgetsScreen: React.FC = () => {
                       savedLabel={budgetsStrings.detail.savedLabel ?? 'Saved'}
                       onManage={isBudgetSelectionMode ? undefined : handleManageBudget}
                       onOpen={isBudgetSelectionMode ? undefined : handleOpenDetailBudget}
-                      formatValue={formatValue}
+                      formatBudgetValue={formatBudgetAmount}
                       theme={theme}
                       styles={styles}
                     />

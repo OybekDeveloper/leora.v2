@@ -10,11 +10,10 @@ import {
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Mail } from 'lucide-react-native';
-import { Input, Button, AuthScreenContainer, LanguageSelectorControl } from '@/components/screens/auth';
+import { Input, Button, AuthScreenContainer } from '@/components/screens/auth';
 import GlassCard from '@/components/shared/GlassCard';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useLocalization } from '@/localization/useLocalization';
-import { SupportedLanguage, useSettingsStore } from '@/stores/useSettingsStore';
 import { useAppTheme, type Theme } from '@/constants/theme';
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -26,8 +25,6 @@ const ForgotPasswordScreen = () => {
   const forgotStrings = strings.auth.forgot;
   const validationStrings = strings.auth.validation;
   const { sendPasswordResetCode, verifyPasswordResetOtp, isLoading, error, clearError } = useAuthStore();
-  const selectedLanguage = useSettingsStore((state) => state.language as SupportedLanguage);
-  const setLanguagePreference = useSettingsStore((state) => state.setLanguage);
 
   const [step, setStep] = useState<'email' | 'otp'>('email');
   const [email, setEmail] = useState('');
@@ -91,16 +88,6 @@ const ForgotPasswordScreen = () => {
     }
     return undefined;
   }, [step, timer]);
-
-  const handleSelectLanguage = useCallback(
-    (language: SupportedLanguage) => {
-      setLanguagePreference(language);
-      if (error) {
-        clearError();
-      }
-    },
-    [clearError, error, setLanguagePreference],
-  );
 
   const handleSendCode = async () => {
     clearError();
@@ -211,13 +198,6 @@ const ForgotPasswordScreen = () => {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <LanguageSelectorControl
-            label={forgotStrings.languageSelector.label}
-            helper={forgotStrings.languageSelector.helper}
-            value={selectedLanguage}
-            onChange={handleSelectLanguage}
-            containerStyle={{ marginBottom: 16 }}
-          />
           {step === 'email' ? (
             <>
               <View style={styles.header}>

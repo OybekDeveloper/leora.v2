@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import {
   Image,
   ImageBackground,
@@ -13,6 +13,8 @@ import { Sun, Moon } from 'lucide-react-native';
 
 import { useAppTheme, type Theme } from '@/constants/theme';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useSettingsStore, type SupportedLanguage } from '@/stores/useSettingsStore';
+import { CompactLanguageSelector } from '@/components/shared/CompactLanguageSelector';
 
 interface AuthScreenContainerProps {
   children: React.ReactNode;
@@ -36,8 +38,9 @@ const createStyles = (theme: Theme) =>
       justifyContent: 'flex-end',
       alignItems: 'center',
       paddingTop: 8,
-      paddingBottom: 4,
+      paddingBottom: 12,
       paddingHorizontal: 4,
+      gap: 8,
     },
     themeToggle: {
       width: 40,
@@ -103,6 +106,13 @@ export const AuthScreenContainer = ({ children }: AuthScreenContainerProps) => {
   const styles = useMemo(() => createStyles(appTheme), [appTheme]);
   const isDark = theme === 'dark';
 
+  const language = useSettingsStore((state) => state.language) as SupportedLanguage;
+  const setLanguage = useSettingsStore((state) => state.setLanguage);
+
+  const handleLanguageChange = useCallback((lang: SupportedLanguage) => {
+    setLanguage(lang);
+  }, [setLanguage]);
+
   return (
     <ImageBackground
       source={require('@assets/images/authBackground.png')}
@@ -110,8 +120,12 @@ export const AuthScreenContainer = ({ children }: AuthScreenContainerProps) => {
       resizeMode="cover"
     >
       <SafeAreaView style={styles.container} edges={['top']}>
-        {/* Header with Theme Toggle */}
+        {/* Header with Language Selector and Theme Toggle */}
         <View style={styles.header}>
+          <CompactLanguageSelector
+            value={language}
+            onChange={handleLanguageChange}
+          />
           <Pressable
             onPress={toggleTheme}
             style={({ pressed }) => [

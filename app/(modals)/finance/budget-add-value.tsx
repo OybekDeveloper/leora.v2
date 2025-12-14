@@ -4,6 +4,7 @@ import { FlashList as FlashListBase } from '@shopify/flash-list';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { AdaptiveGlassView } from '@/components/ui/AdaptiveGlassView';
+import { AddAccountCTA } from '@/components/shared/AddAccountCTA';
 import { useAppTheme } from '@/constants/theme';
 import { useLocalization } from '@/localization/useLocalization';
 import { useFinanceDomainStore } from '@/stores/useFinanceDomainStore';
@@ -11,6 +12,8 @@ import type { Account } from '@/domain/finance/types';
 import { useFinancePreferencesStore, type FinanceCurrency } from '@/stores/useFinancePreferencesStore';
 import { useShallow } from 'zustand/react/shallow';
 import { formatNumberWithSpaces, parseSpacedNumber } from '@/utils/formatNumber';
+import { FINANCE_CATEGORIES } from '@/constants/financeCategories';
+import { useLocalizedCategories } from '@/hooks/useLocalizedCategories';
 
 const FlashList = FlashListBase as any;
 type LocalParams = { budgetId?: string };
@@ -27,6 +30,7 @@ const BudgetAddValueModal = () => {
   const commonStrings = strings.common;
   const { budgetId } = useLocalSearchParams<LocalParams>();
   const normalizedBudgetId = Array.isArray(budgetId) ? budgetId[0] : budgetId ?? null;
+  const { getLocalizedCategoryName } = useLocalizedCategories();
 
   const { budgets, accounts, createTransaction } = useFinanceDomainStore(
     useShallow((state) => ({
@@ -54,14 +58,33 @@ const BudgetAddValueModal = () => {
   // Initialize transaction type based on budget type (will be set by useEffect)
   const [txnType, setTxnType] = useState<TxnType>('income');
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(accounts[0]?.id ?? null);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
-  // Set the correct transaction type when budget loads
+  // Get budget categories with details
+  const budgetCategories = useMemo(() => {
+    if (!budget?.categoryIds?.length) return [];
+    return budget.categoryIds.map((catName) => {
+      const found = FINANCE_CATEGORIES.find((c) => c.name === catName);
+      return {
+        name: catName,
+        localizedName: getLocalizedCategoryName(catName),
+        icon: found?.icon,
+        colorToken: found?.colorToken ?? 'textSecondary',
+      };
+    });
+  }, [budget?.categoryIds, getLocalizedCategoryName]);
+
+  // Set the correct transaction type and default category when budget loads
   useEffect(() => {
     if (budget) {
       // Spending budgets track expenses, saving budgets track income (contributions)
       setTxnType(budget.transactionType === 'income' ? 'income' : 'expense');
+      // Set first category as default
+      if (budget.categoryIds?.length && !selectedCategory) {
+        setSelectedCategory(budget.categoryIds[0]);
+      }
     }
-  }, [budget]);
+  }, [budget, selectedCategory]);
 
   const handleClose = useCallback(() => router.back(), [router]);
 
@@ -100,6 +123,7 @@ const BudgetAddValueModal = () => {
       rateUsedToBase: rateToBudget,
       convertedAmountToBase: convertedAmountToBudget,
       budgetId: budget.id,
+      categoryId: selectedCategory ?? budget.categoryIds?.[0],
       goalId: budget.linkedGoalId,
       description: detailStrings.actions?.addToBudget ?? 'Add to budget',
       date: nowIso,
@@ -118,6 +142,7 @@ const BudgetAddValueModal = () => {
     handleClose,
     isValid,
     selectedAccountId,
+    selectedCategory,
     txnType,
   ]);
 
@@ -164,45 +189,128 @@ const BudgetAddValueModal = () => {
 
           <View style={styles.sectionFullWidth}>
             <Text style={[styles.label, styles.labelWithPadding, { color: theme.colors.textSecondary }]}>{financeStrings.debts.modal.accountLabel}</Text>
-            <View style={styles.accountListContainer}>
-              <FlashList
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                data={accounts}
-                keyExtractor={(item: Account) => item.id}
-                estimatedItemSize={140}
-                renderItem={({ item: account }: { item: Account }) => {
-                  const active = account.id === selectedAccountId;
-                  return (
-                    <Pressable
-                      onPress={() => setSelectedAccountId(account.id)}
-                      style={({ pressed }) => [pressed && styles.pressed]}
-                    >
-                      <AdaptiveGlassView
-                        style={[
-                          styles.glassSurface,
-                          styles.accountChip,
-                          {
-                            opacity: active ? 1 : 0.6,
-                            borderColor: active ? theme.colors.primary : theme.colors.border,
-                            backgroundColor: theme.colors.card,
-                          },
-                        ]}
-                      >
-                        <Text style={[styles.accountChipLabel, { color: active ? theme.colors.textPrimary : theme.colors.textSecondary }]}>
-                          {account.name}
-                        </Text>
-                        <Text style={[styles.accountChipSubtext, { color: theme.colors.textMuted }]}>{account.currency}</Text>
-                      </AdaptiveGlassView>
-                    </Pressable>
-                  );
-                }}
-                ListHeaderComponent={<View style={styles.listEdgeSpacer} />}
-                ItemSeparatorComponent={() => <View style={styles.horizontalSeparator} />}
-                ListFooterComponent={<View style={styles.listEdgeSpacer} />}
+            {accounts.length === 0 ? (
+              <AddAccountCTA
+                title="Add an account"
+                subtitle="Accounts are required to log budget activity"
               />
-            </View>
+            ) : (
+              <View style={styles.accountListContainer}>
+                <FlashList
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  data={accounts}
+                  keyExtractor={(item: Account) => item.id}
+                  estimatedItemSize={140}
+                  renderItem={({ item: account }: { item: Account }) => {
+                    const active = account.id === selectedAccountId;
+                    return (
+                      <Pressable
+                        onPress={() => setSelectedAccountId(account.id)}
+                        style={({ pressed }) => [pressed && styles.pressed]}
+                      >
+                        <AdaptiveGlassView
+                          style={[
+                            styles.glassSurface,
+                            styles.accountChip,
+                            {
+                              opacity: active ? 1 : 0.6,
+                              borderColor: active ? theme.colors.primary : theme.colors.border,
+                              backgroundColor: theme.colors.card,
+                            },
+                          ]}
+                        >
+                          <Text style={[styles.accountChipLabel, { color: active ? theme.colors.textPrimary : theme.colors.textSecondary }]}>
+                            {account.name}
+                          </Text>
+                          <Text style={[styles.accountChipSubtext, { color: theme.colors.textMuted }]}>{account.currency}</Text>
+                        </AdaptiveGlassView>
+                      </Pressable>
+                    );
+                  }}
+                  ListHeaderComponent={<View style={styles.listEdgeSpacer} />}
+                  ItemSeparatorComponent={() => <View style={styles.horizontalSeparator} />}
+                  ListFooterComponent={<View style={styles.listEdgeSpacer} />}
+                />
+              </View>
+            )}
           </View>
+
+          {/* Category Selection */}
+          {budgetCategories.length > 1 && (
+            <View style={styles.sectionFullWidth}>
+              <Text style={[styles.label, styles.labelWithPadding, { color: theme.colors.textSecondary }]}>
+                {(financeStrings.budgets.form as any).categoryLabel ?? 'Category'}
+              </Text>
+              <View style={styles.categoryListContainer}>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.categoryScrollContent}
+                >
+                  {budgetCategories.map((cat) => {
+                    const active = selectedCategory === cat.name;
+                    const IconComponent = cat.icon;
+                    const iconColor = active
+                      ? theme.colors.textPrimary
+                      : (theme.colors[cat.colorToken] ?? theme.colors.textSecondary);
+                    return (
+                      <Pressable
+                        key={cat.name}
+                        onPress={() => setSelectedCategory(cat.name)}
+                        style={({ pressed }) => [pressed && styles.pressed]}
+                      >
+                        <View
+                          style={[
+                            styles.categoryChip,
+                            {
+                              backgroundColor: active
+                                ? `${theme.colors.primary}20`
+                                : theme.colors.card,
+                              borderColor: active ? theme.colors.primary : theme.colors.border,
+                            },
+                          ]}
+                        >
+                          {IconComponent && <IconComponent size={18} color={iconColor} />}
+                          <Text
+                            style={[
+                              styles.categoryChipText,
+                              { color: active ? theme.colors.textPrimary : theme.colors.textSecondary },
+                            ]}
+                          >
+                            {cat.localizedName}
+                          </Text>
+                        </View>
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            </View>
+          )}
+
+          {/* Show selected category if only one */}
+          {budgetCategories.length === 1 && (() => {
+            const SingleIcon = budgetCategories[0].icon;
+            return (
+              <View style={styles.section}>
+                <Text style={[styles.label, { color: theme.colors.textSecondary }]}>
+                  {(financeStrings.budgets.form as any).categoryLabel ?? 'Category'}
+                </Text>
+                <View style={[styles.singleCategoryDisplay, { backgroundColor: theme.colors.card }]}>
+                  {SingleIcon && (
+                    <SingleIcon
+                      size={20}
+                      color={theme.colors[budgetCategories[0].colorToken] ?? theme.colors.textSecondary}
+                    />
+                  )}
+                  <Text style={[styles.singleCategoryText, { color: theme.colors.textPrimary }]}>
+                    {budgetCategories[0].localizedName}
+                  </Text>
+                </View>
+              </View>
+            );
+          })()}
         </ScrollView>
       </KeyboardAvoidingView>
 
@@ -334,6 +442,38 @@ const styles = StyleSheet.create({
   accountChipSubtext: {
     fontSize: 12,
     marginTop: 2,
+  },
+  categoryListContainer: {
+    height: 50,
+  },
+  categoryScrollContent: {
+    paddingHorizontal: 20,
+    gap: 10,
+  },
+  categoryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  categoryChipText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  singleCategoryDisplay: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 12,
+  },
+  singleCategoryText: {
+    fontSize: 15,
+    fontWeight: '600',
   },
   actionButtons: {
     flexDirection: 'row',

@@ -34,11 +34,12 @@ const useStyles = createThemedStyles((theme) => ({
     paddingBottom: theme.spacing.xxxl * 2,
     gap: theme.spacing.lg,
   },
-  card: {
-    borderRadius: 16,
+  section: {
+    borderRadius: theme.radius.xxl,
     backgroundColor: theme.colors.card,
+    overflow: 'hidden',
   },
-  cardInner: {
+  sectionInner: {
     padding: theme.spacing.xxl,
     gap: theme.spacing.lg,
   },
@@ -138,6 +139,15 @@ const useStyles = createThemedStyles((theme) => ({
     alignItems: 'center',
     gap: theme.spacing.lg,
   },
+  tabButton: {
+    paddingVertical: theme.spacing.xs,
+    paddingHorizontal: theme.spacing.sm,
+    borderRadius: theme.radius.xxl,
+    backgroundColor: 'transparent',
+  },
+  tabButtonActive: {
+    backgroundColor: theme.colors.overlayStrong,
+  },
   tabText: {
     fontSize: 14,
     color: theme.colors.textSecondary,
@@ -157,7 +167,7 @@ const useStyles = createThemedStyles((theme) => ({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 12,
+    paddingVertical: 14,
   },
   catLeft: {
     flexDirection: 'row',
@@ -195,6 +205,35 @@ type AccProps = {
   children: React.ReactNode;
 };
 /** Measure‑based accordion with smooth height animation */
+const SectionCard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const styles = useStyles();
+  return (
+    <AdaptiveGlassView style={styles.section}>
+      <View style={styles.sectionInner}>{children}</View>
+    </AdaptiveGlassView>
+  );
+};
+
+const CategoryRow: React.FC<{ name: string; count: string; onPress?: () => void }> = ({ name, count, onPress }) => {
+  const styles = useStyles();
+  const theme = useAppTheme();
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [{ opacity: pressed ? 0.85 : 1 }, styles.catRow]}
+    >
+      <View style={styles.catLeft}>
+        <Image source={require('@assets/images/achievementItem.png')} style={{ width: 24, height: 24 }} />
+        <Text style={styles.catText}>{name}</Text>
+      </View>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+        <Text style={styles.catCount}>{count}</Text>
+        <ChevronRight size={16} color={theme.colors.icon} />
+      </View>
+    </Pressable>
+  );
+};
+
 const Accordion: React.FC<AccProps> = ({ title, defaultOpen = true, children }) => {
   const styles = useStyles();
   const theme = useAppTheme();
@@ -285,9 +324,9 @@ export default function Achievements() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scroll}
       >
-        <AdaptiveGlassView style={styles.card}>
+        <AdaptiveGlassView style={styles.section}>
           <Animated.View entering={FadeInDown.duration(400)}>
-            <View style={styles.cardInner}>
+            <View style={styles.sectionInner}>
               <Text style={styles.sectionTitle}>{copy.title}</Text>
               <HR />
 
@@ -313,8 +352,8 @@ export default function Achievements() {
         </AdaptiveGlassView>
 
         {/* ---------------------------- RECENTLY UNLOCKED --------------------------- */}
-        <AdaptiveGlassView style={styles.card}>
-          <View style={styles.cardInner}>
+        <SectionCard>
+          <View>
             <Accordion title={copy.recentlyUnlocked.title} defaultOpen>
               <HR />
               {copy.recentlyUnlocked.items.map((a, i) => (
@@ -330,11 +369,11 @@ export default function Achievements() {
               ))}
             </Accordion>
           </View>
-        </AdaptiveGlassView>
+        </SectionCard>
 
         {/* --------------------------- CLOSE TO UNLOCKING --------------------------- */}
-        <AdaptiveGlassView style={styles.card}>
-          <View style={styles.cardInner}>
+        <SectionCard>
+          <View>
             <Accordion title={copy.closeToUnlocking.title} defaultOpen>
               <HR />
               {copy.closeToUnlocking.items.map((a, i) => (
@@ -350,15 +389,14 @@ export default function Achievements() {
               ))}
             </Accordion>
           </View>
-        </AdaptiveGlassView>
+        </SectionCard>
 
         {/* -------------------------------- CATEGORIES ------------------------------ */}
-        <AdaptiveGlassView style={styles.card}>
-          <View style={styles.cardInner}>
+        <SectionCard>
+          <View>
             <Text style={styles.sectionTitle}>{copy.categories.title}</Text>
             <HR />
 
-            {/* Tabs */}
             <View style={[styles.tabsRow, { marginTop: 8 }]}>
               {copy.categories.tabs.map((tab) => {
                 const isActive = tab.key === activeTab;
@@ -366,23 +404,23 @@ export default function Achievements() {
                   <Pressable
                     key={tab.key}
                     onPress={() => setActiveTab(tab.key)}
-                    style={({ pressed }) => [{ opacity: pressed ? 0.8 : 1 }]}
+                    style={({ pressed }) => [
+                      { opacity: pressed ? 0.8 : 1 },
+                      styles.tabButton,
+                      isActive && styles.tabButtonActive,
+                    ]}
                   >
                     <View>
                       <Text style={[styles.tabText, isActive && styles.tabActive]}>{tab.label}</Text>
-                      {isActive ? (
-                        <View
-                          style={[
-                            styles.tabUnderline,
-                            {
-                              width: underlineWidth(tab.label),
-                              backgroundColor: theme.colors.textPrimary,
-                            },
-                          ]}
-                        />
-                      ) : (
-                        <View style={[styles.tabUnderline, { width: underlineWidth(tab.label), backgroundColor: 'transparent' }]} />
-                      )}
+                      <View
+                        style={[
+                          styles.tabUnderline,
+                          {
+                            width: underlineWidth(tab.label),
+                            backgroundColor: isActive ? theme.colors.primary : 'transparent',
+                          },
+                        ]}
+                      />
                     </View>
                   </Pressable>
                 );
@@ -391,19 +429,9 @@ export default function Achievements() {
 
             <HR />
 
-            {/* Category list (static like in mock) */}
             {copy.categories.list.map((c, i) => (
               <View key={c.name}>
-                <View style={styles.catRow}>
-                  <View style={styles.catLeft}>
-                    <Image source={require('@assets/images/achievementItem.png')} style={{ width: 24, height: 24 }} />
-                    <Text style={styles.catText}>{c.name}</Text>
-                  </View>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Text style={styles.catCount}>{c.count}</Text>
-                    <ChevronRight size={16} color={theme.colors.icon} />
-                  </View>
-                </View>
+                <CategoryRow name={c.name} count={c.count} />
                 {i < copy.categories.list.length - 1 ? <HR /> : null}
               </View>
             ))}
@@ -412,7 +440,7 @@ export default function Achievements() {
               <Text style={styles.showAll}>{copy.categories.showAll}</Text>
             </Pressable>
           </View>
-        </AdaptiveGlassView>
+        </SectionCard>
       </Animated.ScrollView>
     </SafeAreaView>
   );

@@ -60,10 +60,7 @@ export default function SelectRegionScreen() {
                 pressed && styles.pressed,
               ]}
             >
-              <View style={styles.regionInfo}>
-                <Text style={styles.regionTitle}>{preset.label}</Text>
-                <Text style={styles.regionDescription}>{preset.description}</Text>
-              </View>
+              <Text style={styles.regionTitle}>{preset.label}</Text>
               {isActive && (
                 <View style={styles.checkIcon}>
                   <Check size={18} color={theme.colors.primary} />
@@ -121,18 +118,10 @@ const createStyles = (theme: Theme) =>
       borderColor: theme.colors.primary,
       backgroundColor: `${theme.colors.primary}10`,
     },
-    regionInfo: {
-      flex: 1,
-      gap: 4,
-    },
     regionTitle: {
       fontSize: 16,
       fontWeight: '600',
       color: theme.colors.textPrimary,
-    },
-    regionDescription: {
-      fontSize: 13,
-      color: theme.colors.textSecondary,
     },
     checkIcon: {
       marginLeft: 12,

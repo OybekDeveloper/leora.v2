@@ -9,8 +9,9 @@
     "scheme": "leora",
     "userInterfaceStyle": "automatic",
     "splash": {
+      "image": "./assets/images/icon1.png",
       "backgroundColor": "#000000",
-      "resizeMode": "cover"
+      "resizeMode": "contain"
     },
     "ios": {
       "supportsTablet": true,
@@ -61,13 +62,6 @@
     "plugins": [
       "expo-router",
       "@bacons/apple-targets",
-      [
-        "expo-splash-screen",
-        {
-          "backgroundColor": "#000000",
-          "resizeMode": "cover"
-        }
-      ],
       [
         "expo-local-authentication",
         {
