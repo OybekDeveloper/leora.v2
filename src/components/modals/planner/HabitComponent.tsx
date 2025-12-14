@@ -1485,7 +1485,13 @@ const useStyles = createThemedStyles((theme) => ({
   },
   countingTypeButtonActive: {
     borderColor: theme.colors.primary,
-    backgroundColor: `${theme.colors.primary}15`,
+    borderWidth: 2,
+    backgroundColor: `${theme.colors.primary}20`,
+    shadowColor: theme.colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 4,
   },
   countingTypeLabel: {
     fontSize: 15,
@@ -1541,7 +1547,13 @@ const useStyles = createThemedStyles((theme) => ({
   },
   streakOptionActive: {
     borderColor: theme.colors.primary,
-    backgroundColor: `${theme.colors.primary}15`,
+    borderWidth: 2,
+    backgroundColor: `${theme.colors.primary}20`,
+    shadowColor: theme.colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 4,
   },
   streakOptionDays: {
     fontSize: 18,
@@ -1637,7 +1649,13 @@ const useStyles = createThemedStyles((theme) => ({
   },
   typeCardActive: {
     borderColor: theme.colors.primary,
-    backgroundColor: `${theme.colors.primary}15`,
+    borderWidth: 2,
+    backgroundColor: `${theme.colors.primary}20`,
+    shadowColor: theme.colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 4,
   },
   typeIconWrap: {
     width: 32,
@@ -1672,7 +1690,13 @@ const useStyles = createThemedStyles((theme) => ({
   },
   chipActive: {
     borderColor: theme.colors.primary,
-    backgroundColor: `${theme.colors.primary}15`,
+    borderWidth: 2,
+    backgroundColor: `${theme.colors.primary}20`,
+    shadowColor: theme.colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 4,
   },
   chipLabel: {
     fontSize: 14,
@@ -1784,6 +1808,12 @@ const useStyles = createThemedStyles((theme) => ({
   weekdayButtonActive: {
     backgroundColor: `${theme.colors.primary}20`,
     borderColor: theme.colors.primary,
+    borderWidth: 2,
+    shadowColor: theme.colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 4,
   },
   weekdayText: {
     fontSize: 12,

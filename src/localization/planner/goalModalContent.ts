@@ -69,6 +69,8 @@ export interface GoalModalContentLocalization {
     connectFinance: string;
     createBudgetForGoal: string;
     addContribution: string;
+    autoBudgetHint: string;
+    autoBudgetInfo: (amount: string, currency: string) => string;
   };
   goalTypes: {
     money: string;
@@ -186,6 +188,8 @@ const EN: GoalModalContentLocalization = {
     connectFinance: 'Connect finance',
     createBudgetForGoal: 'Create budget for this goal',
     addContribution: 'Add contribution',
+    autoBudgetHint: 'A budget will be automatically created for this goal',
+    autoBudgetInfo: (amount, currency) => `Budget limit: ${amount} ${currency}`,
   },
   goalTypes: {
     money: 'Money',
@@ -303,6 +307,8 @@ const RU: GoalModalContentLocalization = {
     connectFinance: 'Связать с финансами',
     createBudgetForGoal: 'Создать бюджет для этой цели',
     addContribution: 'Добавить вклад',
+    autoBudgetHint: 'Бюджет будет автоматически создан для этой цели',
+    autoBudgetInfo: (amount, currency) => `Лимит бюджета: ${amount} ${currency}`,
   },
   goalTypes: {
     money: 'Деньги',
@@ -420,6 +426,8 @@ const UZ: GoalModalContentLocalization = {
     connectFinance: "Moliyaga bog'lash",
     createBudgetForGoal: "Bu maqsad uchun byudjet yaratish",
     addContribution: "Hissa qo'shish",
+    autoBudgetHint: "Bu maqsad uchun byudjet avtomatik yaratiladi",
+    autoBudgetInfo: (amount, currency) => `Byudjet limiti: ${amount} ${currency}`,
   },
   goalTypes: {
     money: "Pul",
@@ -537,6 +545,8 @@ const AR: GoalModalContentLocalization = {
     connectFinance: 'ربط بالمالية',
     createBudgetForGoal: 'إنشاء ميزانية لهذا الهدف',
     addContribution: 'إضافة مساهمة',
+    autoBudgetHint: 'سيتم إنشاء ميزانية تلقائياً لهذا الهدف',
+    autoBudgetInfo: (amount, currency) => `حد الميزانية: ${amount} ${currency}`,
   },
   goalTypes: {
     money: 'المال',
@@ -654,6 +664,8 @@ const TR: GoalModalContentLocalization = {
     connectFinance: 'Finansa bağla',
     createBudgetForGoal: 'Bu hedef için bütçe oluştur',
     addContribution: 'Katkı ekle',
+    autoBudgetHint: 'Bu hedef için otomatik olarak bir bütçe oluşturulacak',
+    autoBudgetInfo: (amount, currency) => `Bütçe limiti: ${amount} ${currency}`,
   },
   goalTypes: {
     money: 'Para',

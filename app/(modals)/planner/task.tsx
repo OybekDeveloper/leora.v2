@@ -1120,8 +1120,8 @@ const useStyles = createThemedStyles((theme) => ({
   dateButtonInner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 14,
+    gap: 6,
+    paddingHorizontal: 10,
     paddingVertical: 12,
     borderRadius: 16,
     borderWidth: 1.5,
@@ -1129,15 +1129,23 @@ const useStyles = createThemedStyles((theme) => ({
   },
   dateButtonActive: {
     borderColor: theme.colors.primary,
-    backgroundColor: `${theme.colors.primary}15`,
+    borderWidth: 2,
+    backgroundColor: `${theme.colors.primary}20`,
+    shadowColor: theme.colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 4,
   },
   dateButtonText: {
-    fontSize: 14,
-    fontWeight: '400',
+    fontSize: 12,
+    fontWeight: '500',
     color: theme.colors.textSecondary,
+    flexShrink: 1,
   },
   dateButtonTextActive: {
     color: theme.colors.primary,
+    fontWeight: '600',
   },
   timeButtonInner: {
     flexDirection: 'row',
@@ -1314,15 +1322,22 @@ const useStyles = createThemedStyles((theme) => ({
   },
   goalChipActive: {
     borderColor: theme.colors.primary,
-    backgroundColor: `${theme.colors.primary}15`,
+    borderWidth: 2,
+    backgroundColor: `${theme.colors.primary}25`,
+    shadowColor: theme.colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 5,
   },
   goalChipLabel: {
     fontSize: 13,
     fontWeight: '600',
-    color: theme.colors.textMuted,
+    color: theme.colors.textSecondary,
   },
   goalChipLabelActive: {
     color: theme.colors.primary,
+    fontWeight: '700',
   },
   goalHelper: {
     marginTop: 6,
@@ -1417,7 +1432,13 @@ const useStyles = createThemedStyles((theme) => ({
   },
   financeLinkButtonActive: {
     borderColor: theme.colors.primary,
-    backgroundColor: `${theme.colors.primary}15`,
+    borderWidth: 2,
+    backgroundColor: `${theme.colors.primary}20`,
+    shadowColor: theme.colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 4,
   },
   financeLinkLabel: {
     fontSize: 13,

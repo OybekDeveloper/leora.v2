@@ -54,6 +54,7 @@ import {
 } from '@/stores/useFinancePreferencesStore';
 import { createThemedStyles, useAppTheme } from '@/constants/theme';
 import { AdaptiveGlassView } from '@/components/ui/AdaptiveGlassView';
+import { formatNumberWithSpaces, parseSpacedNumber } from '@/utils/formatNumber';
 
 // Wizard Step Definition
 type WizardStep = {
@@ -98,9 +99,13 @@ type MilestoneFormValue = {
 type DatePickerTarget = { type: 'start' } | { type: 'due' } | { type: 'milestone'; id: string };
 
 const parseNumericInput = (value: string) => {
-  const cleaned = value.replace(/[^0-9.]/g, '');
-  const num = parseFloat(cleaned);
-  return isNaN(num) ? 0 : num;
+  // Use parseSpacedNumber to handle formatted input with spaces
+  return parseSpacedNumber(value);
+};
+
+const formatNumericInput = (value: number): string => {
+  if (value === 0) return '';
+  return formatNumberWithSpaces(value);
 };
 
 const generateId = () => Math.random().toString(36).substring(2, 15);
@@ -173,10 +178,11 @@ export function GoalModalContent({ goalId }: Props) {
     })),
   );
 
-  const { budgets, debts, updateBudget, updateDebt } = useFinanceDomainStore(
+  const { budgets, debts, createBudget, updateBudget, updateDebt } = useFinanceDomainStore(
     useShallow((state) => ({
       budgets: state.budgets,
       debts: state.debts,
+      createBudget: state.createBudget,
       updateBudget: state.updateBudget,
       updateDebt: state.updateDebt,
     })),
@@ -410,10 +416,8 @@ export function GoalModalContent({ goalId }: Props) {
       }
 
       if (step === 4 && formData.goalType === 'financial') {
-        const requiresBudget = formData.financeMode !== 'debt_close';
-        if (requiresBudget && !formData.linkedBudgetId) {
-          newErrors.linkedBudgetId = t.validation.budgetRequired;
-        }
+        // Budget is auto-created for save/spend modes, so no validation needed
+        // Only debt_close mode requires user to select a debt
         if (formData.financeMode === 'debt_close' && !formData.linkedDebtId) {
           newErrors.linkedDebtId = t.validation.debtRequired;
         }
@@ -474,10 +478,43 @@ export function GoalModalContent({ goalId }: Props) {
     const previousGoal = goalId ? goals.find((item) => item.id === goalId) : undefined;
     const prevBudgetId = previousGoal?.linkedBudgetId ?? null;
     const prevDebtId = previousGoal?.linkedDebtId ?? null;
-    const selectedBudget = formData.linkedBudgetId
-      ? budgets.find((budget) => budget.id === formData.linkedBudgetId)
-      : undefined;
-    const enforcedCurrency = (selectedBudget?.currency ?? formData.currency ?? baseCurrency) as FinanceCurrency;
+
+    // Determine if we need to auto-create a budget for financial goals
+    const isFinancialGoal = formData.goalType === 'financial';
+    const needsBudget = isFinancialGoal && formData.financeMode !== 'debt_close';
+
+    let finalBudgetId = formData.linkedBudgetId;
+    const enforcedCurrency = (formData.currency ?? baseCurrency) as FinanceCurrency;
+
+    // Auto-create budget for financial goals (save/spend mode)
+    if (needsBudget && !finalBudgetId) {
+      const budgetLimit = Math.abs(formData.targetValue - formData.currentValue);
+      const newBudget = createBudget({
+        userId: 'current-user',
+        name: formData.title, // Use goal title as budget name
+        budgetType: 'project',
+        currency: enforcedCurrency,
+        limitAmount: budgetLimit,
+        periodType: formData.targetDate ? 'custom_range' : 'none',
+        startDate: formData.startDate?.toISOString() ?? new Date().toISOString(),
+        endDate: formData.targetDate?.toISOString(),
+        isOverspent: false,
+        isArchived: false,
+        transactionType: formData.financeMode === 'spend' ? 'expense' : 'expense', // Both save and spend track expenses
+      });
+      finalBudgetId = newBudget.id;
+    }
+
+    // Update existing budget limit if linked and it's a financial goal
+    if (needsBudget && finalBudgetId && prevBudgetId === finalBudgetId) {
+      const budgetLimit = Math.abs(formData.targetValue - formData.currentValue);
+      updateBudget(finalBudgetId, {
+        limitAmount: budgetLimit,
+        currency: enforcedCurrency,
+        startDate: formData.startDate?.toISOString(),
+        endDate: formData.targetDate?.toISOString(),
+      });
+    }
 
     let nextGoalId = goalId ?? undefined;
     if (goalId) {
@@ -500,7 +537,7 @@ export function GoalModalContent({ goalId }: Props) {
           targetPercent: m.percent,
           dueDate: m.dueDate?.toISOString(),
         })),
-        linkedBudgetId: formData.linkedBudgetId,
+        linkedBudgetId: finalBudgetId,
         linkedDebtId: formData.linkedDebtId,
       });
       nextGoalId = goalId;
@@ -526,7 +563,7 @@ export function GoalModalContent({ goalId }: Props) {
           targetPercent: m.percent,
           dueDate: m.dueDate?.toISOString(),
         })),
-        linkedBudgetId: formData.linkedBudgetId,
+        linkedBudgetId: finalBudgetId,
         linkedDebtId: formData.linkedDebtId,
       });
       nextGoalId = created.id;
@@ -540,7 +577,7 @@ export function GoalModalContent({ goalId }: Props) {
     setTimeout(() => {
       router.back();
     }, 100);
-  }, [baseCurrency, budgets, formData, goalId, goals, createGoal, updateGoal, router, syncFinanceLinks]);
+  }, [baseCurrency, budgets, formData, goalId, goals, createBudget, createGoal, updateBudget, updateGoal, router, syncFinanceLinks]);
 
   const handleDateChange = useCallback(
     (event: DateTimePickerEvent, selectedDate?: Date) => {
@@ -821,7 +858,7 @@ export function GoalModalContent({ goalId }: Props) {
                   <AdaptiveGlassView style={styles.glassInputContainer}>
                     <TextInput
                       style={styles.glassInput}
-                      value={formData.currentValue.toString()}
+                      value={formData.currentValue ? formatNumericInput(formData.currentValue) : ''}
                       onChangeText={(text) => updateField('currentValue', parseNumericInput(text))}
                       keyboardType="numeric"
                       placeholder="0"
@@ -834,10 +871,10 @@ export function GoalModalContent({ goalId }: Props) {
                   <AdaptiveGlassView style={[styles.glassInputContainer, errors.targetValue && styles.inputError]}>
                     <TextInput
                       style={styles.glassInput}
-                      value={formData.targetValue.toString()}
+                      value={formData.targetValue ? formatNumericInput(formData.targetValue) : ''}
                       onChangeText={(text) => updateField('targetValue', parseNumericInput(text))}
                       keyboardType="numeric"
-                      placeholder="5000"
+                      placeholder="5 000"
                       placeholderTextColor={styles.placeholder.color}
                     />
                   </AdaptiveGlassView>
@@ -899,7 +936,7 @@ export function GoalModalContent({ goalId }: Props) {
                   <AdaptiveGlassView style={styles.glassInputContainer}>
                     <TextInput
                       style={styles.glassInput}
-                      value={formData.currentValue.toString()}
+                      value={formData.currentValue ? formatNumericInput(formData.currentValue) : ''}
                       onChangeText={(text) => updateField('currentValue', parseNumericInput(text))}
                       keyboardType="numeric"
                       placeholder="0"
@@ -912,7 +949,7 @@ export function GoalModalContent({ goalId }: Props) {
                   <AdaptiveGlassView style={[styles.glassInputContainer, errors.targetValue && styles.inputError]}>
                     <TextInput
                       style={styles.glassInput}
-                      value={formData.targetValue.toString()}
+                      value={formData.targetValue ? formatNumericInput(formData.targetValue) : ''}
                       onChangeText={(text) => updateField('targetValue', parseNumericInput(text))}
                       keyboardType="numeric"
                       placeholder="100"
@@ -1046,57 +1083,15 @@ export function GoalModalContent({ goalId }: Props) {
           <>
             {isSaveMode && (
               <View style={styles.fieldContainer}>
-                <Text style={styles.fieldLabel}>{t.step4.linkSavingsBudget}</Text>
-                {activeBudgets.length > 0 ? (
-                  <>
-                    <View style={styles.listContainer}>
-                      <Pressable
-                        style={[styles.listItem, !formData.linkedBudgetId && styles.listItemSelected]}
-                        onPress={() => updateField('linkedBudgetId', undefined)}
-                      >
-                        {!formData.linkedBudgetId ? (
-                          <CircleDot size={20} color={styles.primaryColor.color} />
-                        ) : (
-                          <Circle size={20} color={styles.textSecondary.color} />
-                        )}
-                        <Text style={styles.listItemText}>{t.step4.noBudget}</Text>
-                      </Pressable>
-                      {activeBudgets.map((budget) => (
-                        <Pressable
-                          key={budget.id}
-                          style={[styles.listItem, formData.linkedBudgetId === budget.id && styles.listItemSelected]}
-                          onPress={() => updateField('linkedBudgetId', budget.id)}
-                        >
-                          {formData.linkedBudgetId === budget.id ? (
-                            <CircleDot size={20} color={styles.primaryColor.color} />
-                          ) : (
-                            <Circle size={20} color={styles.textSecondary.color} />
-                          )}
-                          <View style={styles.listItemContent}>
-                            <Text style={styles.listItemText}>{budget.name}</Text>
-                            <Text style={styles.listItemSubtext}>
-                              {budget.currency} {budget.spentAmount.toFixed(2)} / {budget.limitAmount.toFixed(2)}
-                            </Text>
-                          </View>
-                        </Pressable>
-                      ))}
-                    </View>
-                    <Pressable style={styles.addButton} onPress={handleCreateBudgetLink}>
-                      <PlusCircle size={20} color={styles.addButtonText.color} />
-                      <Text style={styles.addButtonText}>{t.step4.addBudget}</Text>
-                    </Pressable>
-                  </>
-                ) : (
-                  <>
-                    <SmartHint type="info" message={t.step4.noBudgetsHint} />
-                    <Pressable style={styles.addButton} onPress={handleCreateBudgetLink}>
-                      <PlusCircle size={20} color={styles.addButtonText.color} />
-                      <Text style={styles.addButtonText}>{t.step4.addBudget}</Text>
-                    </Pressable>
-                </>
-              )}
-              {errors.linkedBudgetId && <Text style={styles.errorText}>{errors.linkedBudgetId}</Text>}
-            </View>
+                <SmartHint type="success" message={t.step4.autoBudgetHint} />
+                <SmartHint
+                  type="info"
+                  message={t.step4.autoBudgetInfo(
+                    formatNumericInput(Math.abs(formData.targetValue - formData.currentValue)),
+                    formData.currency ?? baseCurrency
+                  )}
+                />
+              </View>
           )}
 
             {isDebtMode && (
@@ -1152,56 +1147,14 @@ export function GoalModalContent({ goalId }: Props) {
 
             {isSpendMode && (
               <View style={styles.fieldContainer}>
-                <Text style={styles.fieldLabel}>{t.step4.linkBudgetCategory}</Text>
-                {activeBudgets.length > 0 ? (
-                  <>
-                    <View style={styles.listContainer}>
-                      <Pressable
-                        style={[styles.listItem, !formData.linkedBudgetId && styles.listItemSelected]}
-                        onPress={() => updateField('linkedBudgetId', undefined)}
-                      >
-                        {!formData.linkedBudgetId ? (
-                          <CircleDot size={20} color={styles.primaryColor.color} />
-                        ) : (
-                          <Circle size={20} color={styles.textSecondary.color} />
-                        )}
-                        <Text style={styles.listItemText}>{t.step4.noBudget}</Text>
-                      </Pressable>
-                      {activeBudgets.map((budget) => (
-                        <Pressable
-                          key={budget.id}
-                          style={[styles.listItem, formData.linkedBudgetId === budget.id && styles.listItemSelected]}
-                          onPress={() => updateField('linkedBudgetId', budget.id)}
-                        >
-                          {formData.linkedBudgetId === budget.id ? (
-                            <CircleDot size={20} color={styles.primaryColor.color} />
-                          ) : (
-                            <Circle size={20} color={styles.textSecondary.color} />
-                          )}
-                          <View style={styles.listItemContent}>
-                            <Text style={styles.listItemText}>{budget.name}</Text>
-                            <Text style={styles.listItemSubtext}>
-                              {budget.currency} {budget.spentAmount.toFixed(2)} / {budget.limitAmount.toFixed(2)}
-                            </Text>
-                          </View>
-                        </Pressable>
-                      ))}
-                    </View>
-                    <Pressable style={styles.addButton} onPress={handleCreateBudgetLink}>
-                      <PlusCircle size={20} color={styles.addButtonText.color} />
-                      <Text style={styles.addButtonText}>{t.step4.addBudget}</Text>
-                    </Pressable>
-                  </>
-                ) : (
-                  <>
-                    <SmartHint type="info" message={t.step4.noBudgetsHint} />
-                    <Pressable style={styles.addButton} onPress={handleCreateBudgetLink}>
-                      <PlusCircle size={20} color={styles.addButtonText.color} />
-                      <Text style={styles.addButtonText}>{t.step4.addBudget}</Text>
-                    </Pressable>
-                  </>
-                )}
-                {errors.linkedBudgetId && <Text style={styles.errorText}>{errors.linkedBudgetId}</Text>}
+                <SmartHint type="success" message={t.step4.autoBudgetHint} />
+                <SmartHint
+                  type="info"
+                  message={t.step4.autoBudgetInfo(
+                    formatNumericInput(Math.abs(formData.targetValue - formData.currentValue)),
+                    formData.currency ?? baseCurrency
+                  )}
+                />
               </View>
             )}
           </>
@@ -1476,12 +1429,18 @@ const useStyles = createThemedStyles((theme) => ({
     paddingVertical: 10,
     borderRadius: 20,
     backgroundColor: theme.colors.card,
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: theme.colors.border,
   },
   chipSelected: {
     backgroundColor: theme.colors.primary,
     borderColor: theme.colors.primary,
+    // Add shadow for better visibility
+    shadowColor: theme.colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
   },
   chipIcon: {
     fontSize: 16,
@@ -1489,10 +1448,11 @@ const useStyles = createThemedStyles((theme) => ({
   chipLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: theme.colors.textPrimary,
+    color: theme.colors.textSecondary,
   },
   chipLabelSelected: {
     color: '#FFFFFF',
+    fontWeight: '700',
   },
   row: {
     flexDirection: 'row',
@@ -1569,12 +1529,18 @@ const useStyles = createThemedStyles((theme) => ({
     paddingHorizontal: 16,
     backgroundColor: theme.colors.card,
     borderRadius: 12,
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: theme.colors.border,
   },
   listItemSelected: {
     borderColor: theme.colors.primary,
-    backgroundColor: `${theme.colors.primary}10`,
+    backgroundColor: `${theme.colors.primary}15`,
+    // Add shadow for better visibility
+    shadowColor: theme.colors.primary,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 2,
   },
   listItemContent: {
     flex: 1,

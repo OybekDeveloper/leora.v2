@@ -19,40 +19,34 @@ export const StepIndicator: React.FC<StepIndicatorProps> = ({ currentStep, total
 
   return (
     <View style={styles.container}>
-      <View style={styles.dotsRow}>
-        {steps.map((step) => {
+      <View style={styles.stepsRow}>
+        {steps.map((step, index) => {
           const isActive = step.id === currentStep;
           const isCompleted = step.id < currentStep;
 
           return (
-            <View key={step.id} style={styles.dotWrapper}>
-              <View
-                style={[
-                  styles.dot,
-                  isActive && styles.dotActive,
-                  isCompleted && styles.dotCompleted,
-                ]}
-              >
-                {isCompleted && <Text style={styles.checkmark}>✓</Text>}
+            <React.Fragment key={step.id}>
+              {/* Step item - dot va label vertikal */}
+              <View style={styles.stepItem}>
+                <View
+                  style={[
+                    styles.dot,
+                    isActive && styles.dotActive,
+                    isCompleted && styles.dotCompleted,
+                  ]}
+                >
+                  {isCompleted && <Text style={styles.checkmark}>✓</Text>}
+                </View>
+                <Text style={[styles.stepLabel, isActive && styles.stepLabelActive]} numberOfLines={1}>
+                  {step.label}
+                </Text>
               </View>
-              {step.id < totalSteps && (
+
+              {/* Connector line between steps */}
+              {index < steps.length - 1 && (
                 <View style={[styles.connector, isCompleted && styles.connectorCompleted]} />
               )}
-            </View>
-          );
-        })}
-      </View>
-
-      <View style={styles.labelsRow}>
-        {steps.map((step) => {
-          const isActive = step.id === currentStep;
-
-          return (
-            <View key={step.id} style={styles.labelWrapper}>
-              <Text style={[styles.stepLabel, isActive && styles.stepLabelActive]}>
-                {step.label}
-              </Text>
-            </View>
+            </React.Fragment>
           );
         })}
       </View>
@@ -62,71 +56,60 @@ export const StepIndicator: React.FC<StepIndicatorProps> = ({ currentStep, total
 
 const useStyles = createThemedStyles((theme) => ({
   container: {
-    paddingVertical: 24,
-    paddingHorizontal: 32,
-    gap: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
     backgroundColor: theme.colors.background,
   },
-  dotsRow: {
+  stepsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    justifyContent: 'center',
   },
-  dotWrapper: {
-    flexDirection: 'row',
+  stepItem: {
     alignItems: 'center',
-    flex: 1,
+    gap: 6,
   },
   dot: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
     backgroundColor: theme.colors.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
   dotActive: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
     backgroundColor: theme.colors.primary,
-    borderWidth: 4,
+    borderWidth: 3,
     borderColor: theme.colors.primary + '30',
   },
   dotCompleted: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
     backgroundColor: theme.colors.success || theme.colors.primary,
   },
   checkmark: {
-    fontSize: 11,
+    fontSize: 9,
     color: '#FFFFFF',
     fontWeight: '700',
   },
   connector: {
-    flex: 1,
+    width: 40,
     height: 2,
     backgroundColor: theme.colors.border,
-    marginHorizontal: 12,
+    marginHorizontal: 8,
+    marginBottom: 22, // Align with dot, not label
   },
   connectorCompleted: {
     backgroundColor: theme.colors.success || theme.colors.primary,
   },
-  labelsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 0,
-  },
-  labelWrapper: {
-    alignItems: 'center',
-    flex: 1,
-  },
   stepLabel: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
     color: theme.colors.textSecondary,
     textAlign: 'center',
@@ -134,6 +117,5 @@ const useStyles = createThemedStyles((theme) => ({
   stepLabelActive: {
     color: theme.colors.textPrimary,
     fontWeight: '700',
-    fontSize: 15,
   },
 }));
